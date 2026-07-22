@@ -1,0 +1,650 @@
+<title>Desktop Buddy · Arquitectura</title>
+<style>
+  :root{
+    --bg:#EAEEEC; --bg-2:#F5F8F7; --bg-3:#FDFEFE;
+    --ink:#121A17; --ink-2:#47524D; --ink-3:#78837E;
+    --line:#D2DAD6;
+    --glow:#0B7A5A; --glow-2:#0A6B4F; --glow-soft:#DBEFE8;
+    --think:#B45322; --think-soft:#F5E1D4;
+    --oled-bg:#05070A; --oled-px:#35E3B0;
+    --mono:ui-monospace,"SF Mono","JetBrains Mono","Cascadia Code",Menlo,Consolas,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    --maxw:1060px;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --bg:#0A0E11; --bg-2:#121A1E; --bg-3:#19222A;
+      --ink:#E7EEEA; --ink-2:#9BA8A3; --ink-3:#66756F;
+      --line:#212B30;
+      --glow:#34DBAA; --glow-2:#5BE7BE; --glow-soft:#0E2A24;
+      --think:#F79A5F; --think-soft:#2B2015;
+    }
+  }
+  :root[data-theme="light"]{
+    --bg:#EAEEEC; --bg-2:#F5F8F7; --bg-3:#FDFEFE;
+    --ink:#121A17; --ink-2:#47524D; --ink-3:#78837E; --line:#D2DAD6;
+    --glow:#0B7A5A; --glow-2:#0A6B4F; --glow-soft:#DBEFE8;
+    --think:#B45322; --think-soft:#F5E1D4;
+  }
+  :root[data-theme="dark"]{
+    --bg:#0A0E11; --bg-2:#121A1E; --bg-3:#19222A;
+    --ink:#E7EEEA; --ink-2:#9BA8A3; --ink-3:#66756F; --line:#212B30;
+    --glow:#34DBAA; --glow-2:#5BE7BE; --glow-soft:#0E2A24;
+    --think:#F79A5F; --think-soft:#2B2015;
+  }
+
+  *{box-sizing:border-box}
+  body,.page{margin:0}
+  .page{
+    background:var(--bg); color:var(--ink);
+    font-family:var(--sans); line-height:1.7;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:var(--maxw); margin:0 auto; padding:0 clamp(1.1rem,4vw,2.2rem)}
+
+  .mono{font-family:var(--mono)}
+  .eyebrow{
+    font-family:var(--mono); font-size:.74rem; letter-spacing:.18em;
+    text-transform:uppercase; color:var(--glow); font-weight:600;
+    display:flex; align-items:center; gap:.6rem;
+  }
+  .eyebrow::before{content:""; width:26px; height:1px; background:var(--glow); opacity:.6}
+  h1,h2,h3{text-wrap:balance; line-height:1.15; font-weight:700}
+  h2{font-size:clamp(1.5rem,3.6vw,2.25rem); margin:.4rem 0 0}
+  h3{font-size:1.12rem; margin:0}
+  p{color:var(--ink-2)}
+  a{color:var(--glow)}
+
+  /* top bar */
+  .bar{
+    position:sticky; top:0; z-index:20;
+    background:color-mix(in srgb,var(--bg) 86%,transparent);
+    backdrop-filter:blur(10px); border-bottom:1px solid var(--line);
+  }
+  .bar .wrap{display:flex; align-items:center; justify-content:space-between; height:52px}
+  .brand{font-family:var(--mono); font-weight:600; font-size:.95rem; letter-spacing:-.01em}
+  .brand b{color:var(--glow)}
+  .toggle{
+    font-family:var(--mono); font-size:.72rem; letter-spacing:.08em; text-transform:uppercase;
+    background:var(--bg-2); color:var(--ink-2); border:1px solid var(--line);
+    padding:.42rem .7rem; border-radius:8px; cursor:pointer;
+  }
+  .toggle:hover{border-color:var(--glow); color:var(--glow)}
+
+  section{padding:clamp(3rem,7vw,5.5rem) 0; border-top:1px solid var(--line)}
+  section:first-of-type{border-top:0}
+  .lede{font-size:1.06rem; max-width:60ch; margin:1rem 0 0}
+
+  /* hero */
+  .hero{position:relative; overflow:hidden}
+  .hero::before{
+    content:""; position:absolute; inset:0; pointer-events:none; opacity:.5;
+    background:
+      linear-gradient(var(--line) 1px,transparent 1px) 0 0/100% 34px,
+      linear-gradient(90deg,var(--line) 1px,transparent 1px) 0 0/34px 100%;
+    -webkit-mask-image:radial-gradient(120% 90% at 70% 0%,#000,transparent 70%);
+    mask-image:radial-gradient(120% 90% at 70% 0%,#000,transparent 70%);
+  }
+  .hero .wrap{position:relative; display:grid; gap:clamp(2rem,5vw,3.5rem);
+    grid-template-columns:1fr; align-items:center; padding-top:clamp(2.5rem,6vw,4rem);
+    padding-bottom:clamp(2.5rem,6vw,4rem)}
+  @media (min-width:820px){.hero .wrap{grid-template-columns:1.1fr .9fr}}
+  .wordmark{font-family:var(--mono); font-weight:700; letter-spacing:-.02em;
+    font-size:clamp(2.1rem,6.4vw,3.7rem); line-height:1.02; margin:.7rem 0 0}
+  .wordmark .cursor{color:var(--glow); animation:blink 1.1s steps(1) infinite}
+  @keyframes blink{50%{opacity:0}}
+  .hero p.lede{color:var(--ink-2)}
+
+  .chips{display:flex; flex-wrap:wrap; gap:.55rem; margin-top:1.6rem}
+  .chip{font-family:var(--mono); font-size:.76rem; letter-spacing:.02em;
+    background:var(--bg-2); border:1px solid var(--line); color:var(--ink-2);
+    padding:.44rem .72rem; border-radius:999px; display:inline-flex; gap:.5rem; align-items:center}
+  .chip b{color:var(--glow); font-weight:600}
+  .chip.warm b{color:var(--think)}
+
+  /* device / oled */
+  .device{justify-self:center; width:min(360px,86vw)}
+  .bezel{
+    position:relative; background:linear-gradient(160deg,#20272b,#0c1013);
+    border-radius:22px; padding:20px; box-shadow:0 22px 50px -24px #000, inset 0 1px 0 #ffffff14;
+    border:1px solid #000;
+  }
+  .ear{position:absolute; top:-19px; width:0; height:0; border-left:26px solid transparent;
+    border-right:26px solid transparent; border-bottom:30px solid #171d21}
+  .ear.l{left:38px; transform:rotate(-12deg)} .ear.r{right:38px; transform:rotate(12deg)}
+  .screen{display:block; width:100%; height:auto; border-radius:10px; background:var(--oled-bg);
+    image-rendering:pixelated}
+  .device .cap{font-family:var(--mono); font-size:.72rem; color:var(--ink-3);
+    text-align:center; margin-top:.8rem; letter-spacing:.04em}
+
+  .facebtns{display:flex; flex-wrap:wrap; gap:.4rem; margin-top:.9rem; justify-content:center}
+  .fb{font-family:var(--mono); font-size:.73rem; padding:.34rem .6rem; border-radius:7px;
+    border:1px solid var(--line); background:var(--bg-2); color:var(--ink-2); cursor:pointer}
+  .fb:hover,.fb:focus-visible{border-color:var(--glow); color:var(--glow); outline:none}
+
+  /* generic grid of cards */
+  .grid{display:grid; gap:1rem; margin-top:2rem}
+  .g4{grid-template-columns:repeat(auto-fit,minmax(215px,1fr))}
+  .g3{grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+  .g2{grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+  .card{background:var(--bg-2); border:1px solid var(--line); border-radius:14px;
+    padding:1.15rem 1.15rem 1.25rem}
+  .card .tag{font-family:var(--mono); font-size:.7rem; letter-spacing:.1em; text-transform:uppercase;
+    color:var(--glow)}
+  .card h3{margin:.5rem 0 .35rem}
+  .card p{font-size:.92rem; margin:0}
+  .card .ex{font-family:var(--mono); font-size:.76rem; color:var(--ink-3); margin-top:.7rem;
+    display:block; border-top:1px dashed var(--line); padding-top:.6rem}
+  .card.warm .tag{color:var(--think)}
+
+  code,.k{font-family:var(--mono); font-size:.86em; background:var(--glow-soft);
+    color:var(--glow-2); padding:.08em .38em; border-radius:5px}
+  .k.warm{background:var(--think-soft); color:var(--think)}
+
+  /* flow / la caricia */
+  .demo{display:grid; gap:2rem; margin-top:2rem}
+  @media (min-width:860px){.demo{grid-template-columns:1fr 320px; align-items:start}}
+  .flow{position:relative; padding-left:38px}
+  .flow .rail{position:absolute; left:14px; top:8px; bottom:8px; width:2px; background:var(--line)}
+  .flow .fill{position:absolute; left:14px; top:8px; width:2px; height:0; background:var(--glow);
+    box-shadow:0 0 10px var(--glow); transition:height .34s ease}
+  .node{position:relative; margin:0 0 .85rem; padding:.7rem .95rem; border-radius:11px;
+    background:var(--bg-2); border:1px solid var(--line); transition:.28s}
+  .node .dot{position:absolute; left:-31px; top:50%; transform:translateY(-50%);
+    width:12px; height:12px; border-radius:50%; background:var(--bg-3); border:2px solid var(--line);
+    transition:.28s}
+  .node .lab{font-family:var(--mono); font-size:.74rem; letter-spacing:.03em; color:var(--ink-3);
+    text-transform:uppercase}
+  .node .val{font-size:.94rem; color:var(--ink); margin-top:.12rem}
+  .node .val .k{font-size:.82rem}
+  .node.active{border-color:var(--glow); background:var(--bg-3); box-shadow:0 0 0 1px var(--glow)}
+  .node.active .dot{background:var(--glow); border-color:var(--glow); box-shadow:0 0 12px var(--glow)}
+  .node.cloud.active{border-color:var(--think); box-shadow:0 0 0 1px var(--think)}
+  .node.cloud.active .dot{background:var(--think); border-color:var(--think); box-shadow:0 0 12px var(--think)}
+  .node.cloud .lab{color:var(--think)}
+
+  .demo-side{background:var(--bg-2); border:1px solid var(--line); border-radius:16px; padding:1.1rem;
+    position:sticky; top:70px}
+  .demo-side .screen{width:100%}
+  .runbtn{width:100%; margin-top:1rem; font-family:var(--mono); font-weight:600; font-size:.92rem;
+    letter-spacing:.02em; padding:.8rem 1rem; border-radius:11px; cursor:pointer;
+    background:var(--glow); color:var(--bg); border:0}
+  .runbtn:disabled{opacity:.5; cursor:progress}
+  .runbtn:hover:not(:disabled){filter:brightness(1.07)}
+  .legend{display:flex; gap:1.1rem; margin-top:.9rem; font-family:var(--mono); font-size:.72rem;
+    color:var(--ink-3); flex-wrap:wrap}
+  .legend span{display:inline-flex; align-items:center; gap:.4rem}
+  .legend i{width:10px; height:10px; border-radius:3px; display:inline-block}
+  .legend .loc{background:var(--glow)} .legend .cld{background:var(--think)}
+
+  /* brain tabs */
+  .tabs{display:flex; gap:.5rem; flex-wrap:wrap; margin-top:1.8rem}
+  .tab{font-family:var(--mono); font-size:.82rem; padding:.55rem .9rem; border-radius:9px;
+    border:1px solid var(--line); background:var(--bg-2); color:var(--ink-2); cursor:pointer}
+  .tab[aria-selected="true"]{border-color:var(--glow); color:var(--glow); background:var(--bg-3)}
+  .contract{display:grid; gap:1rem; margin-top:1.3rem}
+  @media (min-width:760px){.contract{grid-template-columns:1fr 1fr}}
+  .io{background:var(--bg-2); border:1px solid var(--line); border-radius:14px; overflow:hidden}
+  .io .hd{font-family:var(--mono); font-size:.72rem; letter-spacing:.1em; text-transform:uppercase;
+    padding:.6rem .9rem; border-bottom:1px solid var(--line); color:var(--ink-3)}
+  .io pre{margin:0; padding:.9rem; font-family:var(--mono); font-size:.82rem; line-height:1.55;
+    overflow-x:auto; color:var(--ink)}
+  .io pre .kk{color:var(--glow)} .io pre .cc{color:var(--think)} .io pre .mut{color:var(--ink-3)}
+  .backend{margin-top:1.2rem; background:var(--bg-2); border:1px solid var(--line);
+    border-left:3px solid var(--glow); border-radius:0 14px 14px 0; padding:1.05rem 1.2rem}
+  .backend.warm{border-left-color:var(--think)}
+  .backend h3{font-family:var(--mono); font-size:.95rem}
+  .backend p{margin:.4rem 0 0; font-size:.93rem}
+
+  /* stack */
+  .stack{display:flex; flex-direction:column; gap:.7rem; margin-top:2rem}
+  .layer{display:grid; grid-template-columns:1fr; gap:.2rem; border-radius:13px; padding:1.05rem 1.2rem;
+    border:1px solid var(--line)}
+  @media(min-width:640px){.layer{grid-template-columns:1fr auto; align-items:center}}
+  .layer .who{font-family:var(--mono); font-size:.72rem; letter-spacing:.06em; text-transform:uppercase;
+    color:var(--ink-3); text-align:left}
+  @media(min-width:640px){.layer .who{text-align:right}}
+  .layer h3{font-size:1.02rem} .layer p{margin:.15rem 0 0; font-size:.9rem}
+  .layer.l1{background:var(--glow-soft); border-color:transparent}
+  .layer.l1 h3{color:var(--glow-2)}
+  .layer.l2{background:var(--bg-2)}
+  .layer.l3{background:var(--bg-3)}
+  .hw{margin-top:.7rem; text-align:center; font-family:var(--mono); font-size:.76rem;
+    color:var(--ink-3); border:1px dashed var(--line); border-radius:11px; padding:.7rem}
+
+  .foot{padding:2.5rem 0 3.5rem; color:var(--ink-3); font-family:var(--mono); font-size:.8rem}
+  .foot .wrap{display:flex; justify-content:space-between; gap:1rem; flex-wrap:wrap}
+
+  @media (prefers-reduced-motion:reduce){
+    *{animation-duration:.001ms!important; transition-duration:.001ms!important}
+    .wordmark .cursor{animation:none}
+  }
+</style>
+
+<div class="page">
+  <div class="bar">
+    <div class="wrap">
+      <div class="brand">&gt; desktop<b>_</b>buddy</div>
+      <button class="toggle" id="themeBtn" aria-label="Cambiar tema">tema</button>
+    </div>
+  </div>
+
+  <!-- HERO -->
+  <header class="hero">
+    <div class="wrap">
+      <div>
+        <div class="eyebrow">Arquitectura del firmware</div>
+        <h1 class="wordmark">Un bicho de<br>escritorio<span class="cursor">▊</span></h1>
+        <p class="lede">Desktop Buddy es un compañero de escritorio abierto sobre ESP32. Tiene
+          cara, hace ruiditos, reacciona a las caricias y conversa gracias a un modelo de
+          lenguaje. Por dentro es un <b>núcleo estable en C++</b> que casi nadie toca, y una
+          <b>capa de comportamiento hecha de datos</b> que todos editan. Esta es su anatomía.</p>
+        <div class="chips">
+          <span class="chip"><b>›</b> Primero el dispositivo</span>
+          <span class="chip"><b>›</b> Nunca se apaga del todo</span>
+          <span class="chip"><b>›</b> El comportamiento es data</span>
+          <span class="chip warm"><b>›</b> Extensible por diseño</span>
+        </div>
+      </div>
+      <div class="device">
+        <div class="bezel">
+          <span class="ear l"></span><span class="ear r"></span>
+          <canvas class="screen" id="heroFace" width="768" height="384"
+            role="img" aria-label="La cara del buddy: dos ojos que parpadean y cambian de emoción"></canvas>
+        </div>
+        <div class="cap">SSD1306 · 128×64 · ojos paramétricos en vivo</div>
+        <div class="facebtns" id="faceBtns" role="group" aria-label="Emociones"></div>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- BUS -->
+    <section id="bus">
+      <div class="wrap">
+        <div class="eyebrow">La espina dorsal</div>
+        <h2>Todo es un evento en el bus</h2>
+        <p class="lede">Ningún componente llama a otro directamente. Un sentido <em>publica</em> un
+          evento; quien quiera reaccionar se <em>suscribe</em>. Un solo hilo reparte los eventos,
+          así que los manejadores nunca pelean por candados. Este desacople es lo que permite
+          agregar un sensor nuevo sin tocar nada de lo existente.</p>
+        <div class="grid g2">
+          <div class="card">
+            <span class="tag">Nomenclatura</span>
+            <h3>Eventos y acciones tienen forma fija</h3>
+            <p>Los eventos se nombran <code>sentido.qué</code> y las acciones
+              <code>objetivo.verbo()</code>. El prefijo dice quién lo emite.</p>
+            <span class="ex">touch.pet · nfc.tag · timer.idle_5m<br>face.emotion() · sound.chirp() · led.mood()</span>
+          </div>
+          <div class="card">
+            <span class="tag">Suscripción con comodín</span>
+            <h3>Escuchá uno o una familia entera</h3>
+            <p>Un reflejo puede escuchar <code>touch.pet</code> exacto, toda la familia
+              <code>touch.*</code>, o absolutamente todo con <code>*</code> (así funciona el
+              tracer de depuración).</p>
+            <span class="ex">bus.subscribe("touch.*", fn)</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PRIMITIVOS -->
+    <section id="primitivos">
+      <div class="wrap">
+        <div class="eyebrow">El vocabulario del framework</div>
+        <h2>Cuatro primitivos, y nada más</h2>
+        <p class="lede">Toda funcionalidad tiene que presentarse como uno de estos cuatro. Es la
+          regla que mantiene el proyecto entendible mientras crece con muchas manos.</p>
+        <div class="grid g4">
+          <div class="card">
+            <span class="tag">Entrada</span><h3>Sentidos</h3>
+            <p>Convierten el mundo en eventos: tacto, NFC, micrófono, sensores, temporizadores.</p>
+            <span class="ex">→ touch.pet<br>→ nfc.tag</span>
+          </div>
+          <div class="card">
+            <span class="tag">Salida</span><h3>Expresiones</h3>
+            <p>Consumen acciones: la cara en pantalla, sonidos, LED de humor, y luego motores.</p>
+            <span class="ex">face.emotion()<br>led.mood()</span>
+          </div>
+          <div class="card">
+            <span class="tag">Lógica local</span><h3>Reflejos</h3>
+            <p>Scripts en Berry: evento → acción, con recarga en caliente. Acá vive el 90% del
+              hackeo. Funcionan sin red.</p>
+            <span class="ex">buddy.on("touch.pet", …)</span>
+          </div>
+          <div class="card warm">
+            <span class="tag">Vía LLM · v2+</span><h3>Habilidades</h3>
+            <p>Capacidades que el cerebro expone como herramientas: recordatorios, calendario.
+              Las construye la comunidad.</p>
+            <span class="ex">skill: set_reminder()</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CARICIA -->
+    <section id="caricia">
+      <div class="wrap">
+        <div class="eyebrow">Todo junto, en movimiento</div>
+        <h2>El viaje de una caricia</h2>
+        <p class="lede">Acariciá a Buddy y seguí el evento mientras baja por el bus: de tu dedo,
+          al sentido, al reflejo, al cerebro en la nube, y de vuelta a la cara. En
+          <span class="k">verde</span> lo que vive en el dispositivo; en
+          <span class="k warm">naranja</span> lo que ocurre en la nube.</p>
+        <div class="demo">
+          <div class="flow" id="flow">
+            <div class="rail"></div><div class="fill" id="flowFill"></div>
+            <div class="node" data-k="loc"><span class="dot"></span>
+              <div class="lab">Tu dedo</div><div class="val">Tocás el pad capacitivo</div></div>
+            <div class="node" data-k="loc"><span class="dot"></span>
+              <div class="lab">Sentido · touch_sense</div><div class="val">Mide su propia capacitancia y publica <span class="k">touch.pet</span></div></div>
+            <div class="node" data-k="loc"><span class="dot"></span>
+              <div class="lab">Bus</div><div class="val">El evento se reparte a los suscriptores</div></div>
+            <div class="node" data-k="loc"><span class="dot"></span>
+              <div class="lab">Reflejo · main.be</div><div class="val">El script decide reaccionar y pide <span class="k">brain.ask</span></div></div>
+            <div class="node cloud" data-k="cld"><span class="dot"></span>
+              <div class="lab">Brain · nube</div><div class="val">El adaptador llama a Claude Haiku sobre TLS y piensa una respuesta</div></div>
+            <div class="node" data-k="loc"><span class="dot"></span>
+              <div class="lab">Bus · brain.reply</div><div class="val"><span class="k">{ "emotion":"happy", "utterance":"…" }</span></div></div>
+            <div class="node" data-k="loc"><span class="dot"></span>
+              <div class="lab">Expresiones</div><div class="val">Los ojos se ponen felices, el LED respira, aparecen las palabras</div></div>
+          </div>
+          <div class="demo-side">
+            <div class="bezel" style="padding:14px">
+              <canvas class="screen" id="demoFace" width="600" height="300"
+                role="img" aria-label="La cara de Buddy reaccionando a la caricia"></canvas>
+            </div>
+            <button class="runbtn" id="runBtn">Acariciar a Buddy ♥</button>
+            <div class="legend">
+              <span><i class="loc"></i> dispositivo</span>
+              <span><i class="cld"></i> nube</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- BRAIN -->
+    <section id="brain">
+      <div class="wrap">
+        <div class="eyebrow">La pieza que hace pensar</div>
+        <h2>El contrato del Brain</h2>
+        <p class="lede">El dispositivo nunca le habla a “OpenAI” ni a “Anthropic” ni a “el hub”.
+          Le habla a <b>un Brain</b>: una interfaz con un contrato fijo. Lo que hay detrás del
+          contrato se puede cambiar sin que el resto del firmware se entere.</p>
+
+        <div class="contract">
+          <div class="io">
+            <div class="hd">Entra ▸ del dispositivo</div>
+            <pre><span class="mut">{</span>
+  <span class="kk">"event"</span>: <span class="mut">"touch.pet",</span>
+  <span class="kk">"personality"</span>: <span class="mut">"…",</span>
+  <span class="kk">"sensors"</span>: <span class="mut">{ luz, temp, … },</span>
+  <span class="kk">"user_input"</span>: <span class="mut">"…"</span>
+<span class="mut">}</span></pre>
+          </div>
+          <div class="io">
+            <div class="hd">Sale ◂ hacia el dispositivo</div>
+            <pre><span class="mut">{</span>
+  <span class="cc">"utterance"</span>: <span class="mut">"¡me encanta!",</span>
+  <span class="cc">"emotion"</span>: <span class="mut">"happy",</span>
+  <span class="cc">"actions"</span>: <span class="mut">[ … ]</span>
+<span class="mut">}</span></pre>
+          </div>
+        </div>
+
+        <div class="tabs" id="brainTabs" role="tablist">
+          <button class="tab" role="tab" aria-selected="true" data-b="nube">Nube (hoy)</button>
+          <button class="tab" role="tab" aria-selected="false" data-b="hub">Hub (opcional)</button>
+          <button class="tab" role="tab" aria-selected="false" data-b="off">Sin cerebro</button>
+        </div>
+        <div class="backend" id="backend">
+          <h3></h3><p></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- STACK -->
+    <section id="stack">
+      <div class="wrap">
+        <div class="eyebrow">Quién toca qué</div>
+        <h2>La pila, separada por manos</h2>
+        <p class="lede">El proyecto se divide por <b>quién lo edita</b>, no por tecnología. Esa es
+          la clave para construir entre muchos sin pisarse: el marco es estable, la diversión es
+          data.</p>
+        <div class="stack">
+          <div class="layer l1">
+            <div>
+              <h3>Packs de personalidad</h3>
+              <p>Prompt, caras, sonidos y reflejos. Se editan desde la web y se recargan en
+                caliente. Se comparten como cartuchos. <b>Nunca se recompila.</b></p>
+            </div>
+            <div class="who">todos · data</div>
+          </div>
+          <div class="layer l2">
+            <div>
+              <h3>Berry · reflejos</h3>
+              <p>La máquina virtual de scripting. Evento → acción, subido y recargado desde la
+                interfaz web sin reflashear.</p>
+            </div>
+            <div class="who">hackers · script</div>
+          </div>
+          <div class="layer l3">
+            <div>
+              <h3>Núcleo C++ · ESP-IDF</h3>
+              <p>Pantalla, audio, red, el bus de eventos, el servidor web y los adaptadores de
+                Brain. El “framework” propiamente dicho.</p>
+            </div>
+            <div class="who">raramente · firmware</div>
+          </div>
+        </div>
+        <div class="hw">▁▁▁ hardware · ESP32-S3 (16 MB flash / 8 MB PSRAM) ▁▁▁</div>
+      </div>
+    </section>
+
+    <!-- BUDDY ZERO -->
+    <section id="zero">
+      <div class="wrap">
+        <div class="eyebrow">La prueba de concepto</div>
+        <h2>Buddy Zero: el marco, hoy, en un protoboard</h2>
+        <p class="lede">Todo lo anterior ya corre sobre un ESP32 DevKit V1 con piezas sueltas.
+          Cada componente es un módulo independiente que habla por el bus. Cuando lleguen las
+          placas S3, el bus, Berry, el Brain y la web se mudan intactos; solo cambian los drivers.</p>
+        <div class="grid g3">
+          <div class="card"><span class="tag">Núcleo</span><h3>bus</h3>
+            <p>El bus de eventos. Compila y pasa sus tests en la laptop, sin hardware.</p></div>
+          <div class="card"><span class="tag">Sentidos</span><h3>touch · rc522</h3>
+            <p>Un cable pelado como pad de caricias; el lector RFID emite <span class="k">nfc.tag</span>.</p></div>
+          <div class="card"><span class="tag">Expresiones</span><h3>oled · led</h3>
+            <p>Ojos paramétricos con emociones y texto; el LED respira según el humor.</p></div>
+          <div class="card warm"><span class="tag">Brain</span><h3>brain_cloud</h3>
+            <p>Adaptador a Claude sobre TLS, con la conexión reutilizada entre pedidos.</p></div>
+          <div class="card"><span class="tag">Web</span><h3>webui</h3>
+            <p>WiFi, editor de reflejos y recarga en caliente servidos por el propio dispositivo.</p></div>
+          <div class="card"><span class="tag">Scripting</span><h3>berry_host</h3>
+            <p>La VM de Berry, la API <span class="k">buddy.*</span> y el reparto de eventos.</p></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <div class="wrap">
+      <span>desktop_buddy · documento vivo del HackLab</span>
+      <span>hecho para hackearse ✎</span>
+    </div>
+  </footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // theme toggle
+  var tb = document.getElementById("themeBtn");
+  tb.addEventListener("click", function(){
+    var cur = document.documentElement.getAttribute("data-theme");
+    if(!cur){ cur = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"; }
+    document.documentElement.setAttribute("data-theme", cur === "dark" ? "light" : "dark");
+  });
+
+  // ---- BuddyFace: port of oled_face.cpp to canvas ----
+  var EM = {
+    neutral:{w:26,h:30,open:100,lift:0,brow:0,blink:3800},
+    happy:{w:26,h:30,open:100,lift:14,brow:0,blink:3000},
+    curious:{w:30,h:34,open:100,lift:0,brow:0,blink:2600},
+    sleepy:{w:26,h:30,open:35,lift:0,brow:0,blink:6000},
+    surprised:{w:34,h:40,open:100,lift:0,brow:0,blink:5000},
+    angry:{w:28,h:28,open:100,lift:0,brow:1,blink:3200},
+    sad:{w:24,h:26,open:75,lift:0,brow:-1,blink:5200},
+    suspicious:{w:26,h:30,open:55,lift:0,brow:1,blink:2200}
+  };
+  var OLED_BG = "#05070A", OLED_PX = "#35E3B0";
+
+  function BuddyFace(canvas){
+    this.c = canvas; this.ctx = canvas.getContext("2d");
+    this.S = canvas.width / 128;
+    this.emo = "neutral"; this.gaze = 0; this.openPct = 100;
+    this.sayText = null; this.sayUntil = 0;
+    this.nextBlink = performance.now()+1400; this.nextSacc = performance.now()+1200;
+    this.ctx.setTransform(this.S,0,0,this.S,0,0);
+    var self = this; requestAnimationFrame(function(t){ self.loop(t); });
+  }
+  BuddyFace.prototype.setEmotion = function(n){ if(EM[n]) this.emo = n; };
+  BuddyFace.prototype.say = function(txt, ms){
+    this.sayText = txt.toUpperCase(); this.sayUntil = performance.now() + (ms||2200);
+  };
+  BuddyFace.prototype.eye = function(cx, side){
+    var ctx = this.ctx, e = EM[this.emo];
+    var open = e.h*(e.open/100)*(this.openPct/100);
+    if(open < 3) open = 3;
+    var w = e.w, x0 = cx - w/2 + this.gaze, top = 32 - open/2;
+    ctx.shadowColor = OLED_PX; ctx.shadowBlur = 2.5; ctx.fillStyle = OLED_PX;
+    ctx.beginPath(); ctx.roundRect(x0, top, w, open, 6); ctx.fill();
+    ctx.shadowBlur = 0; ctx.fillStyle = OLED_BG;
+    if(e.lift > 0){ ctx.fillRect(x0-1, top+open-e.lift, w+2, e.lift+2); }
+    if(e.brow !== 0){
+      var depth = open/3;
+      var innerIsLeft = (side === 1);
+      var deepIsInner = e.brow > 0;
+      var deepLeft = deepIsInner ? innerIsLeft : !innerIsLeft;
+      var Ay = deepLeft ? top+depth : top;   // left endpoint
+      var By = deepLeft ? top : top+depth;   // right endpoint
+      ctx.beginPath();
+      ctx.moveTo(x0-2, top-4); ctx.lineTo(x0+w+2, top-4);
+      ctx.lineTo(x0+w+2, By); ctx.lineTo(x0-2, Ay); ctx.closePath(); ctx.fill();
+    }
+  };
+  BuddyFace.prototype.drawText = function(){
+    var ctx = this.ctx;
+    ctx.fillStyle = OLED_BG; ctx.fillRect(0,0,128,64);
+    ctx.fillStyle = OLED_PX; ctx.shadowColor = OLED_PX; ctx.shadowBlur = 2;
+    ctx.font = "700 12px ui-monospace, monospace"; ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    var words = this.sayText.split(" "), lines = [], cur = "";
+    for(var i=0;i<words.length;i++){
+      var t = cur ? cur+" "+words[i] : words[i];
+      if(t.length > 12){ if(cur) lines.push(cur); cur = words[i]; } else cur = t;
+    }
+    if(cur) lines.push(cur);
+    var y = 32 - (lines.length-1)*8;
+    for(var j=0;j<lines.length;j++){ ctx.fillText(lines[j], 64, y); y += 16; }
+    ctx.shadowBlur = 0;
+  };
+  BuddyFace.prototype.render = function(){
+    var ctx = this.ctx;
+    ctx.fillStyle = OLED_BG; ctx.fillRect(0,0,128,64);
+    this.eye(34, 0); this.eye(94, 1);
+  };
+  BuddyFace.prototype.loop = function(t){
+    var self = this;
+    if(this.sayText && t < this.sayUntil){ this.drawText(); }
+    else {
+      this.sayText = null;
+      if(!reduce){
+        if(t >= this.nextBlink){
+          this.openPct = 12; this.render();
+          setTimeout(function(){ self.openPct = 100; self.render(); }, 80);
+          this.nextBlink = t + EM[this.emo].blink/2 + Math.random()*EM[this.emo].blink;
+        }
+        if(t >= this.nextSacc){
+          this.gaze = Math.round(Math.random()*12 - 6);
+          this.nextSacc = t + 800 + Math.random()*2500;
+        }
+      }
+      this.render();
+    }
+    requestAnimationFrame(function(tt){ self.loop(tt); });
+  };
+
+  var hero = new BuddyFace(document.getElementById("heroFace"));
+  var demo = new BuddyFace(document.getElementById("demoFace"));
+
+  // emotion buttons
+  var btns = document.getElementById("faceBtns");
+  var names = {neutral:"neutral",happy:"feliz",curious:"curioso",sleepy:"dormido",
+    surprised:"sorpresa",angry:"enojado",sad:"triste",suspicious:"receloso"};
+  Object.keys(names).forEach(function(k){
+    var b = document.createElement("button"); b.className = "fb"; b.textContent = names[k];
+    b.setAttribute("aria-label","Emoción "+names[k]);
+    b.addEventListener("click", function(){ hero.setEmotion(k); });
+    btns.appendChild(b);
+  });
+
+  // ---- caricia flow ----
+  var nodes = Array.prototype.slice.call(document.querySelectorAll("#flow .node"));
+  var fill = document.getElementById("flowFill");
+  var runBtn = document.getElementById("runBtn");
+  var flow = document.getElementById("flow");
+  var phrases = ["¡me encanta!","¡otra vez!","¡el mejor humano!","¡qué rico!","¡mimos!"];
+  var sleep = function(ms){ return new Promise(function(r){ setTimeout(r, reduce?ms*0.25:ms); }); };
+
+  runBtn.addEventListener("click", function(){ run(); });
+  async function run(){
+    runBtn.disabled = true;
+    nodes.forEach(function(n){ n.classList.remove("active"); });
+    fill.style.height = "0px";
+    demo.setEmotion("neutral"); demo.sayText = null;
+    await sleep(120);
+    for(var i=0;i<nodes.length;i++){
+      var n = nodes[i];
+      if(i>0) nodes[i-1].classList.remove("active");
+      n.classList.add("active");
+      var top = n.offsetTop + n.offsetHeight/2 - 8;
+      fill.style.height = top + "px";
+      if(n.classList.contains("cloud")){ demo.setEmotion("curious"); await sleep(1100); }
+      else await sleep(430);
+    }
+    nodes[nodes.length-1].classList.remove("active");
+    demo.setEmotion("happy");
+    demo.say(phrases[Math.floor(Math.random()*phrases.length)], 3200);
+    await sleep(400);
+    runBtn.disabled = false;
+  }
+
+  // ---- brain tabs ----
+  var backends = {
+    nube:{warm:false, h:"Adaptador en el dispositivo → Claude",
+      p:"Un adaptador liviano en C++ arma el pedido y llama al proveedor por TLS. Solo hace falta WiFi y una API key. Es lo que corre hoy en Buddy Zero."},
+    hub:{warm:false, h:"El mismo contrato, servido por un hub",
+      p:"Un servidor compañero (una Pi o una laptop) implementa el mismo contrato. Recién ahí aparecen webhooks entrantes, integraciones con OAuth y memoria de largo plazo — cosas imposibles en el ESP32 solo. Es opcional."},
+    off:{warm:true, h:"Sin cerebro: solo reflejos",
+      p:"Sin red o sin API key, los reflejos locales siguen corriendo. El buddy sigue vivo — reacciona a las caricias, parpadea, hace ruiditos — solo que no conversa. Nunca se convierte en un ladrillo."}
+  };
+  var backEl = document.getElementById("backend");
+  var tabs = Array.prototype.slice.call(document.querySelectorAll("#brainTabs .tab"));
+  function selBackend(key){
+    var b = backends[key];
+    backEl.classList.toggle("warm", b.warm);
+    backEl.querySelector("h3").textContent = b.h;
+    backEl.querySelector("p").textContent = b.p;
+    tabs.forEach(function(t){ t.setAttribute("aria-selected", t.dataset.b===key ? "true":"false"); });
+  }
+  tabs.forEach(function(t){ t.addEventListener("click", function(){ selBackend(t.dataset.b); }); });
+  selBackend("nube");
+
+  // gentle intro on the hero face
+  setTimeout(function(){ hero.setEmotion("happy"); setTimeout(function(){ hero.setEmotion("neutral"); }, 1600); }, 900);
+})();
+</script>

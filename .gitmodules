@@ -1,0 +1,3 @@
+[submodule "firmware/components/berry_host/berry"]
+	path = firmware/components/berry_host/berry
+	url = https://github.com/berry-lang/berry
