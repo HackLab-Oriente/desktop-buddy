@@ -5,10 +5,13 @@
 
 namespace buddy {
 
-// Proto-face on an SSD1306-class 128×64 I2C OLED (GME12864 et al).
-// Two parametric eyes: blink loop, saccades, emotion states.
-// Consumes: face.emotion (payload: neutral|happy|curious|sleepy|surprised)
-void oled_face_start(int gpio_sda, int gpio_scl);
+// The face — parametric eyes with blink, saccades, emotions and a text mode.
+// The active display backend (SSD1306 OLED or GC9A01 round color) is chosen
+// in menuconfig; each backend reads its own pins from Kconfig. Both share the
+// emotion model in face_model.h.
+// Consumes: face.emotion (neutral|happy|curious|sleepy|surprised|angry|sad|suspicious)
+//           face.say     (short text shown on screen)
+void face_start();
 
 // Mood LED via PWM breathing (onboard LED or external + resistor).
 // Consumes: led.mood (payload: calm|excited|thinking|off)

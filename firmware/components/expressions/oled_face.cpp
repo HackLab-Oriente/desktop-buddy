@@ -1,11 +1,13 @@
-// Buddy Zero's face: two parametric eyes on an SSD1306 128×64 OLED.
-// PoC of the *expression model* (emotions → eye parameters, blink timing,
-// saccades, brow slants) plus a retro text mode so the buddy's words show
-// on screen ("face.say"). The model ports to LVGL/GC9A01 for v1.
+// SSD1306 128×64 I2C OLED face backend (GME12864 et al) — the Buddy Zero PoC
+// display. Renders the shared parametric eye model (face_model.h) in
+// monochrome. Compiled only when this backend is selected in menuconfig.
+#include "sdkconfig.h"
+#if CONFIG_BUDDY_DISPLAY_SSD1306
+
 #include "bus.h"
 #include "expressions.h"
+#include "face_model.h"
 
-#include <cctype>
 #include <cstring>
 #include <mutex>
 #include <string>
@@ -32,8 +34,8 @@ void cmd(uint8_t c) {
 }
 
 void flush() {
-  cmd(0x21); cmd(0); cmd(W - 1);   // column range
-  cmd(0x22); cmd(0); cmd(7);       // page range
+  cmd(0x21); cmd(0); cmd(W - 1);
+  cmd(0x22); cmd(0); cmd(7);
   static uint8_t out[1 + sizeof fb];
   out[0] = 0x40;
   memcpy(out + 1, fb, sizeof fb);
@@ -51,28 +53,6 @@ void fill_rect(int x, int y, int w, int h) {
     for (int i = x; i < x + w; i++) px_on(i, j);
 }
 
-// --- Emotions ------------------------------------------------------------
-// brow: +1 = angry (lids slant down toward the nose), -1 = sad (toward the
-// temples), 0 = none. lift raises the lower lid ("happy squint").
-struct EyeStyle {
-  int width, height, openness, lift, brow;
-};
-struct Emotion {
-  const char* name;
-  EyeStyle eye;
-  int blink_period_ms;
-};
-constexpr Emotion kEmotions[] = {
-    {"neutral",   {26, 30, 100, 0,  0},  3800},
-    {"happy",     {26, 30, 100, 14, 0},  3000},
-    {"curious",   {30, 34, 100, 0,  0},  2600},
-    {"sleepy",    {26, 30, 35,  0,  0},  6000},
-    {"surprised", {34, 40, 100, 0,  0},  5000},
-    {"angry",     {28, 28, 100, 0,  1},  3200},
-    {"sad",       {24, 26, 75,  0, -1},  5200},
-    {"suspicious", {26, 30, 55, 0, 1}, 2200},
-};
-
 volatile int s_emotion = 0;
 
 void draw_eyes(int openness_pct, int gaze_dx) {
@@ -85,12 +65,10 @@ void draw_eyes(int openness_pct, int gaze_dx) {
     const int cx = side == 0 ? lx : rx;
     const int x0 = cx - e.width / 2, top = cy - open / 2;
     fill_rect(x0, top, e.width, open < 2 ? 2 : open);
-    if (e.lift > 0)  // carve the lower lid: happy squint
+    if (e.lift > 0)
       for (int j = cy + open / 2 - e.lift; j < cy + open / 2; j++)
         for (int i = x0; i < x0 + e.width; i++) px_off(i, j);
     if (e.brow != 0) {
-      // Carve a sloped upper lid. Angry slopes deeper toward the nose
-      // (inner edge), sad toward the temples (outer edge).
       for (int i = 0; i < e.width; i++) {
         const bool inner_deep = (e.brow > 0) == (side == 0);
         const int t = inner_deep ? i : e.width - 1 - i;
@@ -102,50 +80,11 @@ void draw_eyes(int openness_pct, int gaze_dx) {
   flush();
 }
 
-// --- Text mode (3×5 uppercase font, rendered 2×) -------------------------
-// 16 chars × 4 lines. Retro-cute and hand-verifiable, not typographically
-// complete: unknown characters render as space.
-constexpr uint8_t kFont[][5] = {
-    {0b010,0b101,0b111,0b101,0b101}, {0b110,0b101,0b110,0b101,0b110},  // A B
-    {0b011,0b100,0b100,0b100,0b011}, {0b110,0b101,0b101,0b101,0b110},  // C D
-    {0b111,0b100,0b110,0b100,0b111}, {0b111,0b100,0b110,0b100,0b100},  // E F
-    {0b011,0b100,0b101,0b101,0b011}, {0b101,0b101,0b111,0b101,0b101},  // G H
-    {0b111,0b010,0b010,0b010,0b111}, {0b001,0b001,0b001,0b101,0b010},  // I J
-    {0b101,0b110,0b100,0b110,0b101}, {0b100,0b100,0b100,0b100,0b111},  // K L
-    {0b101,0b111,0b111,0b101,0b101}, {0b110,0b101,0b101,0b101,0b101},  // M N
-    {0b010,0b101,0b101,0b101,0b010}, {0b110,0b101,0b110,0b100,0b100},  // O P
-    {0b010,0b101,0b101,0b010,0b001}, {0b110,0b101,0b110,0b110,0b101},  // Q R
-    {0b011,0b100,0b010,0b001,0b110}, {0b111,0b010,0b010,0b010,0b010},  // S T
-    {0b101,0b101,0b101,0b101,0b111}, {0b101,0b101,0b101,0b101,0b010},  // U V
-    {0b101,0b101,0b111,0b111,0b101}, {0b101,0b101,0b010,0b101,0b101},  // W X
-    {0b101,0b101,0b010,0b010,0b010}, {0b111,0b001,0b010,0b100,0b111},  // Y Z
-    {0b111,0b101,0b101,0b101,0b111}, {0b010,0b110,0b010,0b010,0b111},  // 0 1
-    {0b110,0b001,0b010,0b100,0b111}, {0b110,0b001,0b010,0b001,0b110},  // 2 3
-    {0b101,0b101,0b111,0b001,0b001}, {0b111,0b100,0b110,0b001,0b110},  // 4 5
-    {0b011,0b100,0b110,0b101,0b010}, {0b111,0b001,0b010,0b010,0b010},  // 6 7
-    {0b111,0b101,0b111,0b101,0b111}, {0b010,0b101,0b011,0b001,0b110},  // 8 9
-    {0b000,0b000,0b000,0b000,0b000}, {0b000,0b000,0b000,0b000,0b010},  // sp .
-    {0b000,0b000,0b000,0b010,0b100}, {0b010,0b010,0b010,0b000,0b010},  // , !
-    {0b110,0b001,0b010,0b000,0b010}, {0b010,0b010,0b000,0b000,0b000},  // ? '
-    {0b000,0b000,0b111,0b000,0b000}, {0b000,0b010,0b000,0b010,0b000},  // - :
-};
-
-int glyph_index(char c) {
-  c = toupper(static_cast<unsigned char>(c));
-  if (c >= 'A' && c <= 'Z') return c - 'A';
-  if (c >= '0' && c <= '9') return 26 + (c - '0');
-  switch (c) {
-    case '.': return 37; case ',': return 38; case '!': return 39;
-    case '?': return 40; case '\'': return 41; case '-': return 42;
-    case ':': return 43; default: return 36;  // space
-  }
-}
-
 void draw_text(const char* text) {
   memset(fb, 0, sizeof fb);
   int col = 0, line = 0;
   for (const char* p = text; *p && line < 4; p++) {
-    if (*p == ' ' && col == 0) continue;  // no leading spaces after a wrap
+    if (*p == ' ' && col == 0) continue;
     const uint8_t* g = kFont[glyph_index(*p)];
     const int x0 = col * 8 + 1, y0 = line * 14 + 5;
     for (int r = 0; r < 5; r++)
@@ -167,8 +106,7 @@ void face_task(void*) {
   int64_t next_blink = 2000, next_saccade = 1500;
   for (;;) {
     const int64_t now = esp_log_timestamp();
-
-    if (now < s_say_until) {  // text mode: words own the screen
+    if (now < s_say_until) {
       if (s_say_dirty) {
         std::lock_guard<std::mutex> lock(s_say_mu);
         s_say_dirty = false;
@@ -178,11 +116,7 @@ void face_task(void*) {
       vTaskDelay(pdMS_TO_TICKS(40));
       continue;
     }
-    if (was_saying) {  // text finished: bring the eyes back
-      was_saying = false;
-      draw_eyes(100, gaze);
-    }
-
+    if (was_saying) { was_saying = false; draw_eyes(100, gaze); }
     if (now >= next_blink) {
       draw_eyes(15, gaze);
       vTaskDelay(pdMS_TO_TICKS(70));
@@ -201,11 +135,11 @@ void face_task(void*) {
 
 }  // namespace
 
-void oled_face_start(int gpio_sda, int gpio_scl) {
+void face_start() {
   i2c_master_bus_config_t bus_cfg = {};
-  bus_cfg.i2c_port = -1;  // auto-select
-  bus_cfg.sda_io_num = static_cast<gpio_num_t>(gpio_sda);
-  bus_cfg.scl_io_num = static_cast<gpio_num_t>(gpio_scl);
+  bus_cfg.i2c_port = -1;
+  bus_cfg.sda_io_num = static_cast<gpio_num_t>(CONFIG_BUDDY_PIN_I2C_SDA);
+  bus_cfg.scl_io_num = static_cast<gpio_num_t>(CONFIG_BUDDY_PIN_I2C_SCL);
   bus_cfg.clk_source = I2C_CLK_SRC_DEFAULT;
   bus_cfg.glitch_ignore_cnt = 7;
   bus_cfg.flags.enable_internal_pullup = true;
@@ -218,22 +152,16 @@ void oled_face_start(int gpio_sda, int gpio_scl) {
   dev_cfg.scl_speed_hz = 400000;
   ESP_ERROR_CHECK(i2c_master_bus_add_device(i2c_bus, &dev_cfg, &s_dev));
 
-  // SSD1306 init (charge pump on, alternating COM pins, 128×64)
   for (uint8_t c : {0xAEu, 0xD5u, 0x80u, 0xA8u, 0x3Fu, 0xD3u, 0x00u, 0x40u,
                     0x8Du, 0x14u, 0x20u, 0x00u, 0xA1u, 0xC8u, 0xDAu, 0x12u,
                     0x81u, 0xCFu, 0xD9u, 0xF1u, 0xDBu, 0x40u, 0xA4u, 0xA6u, 0xAFu})
     cmd(static_cast<uint8_t>(c));
 
   bus().subscribe("face.emotion", [](const Event& ev) {
-    for (size_t i = 0; i < sizeof kEmotions / sizeof kEmotions[0]; i++) {
-      if (ev.payload == kEmotions[i].name) {
-        s_emotion = static_cast<int>(i);
-        return;
-      }
-    }
-    ESP_LOGW(TAG, "unknown emotion '%s'", ev.payload.c_str());
+    int i = emotion_index(ev.payload.c_str());
+    if (i >= 0) s_emotion = i;
+    else ESP_LOGW(TAG, "unknown emotion '%s'", ev.payload.c_str());
   });
-
   bus().subscribe("face.say", [](const Event& ev) {
     std::lock_guard<std::mutex> lock(s_say_mu);
     strncpy(s_say_text, ev.payload.c_str(), sizeof s_say_text - 1);
@@ -248,3 +176,5 @@ void oled_face_start(int gpio_sda, int gpio_scl) {
 }
 
 }  // namespace buddy
+
+#endif  // CONFIG_BUDDY_DISPLAY_SSD1306

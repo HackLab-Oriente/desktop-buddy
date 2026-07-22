@@ -4,17 +4,30 @@ The event bus, Berry host, and Sense/Expression drivers here are the real
 framework's first commit — written for the parts already on the desk (ESP32
 DevKit V1, GME12864 OLED, RC522, LEDs) and portable to the ESP32-S3 build.
 
+## Two targets, two faces (one framework)
+
+The bus, Berry host, Brain and web UI are shared. Only the display backend and
+target differ, chosen in menuconfig (`Buddy Zero → Face display backend`):
+
+| Target | Display | Face backend | Status |
+|---|---|---|---|
+| `esp32s3` | GC9A01 1.28" round color 240×240 (SPI) | `round_face.cpp` | **default** |
+| `esp32` | SSD1306 128×64 mono OLED (I2C) | `oled_face.cpp` | Buddy Zero PoC |
+
+Both render the same `face_model.h` (8 emotions + text) — the round backend
+just scales it up, in color, with a soft glow. Wiring for the S3 + round
+display: [../hardware/buddy-s3-display.md](../hardware/buddy-s3-display.md).
+
 ## Status
 
-- **Verified**: `idf.py build` succeeds on **ESP-IDF v6.0.2**, target `esp32`,
-  with Berry compiled in (2026-07-17). Written against the v6 driver APIs
-  (`esp_driver_touch_sens`, `i2c_master`, managed `espressif/cjson`) — v5.x
-  is NOT supported.
+- **Verified**: `idf.py build` succeeds on **ESP-IDF v6.0.2** for both
+  `esp32s3` (GC9A01, default) and `esp32` (SSD1306), Berry compiled in
+  (2026-07-17). Written against v6 driver APIs (`esp_driver_touch_sens`,
+  `i2c_master`, `esp_lcd` + `espressif/esp_lcd_gc9a01`, managed
+  `espressif/cjson`) — v5.x is NOT supported.
 - **Verified**: event bus passes its host tests (`host_test/`).
-- **Unverified on hardware**: nothing has been flashed yet — the RC522
-  register dance and touch thresholds are the likely first-flash tuning spots.
-- **Unverified**: `esp32s3` target (the touch driver has the hw-v2 path ready;
-  try it when the S3 boards arrive).
+- **Unverified on hardware**: nothing flashed yet. First-flash tuning spots:
+  GC9A01 color order / invert (see round_face.cpp), touch thresholds, RC522.
 
 ## Setup
 
@@ -30,8 +43,9 @@ mkdir -p generate && python3 tools/coc/coc -o generate src default -c default/be
 #     back to C — main.cpp mirrors packs/zero/reflexes/main.be.)
 
 cd firmware
-idf.py set-target esp32          # DevKit V1. Real buddy: esp32s3
-idf.py menuconfig                # "Buddy Zero" menu: WiFi, API key, pins
+idf.py set-target esp32s3         # the real buddy + round display (default)
+#   or: idf.py set-target esp32   # classic DevKit V1 + OLED (Buddy Zero PoC)
+idf.py menuconfig                 # "Buddy Zero": display backend, WiFi, key, pins
 idf.py build flash monitor
 ```
 

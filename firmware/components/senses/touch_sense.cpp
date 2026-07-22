@@ -18,21 +18,18 @@ namespace {
 
 touch_channel_handle_t s_chan = nullptr;
 
-// GPIO → touch channel id, classic ESP32 (T0=GPIO4 … T9=GPIO32).
+// GPIO → touch channel id.
 int channel_for_gpio(int gpio) {
+#if SOC_TOUCH_SENSOR_VERSION == 1  // classic ESP32: T0=GPIO4 … T9=GPIO32
   switch (gpio) {
-    case 4:  return 0;
-    case 0:  return 1;
-    case 2:  return 2;
-    case 15: return 3;
-    case 13: return 4;
-    case 12: return 5;
-    case 14: return 6;
-    case 27: return 7;
-    case 33: return 8;
-    case 32: return 9;
+    case 4:  return 0; case 0:  return 1; case 2:  return 2; case 15: return 3;
+    case 13: return 4; case 12: return 5; case 14: return 6; case 27: return 7;
+    case 33: return 8; case 32: return 9;
     default: return -1;
   }
+#else  // ESP32-S3 (hw v2): touch channel n == GPIO n, for GPIO 1..14
+  return (gpio >= 1 && gpio <= 14) ? gpio : -1;
+#endif
 }
 
 uint32_t read_smooth() {

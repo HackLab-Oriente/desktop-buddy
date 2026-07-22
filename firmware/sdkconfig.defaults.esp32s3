@@ -1,0 +1,9 @@
+# ESP32-S3 N16R8: 16 MB flash, 8 MB octal PSRAM.
+# PSRAM holds the 240x240 framebuffer and LVGL/audio buffers later.
+CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
+CONFIG_SPIRAM=y
+CONFIG_SPIRAM_MODE_OCT=y
+CONFIG_SPIRAM_SPEED_80M=y
+# The S3 has ECC acceleration, so the TLS handshake is fast — but keep the
+# generous watchdog window; it costs nothing.
+CONFIG_ESP_TASK_WDT_TIMEOUT_S=15
