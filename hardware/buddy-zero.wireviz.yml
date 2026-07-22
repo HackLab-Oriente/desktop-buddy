@@ -1,0 +1,44 @@
+# Buddy Zero wiring — render with: wireviz buddy-zero.wireviz.yml
+# (pip install wireviz; requires graphviz)
+
+connectors:
+  ESP32_DEVKIT_V1:
+    type: ESP32 DevKit V1 (30-pin)
+    notes: Follow silkscreen labels — clone boards shuffle pin positions
+    pinlabels: [3V3, GND, GPIO21, GPIO22, GPIO4, GPIO5, GPIO18, GPIO19, GPIO23, GPIO27]
+  OLED_GME12864:
+    type: SSD1306 128x64 I2C OLED
+    pinlabels: [GND, VCC, SCL, SDA]
+  RC522:
+    type: MFRC522 RFID reader (3V3 ONLY)
+    pinlabels: [SDA_CS, SCK, MOSI, MISO, GND, RST, 3V3]
+  PETTING_PAD:
+    type: bare jumper wire (touch pad)
+    pincount: 1
+
+cables:
+  W_OLED:
+    wirecount: 4
+    colors: [BK, RD, YE, OG]
+    notes: I2C
+  W_RC522:
+    wirecount: 7
+    colors: [VT, VT, VT, VT, BK, WH, RD]
+    notes: SPI — keep short and even lengths
+  W_TOUCH:
+    wirecount: 1
+    colors: [WH]
+
+connections:
+  -
+    - ESP32_DEVKIT_V1: [GND, 3V3, GPIO22, GPIO21]
+    - W_OLED: [1-4]
+    - OLED_GME12864: [GND, VCC, SCL, SDA]
+  -
+    - ESP32_DEVKIT_V1: [GPIO5, GPIO18, GPIO23, GPIO19, GND, GPIO27, 3V3]
+    - W_RC522: [1-7]
+    - RC522: [SDA_CS, SCK, MOSI, MISO, GND, RST, 3V3]
+  -
+    - ESP32_DEVKIT_V1: [GPIO4]
+    - W_TOUCH: [1]
+    - PETTING_PAD: [1]

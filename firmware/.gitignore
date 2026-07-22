@@ -1,0 +1,8 @@
+build/
+sdkconfig
+sdkconfig.old
+managed_components/
+dependencies.lock
+host_test/test_bus
+host_test/*.dSYM/
+.cache/

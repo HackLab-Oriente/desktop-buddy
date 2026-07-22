@@ -1,0 +1,44 @@
+menu "Buddy Zero"
+
+config BUDDY_WIFI_SSID
+    string "WiFi SSID"
+    default ""
+    help
+      Leave empty for offline mode (reflexes still run; no brain, no web UI).
+
+config BUDDY_WIFI_PASS
+    string "WiFi password"
+    default ""
+
+config BUDDY_ANTHROPIC_API_KEY
+    string "Anthropic API key (PoC only — v1 stores this in NVS via web UI)"
+    default ""
+
+config BUDDY_PIN_TOUCH
+    int "Petting pad GPIO (touch-capable)"
+    default 4
+
+config BUDDY_PIN_LED
+    int "Mood LED GPIO (2 = DevKit V1 onboard)"
+    default 2
+
+config BUDDY_PIN_I2C_SDA
+    int "OLED I2C SDA"
+    default 21
+
+config BUDDY_PIN_I2C_SCL
+    int "OLED I2C SCL"
+    default 22
+
+config BUDDY_RC522_ENABLED
+    bool "Enable RC522 RFID reader"
+    default y
+
+config BUDDY_DEBUG
+    bool "Verbose debug logging (event bus trace, brain HTTP, touch values)"
+    default y
+    help
+      Logs every bus event, brain request/response bodies, and periodic
+      raw touch readings. Turn off once the PoC behaves.
+
+endmenu

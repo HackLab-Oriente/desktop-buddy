@@ -1,0 +1,16 @@
+CONFIG_COMPILER_CXX_EXCEPTIONS=n
+CONFIG_COMPILER_OPTIMIZATION_SIZE=y
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
+CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
+CONFIG_FREERTOS_HZ=1000
+# api.anthropic.com serves a cross-signed chain (GTS Root R4 x GlobalSign);
+# without this the crt bundle rejects it with "No matching trusted root".
+CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_DEFAULT_FULL=y
+CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_CROSS_SIGNED_VERIFY=y
+# Classic ESP32 has no ECC hardware: the TLS ECDHE handshake runs 3-6 s of
+# soft math on core 0, starving IDLE0 past the default 5 s watchdog.
+CONFIG_ESP_TASK_WDT_TIMEOUT_S=15
+# Hosyond/clone boards ship BOYA flash chips; the generic driver works but
+# the dedicated one enables proper suspend/resume support.
+CONFIG_SPI_FLASH_SUPPORT_BOYA_CHIP=y

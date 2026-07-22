@@ -1,0 +1,13 @@
+{
+  "idf.currentSetup": "/Users/daniel.perez.ts/.espressif/v6.0.2/esp-idf",
+  "idf.customExtraVars": {},
+  "clangd.path": "/Users/daniel.perez.ts/.espressif/tools/esp-clang/esp-20.1.1_20250829/esp-clang/bin/clangd",
+  "clangd.arguments": [
+    "--background-index",
+    "--query-driver=**",
+    "--compile-commands-dir=/Users/daniel.perez.ts/Developer/Personal/desktop-buddy/build"
+  ],
+  "idf.openOcdConfigs": [
+    "board/esp32-wrover-kit-3.3v.cfg"
+  ]
+}
