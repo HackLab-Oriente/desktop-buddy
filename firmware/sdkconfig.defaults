@@ -4,6 +4,9 @@ CONFIG_PARTITION_TABLE_CUSTOM=y
 CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
 CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
 CONFIG_FREERTOS_HZ=1000
+# app_main brings up esp_lcd, the first framebuffer draw, and the Berry VM on
+# one task — the 3584-byte default overflows. Give it real headroom.
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
 # api.anthropic.com serves a cross-signed chain (GTS Root R4 x GlobalSign);
 # without this the crt bundle rejects it with "No matching trusted root".
 CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_DEFAULT_FULL=y

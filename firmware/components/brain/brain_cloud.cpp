@@ -57,9 +57,11 @@ std::string call_claude(const char* user_text) {
   cJSON_AddNumberToObject(root, "max_tokens", 300);
   std::string system = std::string(s_cfg.system_prompt) +
       "\nRespond with ONLY a raw JSON object — no markdown, no code fences, no"
-      " text before or after: {\"utterance\": string (under 60 characters, in"
-      " character), \"emotion\": one of"
-      " neutral|happy|curious|sleepy|surprised|angry|sad|suspicious}";
+      " text before or after: {\"utterance\": the SPOKEN WORDS ONLY, under 90"
+      " characters, in character. Do NOT include stage directions, actions, or"
+      " sound effects in asterisks or parentheses (e.g. never write '*whirrs*'"
+      " or '(giggles)') — just what the buddy says out loud."
+      " \"emotion\": one of neutral|happy|curious|sleepy|surprised|angry|sad|suspicious}";
   cJSON_AddStringToObject(root, "system", system.c_str());
   cJSON* msgs = cJSON_AddArrayToObject(root, "messages");
   cJSON* m = cJSON_CreateObject();

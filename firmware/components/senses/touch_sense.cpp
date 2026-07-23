@@ -47,11 +47,20 @@ void touch_task(void*) {
     vTaskDelay(pdMS_TO_TICKS(20));
   }
   baseline /= 16;
-  // On hw v1 a touch LOWERS the count. A bare wire only dips a few percent,
-  // so trigger on a 10% drop — the two-sample confirmation below keeps the
-  // hot threshold from false-firing on noise. Copper pads can go stricter.
-  const uint32_t threshold = baseline * 9 / 10;
-  ESP_LOGI(TAG, "baseline=%u threshold=%u", (unsigned)baseline, (unsigned)threshold);
+  // Touch polarity flips between chip generations:
+  //   hw v1 (classic ESP32): a touch LOWERS the reading  → fire below threshold
+  //   hw v2 (ESP32-S3):      a touch RAISES the reading   → fire above threshold
+  // A bare wire only shifts a few %, but S3 deltas are large (~30%+), so a
+  // 15% band is both sensitive and noise-safe; two-sample confirm below guards.
+#if SOC_TOUCH_SENSOR_VERSION == 1
+  const uint32_t threshold = baseline * 9 / 10;    // 10% below baseline
+  const bool touch_raises = false;
+#else
+  const uint32_t threshold = baseline * 115 / 100;  // 15% above baseline
+  const bool touch_raises = true;
+#endif
+  ESP_LOGI(TAG, "baseline=%u threshold=%u (touch %s)", (unsigned)baseline,
+           (unsigned)threshold, touch_raises ? "raises" : "lowers");
 
   bool touching = false;
   int confirm = 0;
@@ -59,7 +68,7 @@ void touch_task(void*) {
   int64_t touch_start_ms = 0;
   for (;;) {
     const uint32_t v = read_smooth();
-    const bool raw = v < threshold;
+    const bool raw = touch_raises ? (v > threshold) : (v < threshold);
     const int64_t ms = esp_log_timestamp();
 
 #if CONFIG_BUDDY_DEBUG
