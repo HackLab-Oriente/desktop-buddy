@@ -64,7 +64,7 @@ extern "C" void app_main() {
 #endif
 
   // Expressions first, so early events have somewhere to land.
-  buddy::led_mood_start(CONFIG_BUDDY_PIN_LED);
+  buddy::led_start();   // backend (WS2812 ring / PWM LED) chosen in menuconfig
   buddy::face_start();  // backend (OLED / round GC9A01) chosen in menuconfig
 
   // Reflex layer: Berry when present, C fallback otherwise.

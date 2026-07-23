@@ -39,67 +39,108 @@ constexpr int W = 240, H = 240;
 constexpr float S = 2.6f;                 // model(128×64) → panel scale
 constexpr int CX = 120, CY = 120, GAP = 42;  // eye centers at CX±GAP
 
-// RGB565 helpers (panel configured BGR + inverted; see face_start()).
+// RGB565 (panel configured BGR + inverted; see panel_init()). Colors are
+// EMO-inspired: a bright cyan eye on true black, with per-emotion mood tints.
 constexpr uint16_t rgb(uint8_t r, uint8_t g, uint8_t b) {
   return static_cast<uint16_t>(((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3));
 }
-constexpr uint16_t C_BG   = rgb(4, 6, 10);
-constexpr uint16_t C_EYE  = rgb(60, 235, 180);   // mint
-constexpr uint16_t C_GLOW = rgb(14, 60, 48);     // dim halo
+constexpr uint16_t C_BG = rgb(0, 0, 0);
+
+// Eye colors come from the shared model (same mood color as the LED ring).
+// The base is the model color; the glow is a dim version of it.
+inline uint16_t eye_base(int i) {
+  return rgb(kEmotions[i].r, kEmotions[i].g, kEmotions[i].b);
+}
+inline uint16_t eye_glow(int i) {
+  return rgb(kEmotions[i].r / 4, kEmotions[i].g / 4, kEmotions[i].b / 4);
+}
 
 esp_lcd_panel_handle_t s_panel = nullptr;
 uint16_t* s_fb = nullptr;                 // 240×240 RGB565 in PSRAM
 volatile int s_emotion = 0;
 volatile bool s_dirty = true;
 
+inline float clampf(float v, float a, float b) { return v < a ? a : (v > b ? b : v); }
+
+// Alpha-blend fg over bg in RGB565.
+inline uint16_t blend(uint16_t bg, uint16_t fg, float a) {
+  const int br = (bg >> 11) & 0x1F, bgg = (bg >> 5) & 0x3F, bb = bg & 0x1F;
+  const int fr = (fg >> 11) & 0x1F, fgg = (fg >> 5) & 0x3F, fbb = fg & 0x1F;
+  const int r = br + static_cast<int>((fr - br) * a + 0.5f);
+  const int g = bgg + static_cast<int>((fgg - bgg) * a + 0.5f);
+  const int b = bb + static_cast<int>((fbb - bb) * a + 0.5f);
+  return static_cast<uint16_t>((r << 11) | (g << 5) | b);
+}
+
 void put(int x, int y, uint16_t c) {
   if (x >= 0 && x < W && y >= 0 && y < H) s_fb[y * W + x] = c;
 }
-
+void blend_at(int x, int y, uint16_t c, float a) {
+  if (x < 0 || x >= W || y < 0 || y >= H || a <= 0.f) return;
+  uint16_t& p = s_fb[y * W + x];
+  p = blend(p, c, a > 1.f ? 1.f : a);
+}
 void clear() {
   for (int i = 0; i < W * H; i++) s_fb[i] = C_BG;
 }
 
-// Filled rounded rect. paint==C_BG is used to carve (lids, brows).
-void round_rect(int x0, int y0, int w, int h, int r, uint16_t c) {
-  if (w <= 0 || h <= 0) return;
-  if (r > w / 2) r = w / 2;
-  if (r > h / 2) r = h / 2;
-  const int x1 = x0 + w - 1, y1 = y0 + h - 1;
-  for (int y = y0; y <= y1; y++) {
-    for (int x = x0; x <= x1; x++) {
-      int dx = 0, dy = 0;
-      if (x < x0 + r) dx = x0 + r - x; else if (x > x1 - r) dx = x - (x1 - r);
-      if (y < y0 + r) dy = y0 + r - y; else if (y > y1 - r) dy = y - (y1 - r);
-      if (dx * dx + dy * dy <= r * r) put(x, y, c);
-    }
-  }
+// Signed distance to a rounded rect centered at (cx,cy). Negative inside.
+inline float sd_round_rect(float px, float py, float cx, float cy,
+                           float hw, float hh, float r) {
+  const float qx = fabsf(px - cx) - (hw - r);
+  const float qy = fabsf(py - cy) - (hh - r);
+  const float ax = qx > 0 ? qx : 0, ay = qy > 0 ? qy : 0;
+  const float outside = sqrtf(ax * ax + ay * ay);
+  const float inside = fminf(fmaxf(qx, qy), 0.f);
+  return outside + inside - r;
 }
 
-void draw_eye(int cx, int side, int open_pct, int gaze) {
+// One anti-aliased eye: rounded lozenge with a soft glow halo, a vertical
+// gradient (brighter at top), a slanted upper lid (brow) and a raised lower
+// lid (happy squint) — all as smooth coverage, no hard carving.
+void draw_eye(int cxi, int side, int open_pct, int gaze) {
   const EyeStyle& e = kEmotions[s_emotion].eye;
-  int eyeW = static_cast<int>(e.width * S);
-  int fullH = static_cast<int>(e.height * S);
-  int open = fullH * e.openness / 100 * open_pct / 100;
-  if (open < 6) open = 6;
-  const int x0 = cx - eyeW / 2 + gaze, top = CY - open / 2;
-  const int r = eyeW * 35 / 100;
+  const uint16_t base_col = eye_base(s_emotion);
+  const uint16_t glow_col = eye_glow(s_emotion);
 
-  round_rect(x0 - 5, top - 5, eyeW + 10, open + 10, r + 5, C_GLOW);  // halo
-  round_rect(x0, top, eyeW, open, r, C_EYE);
+  const float eyeW = e.width * S;
+  float open = e.height * S * (e.openness / 100.f) * (open_pct / 100.f);
+  if (open < 6.f) open = 6.f;
+  const float cx = cxi + gaze, cy = CY;
+  const float hw = eyeW / 2, hh = open / 2;
+  float r = eyeW * 0.42f;
+  if (r > hh) r = hh;
 
-  const int lift = static_cast<int>(e.lift * S);
-  if (lift > 0)  // lower-lid squint
-    for (int y = top + open - lift; y < top + open; y++)
-      for (int x = x0; x < x0 + eyeW; x++) put(x, y, C_BG);
+  const float browAmt = e.brow != 0 ? open * 0.5f : 0.f;
+  const float top = cy - hh;
+  const int gm = 10;  // glow margin
+  const int x0 = static_cast<int>(cx - hw) - gm, x1 = static_cast<int>(cx + hw) + gm;
+  const int y0 = static_cast<int>(top) - gm, y1 = static_cast<int>(cy + hh) + gm;
 
-  if (e.brow != 0) {  // slanted upper lid
-    const int depthMax = open / 3;
-    for (int i = 0; i < eyeW; i++) {
-      const bool inner_deep = (e.brow > 0) == (side == 0);
-      const int t = inner_deep ? i : eyeW - 1 - i;
-      const int depth = depthMax * t / eyeW;
-      for (int y = top - 3; y < top + depth; y++) put(x0 + i, y, C_BG);
+  for (int y = y0; y <= y1; y++) {
+    for (int x = x0; x <= x1; x++) {
+      const float d = sd_round_rect(x + 0.5f, y + 0.5f, cx, cy, hw, hh, r);
+      float ecov = clampf(0.5f - d, 0.f, 1.f);
+      const float gcov = clampf((7.f - d) / 7.f, 0.f, 1.f) * 0.5f;  // soft halo
+
+      if (ecov > 0.f) {
+        // brow: remove pixels above a slanted line near the top
+        if (browAmt > 0.f) {
+          const float t = clampf((x + 0.5f - (cx - hw)) / eyeW, 0.f, 1.f);
+          const bool deep_right = (e.brow > 0) == (side == 0);
+          const float frac = deep_right ? t : 1.f - t;
+          const float cut_y = top + browAmt * frac;
+          ecov *= clampf((y + 0.5f) - cut_y + 0.5f, 0.f, 1.f);
+        }
+        // happy squint: raise the lower lid
+        if (e.lift > 0) {
+          const float bot_y = cy + hh - e.lift * S;
+          ecov *= clampf(bot_y - (y + 0.5f) + 0.5f, 0.f, 1.f);
+        }
+      }
+      // Solid eye color (a vertical gradient bands badly in RGB565) + soft glow.
+      if (gcov > 0.f) blend_at(x, y, glow_col, gcov);
+      if (ecov > 0.f) blend_at(x, y, base_col, ecov);
     }
   }
 }
@@ -113,42 +154,99 @@ void draw_eyes(int open_pct, int gaze) {
   push();
 }
 
+// 5x7 uppercase bitmap font — bigger and far more legible than the 3x5 model
+// font. Order matches glyph_index(): A-Z, 0-9, space . , ! ? ' - :
+// Bit 0b10000 = leftmost column.
+constexpr uint8_t kFont57[][7] = {
+    {0b01110,0b10001,0b10001,0b11111,0b10001,0b10001,0b10001},  // A
+    {0b11110,0b10001,0b10001,0b11110,0b10001,0b10001,0b11110},  // B
+    {0b01110,0b10001,0b10000,0b10000,0b10000,0b10001,0b01110},  // C
+    {0b11110,0b10001,0b10001,0b10001,0b10001,0b10001,0b11110},  // D
+    {0b11111,0b10000,0b10000,0b11110,0b10000,0b10000,0b11111},  // E
+    {0b11111,0b10000,0b10000,0b11110,0b10000,0b10000,0b10000},  // F
+    {0b01110,0b10001,0b10000,0b10111,0b10001,0b10001,0b01110},  // G
+    {0b10001,0b10001,0b10001,0b11111,0b10001,0b10001,0b10001},  // H
+    {0b11111,0b00100,0b00100,0b00100,0b00100,0b00100,0b11111},  // I
+    {0b11111,0b00010,0b00010,0b00010,0b10010,0b10010,0b01100},  // J
+    {0b10001,0b10010,0b10100,0b11000,0b10100,0b10010,0b10001},  // K
+    {0b10000,0b10000,0b10000,0b10000,0b10000,0b10000,0b11111},  // L
+    {0b10001,0b11011,0b10101,0b10101,0b10001,0b10001,0b10001},  // M
+    {0b10001,0b11001,0b11001,0b10101,0b10011,0b10011,0b10001},  // N
+    {0b01110,0b10001,0b10001,0b10001,0b10001,0b10001,0b01110},  // O
+    {0b11110,0b10001,0b10001,0b11110,0b10000,0b10000,0b10000},  // P
+    {0b01110,0b10001,0b10001,0b10001,0b10101,0b10010,0b01101},  // Q
+    {0b11110,0b10001,0b10001,0b11110,0b10100,0b10010,0b10001},  // R
+    {0b01111,0b10000,0b10000,0b01110,0b00001,0b00001,0b11110},  // S
+    {0b11111,0b00100,0b00100,0b00100,0b00100,0b00100,0b00100},  // T
+    {0b10001,0b10001,0b10001,0b10001,0b10001,0b10001,0b01110},  // U
+    {0b10001,0b10001,0b10001,0b10001,0b10001,0b01010,0b00100},  // V
+    {0b10001,0b10001,0b10001,0b10101,0b10101,0b11011,0b10001},  // W
+    {0b10001,0b10001,0b01010,0b00100,0b01010,0b10001,0b10001},  // X
+    {0b10001,0b10001,0b01010,0b00100,0b00100,0b00100,0b00100},  // Y
+    {0b11111,0b00001,0b00010,0b00100,0b01000,0b10000,0b11111},  // Z
+    {0b01110,0b10001,0b10011,0b10101,0b11001,0b10001,0b01110},  // 0
+    {0b00100,0b01100,0b00100,0b00100,0b00100,0b00100,0b01110},  // 1
+    {0b01110,0b10001,0b00001,0b00010,0b00100,0b01000,0b11111},  // 2
+    {0b11111,0b00010,0b00100,0b00010,0b00001,0b10001,0b01110},  // 3
+    {0b00010,0b00110,0b01010,0b10010,0b11111,0b00010,0b00010},  // 4
+    {0b11111,0b10000,0b11110,0b00001,0b00001,0b10001,0b01110},  // 5
+    {0b01110,0b10001,0b10000,0b11110,0b10001,0b10001,0b01110},  // 6
+    {0b11111,0b00001,0b00010,0b00100,0b01000,0b01000,0b01000},  // 7
+    {0b01110,0b10001,0b10001,0b01110,0b10001,0b10001,0b01110},  // 8
+    {0b01110,0b10001,0b10001,0b01111,0b00001,0b10001,0b01110},  // 9
+    {0b00000,0b00000,0b00000,0b00000,0b00000,0b00000,0b00000},  // space
+    {0b00000,0b00000,0b00000,0b00000,0b00000,0b01100,0b01100},  // .
+    {0b00000,0b00000,0b00000,0b00000,0b01100,0b01100,0b01000},  // ,
+    {0b00100,0b00100,0b00100,0b00100,0b00100,0b00000,0b00100},  // !
+    {0b01110,0b10001,0b00001,0b00110,0b00100,0b00000,0b00100},  // ?
+    {0b00100,0b00100,0b01000,0b00000,0b00000,0b00000,0b00000},  // '
+    {0b00000,0b00000,0b00000,0b11111,0b00000,0b00000,0b00000},  // -
+    {0b00000,0b01100,0b01100,0b00000,0b01100,0b01100,0b00000},  // :
+};
+
 void draw_char(int x0, int y0, int sc, char ch, uint16_t c) {
-  const uint8_t* g = kFont[glyph_index(ch)];
-  for (int r = 0; r < 5; r++)
-    for (int col = 0; col < 3; col++)
-      if (g[r] & (0b100 >> col))
-        round_rect(x0 + col * sc, y0 + r * sc, sc, sc, 0, c);
+  const uint8_t* g = kFont57[glyph_index(ch)];
+  for (int r = 0; r < 7; r++)
+    for (int col = 0; col < 5; col++)
+      if (g[r] & (0b10000 >> col))
+        for (int yy = 0; yy < sc; yy++)
+          for (int xx = 0; xx < sc; xx++) put(x0 + col * sc + xx, y0 + r * sc + yy, c);
 }
 
 void draw_text(const char* text) {
   clear();
-  const int sc = 6, cell = sc * 4, cols = 9;
-  // wrap into lines of <= cols chars, breaking on spaces
-  char lines[5][12] = {{0}};
-  int nlines = 0, len = 0;
-  std::string word, cur;
-  auto flush_word = [&](bool space) {
-    if (cur.size() + word.size() > (size_t)cols && !cur.empty()) {
-      strncpy(lines[nlines], cur.c_str(), 11); if (++nlines >= 5) return; cur.clear();
+  constexpr int ML = 7, MC = 15;   // max lines, max chars/line (buffer is MC+1)
+  char lines[ML][MC + 1] = {};
+  int line = 0, col = 0;
+  // Greedy word wrap with strict bounds — a long reply is truncated to ML
+  // lines rather than overrunning the buffer (that was the reboot bug).
+  const char* p = text;
+  while (*p && line < ML) {
+    while (*p == ' ') p++;                     // skip spaces
+    const char* s = p;
+    while (*p && *p != ' ') p++;               // scan one word
+    int len = static_cast<int>(p - s);
+    if (len == 0) break;
+    if (len > MC) len = MC;                     // truncate an oversized word
+    if (col > 0 && col + 1 + len > MC) {        // doesn't fit → new line
+      if (++line >= ML) break;
+      col = 0;
     }
-    cur += word; if (space && !cur.empty() && cur.size() < (size_t)cols) cur += ' ';
-    word.clear();
-  };
-  for (const char* p = text; *p; p++) {
-    if (*p == ' ') flush_word(true); else word += *p;
+    if (col > 0) lines[line][col++] = ' ';
+    for (int i = 0; i < len; i++) lines[line][col++] = s[i];
   }
-  flush_word(false);
-  if (!cur.empty() && nlines < 5) strncpy(lines[nlines++], cur.c_str(), 11);
-  (void)len;
+  const int used = (col > 0) ? line + 1 : line;
+  if (used == 0) { push(); return; }
 
-  const int total_h = nlines * (cell + 6);
-  int y = CY - total_h / 2;
-  for (int l = 0; l < nlines; l++) {
-    int n = strlen(lines[l]);
-    int x = CX - (n * cell) / 2;
-    for (int i = 0; i < n; i++) draw_char(x + i * cell, y, sc, lines[l][i], C_EYE);
-    y += cell + 6;
+  const int sc = 2;             // 5x7 → 10x14 px glyphs (small, fits more)
+  const int cell = sc * 6;      // glyph width + 1-col gap
+  const int pitch = sc * 9;     // line height + gap
+  int y = CY - (used * pitch) / 2;
+  for (int l = 0; l < used; l++) {
+    const int n = static_cast<int>(strlen(lines[l]));
+    const int x = CX - (n * cell) / 2;
+    for (int i = 0; i < n; i++) draw_char(x + i * cell, y, sc, lines[l][i], eye_base(0));
+    y += pitch;
   }
   push();
 }
@@ -222,6 +320,10 @@ void panel_init() {
   ESP_ERROR_CHECK(esp_lcd_panel_reset(s_panel));
   ESP_ERROR_CHECK(esp_lcd_panel_init(s_panel));
   ESP_ERROR_CHECK(esp_lcd_panel_invert_color(s_panel, true));  // GC9A01 wants this
+  // These modules come up horizontally mirrored (text reads backwards, brow
+  // slants flip). Correct X. If yours ends up upside down or still mirrored,
+  // adjust these two args — clone panels vary.
+  ESP_ERROR_CHECK(esp_lcd_panel_mirror(s_panel, true, false));
   ESP_ERROR_CHECK(esp_lcd_panel_disp_on_off(s_panel, true));
 
 #if CONFIG_BUDDY_GC9A01_BL >= 0
@@ -254,7 +356,8 @@ void face_start() {
   });
 
   draw_eyes(100, 0);
-  xTaskCreatePinnedToCore(face_task, "face", 4096, nullptr, 4, nullptr, 1);
+  // Full-frame render + esp_lcd draw want more than the OLED path did.
+  xTaskCreatePinnedToCore(face_task, "face", 6144, nullptr, 4, nullptr, 1);
 }
 
 }  // namespace buddy

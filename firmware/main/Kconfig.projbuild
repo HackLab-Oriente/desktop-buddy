@@ -63,8 +63,31 @@ config BUDDY_PIN_TOUCH
     int "Petting pad GPIO (touch-capable; ESP32 T-pins or S3 GPIO1-14)"
     default 4
 
+choice BUDDY_LED
+    prompt "Mood indicator backend"
+    default BUDDY_LED_WS2812
+    help
+      WS2812 = addressable RGB ring, tinted with the emotion's mood color (v1).
+      PWM    = a single mono LED that breathes (Buddy Zero PoC).
+
+config BUDDY_LED_WS2812
+    bool "WS2812 RGB ring"
+config BUDDY_LED_PWM
+    bool "Single PWM LED"
+endchoice
+
+config BUDDY_WS2812_PIN
+    int "WS2812 ring data GPIO"
+    depends on BUDDY_LED_WS2812
+    default 21
+config BUDDY_WS2812_COUNT
+    int "WS2812 LED count"
+    depends on BUDDY_LED_WS2812
+    default 12
+
 config BUDDY_PIN_LED
-    int "Mood LED GPIO"
+    int "Single mood LED GPIO"
+    depends on BUDDY_LED_PWM
     default 2
 
 config BUDDY_RC522_ENABLED

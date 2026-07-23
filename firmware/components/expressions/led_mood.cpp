@@ -1,5 +1,9 @@
-// Mood LED: PWM breathing patterns. Doubles as the power governor's
-// smallest citizen — brightness is capped here, in the driver, by policy.
+// Single PWM mood LED backend — breathing brightness, mono (no color).
+// The Buddy Zero PoC indicator. Compiled only when selected in menuconfig.
+// Doubles as the power governor's smallest citizen — brightness capped here.
+#include "sdkconfig.h"
+#if CONFIG_BUDDY_LED_PWM
+
 #include "bus.h"
 #include "expressions.h"
 
@@ -42,7 +46,7 @@ void led_task(void*) {
 
 }  // namespace
 
-void led_mood_start(int gpio_led) {
+void led_start() {
   ledc_timer_config_t timer = {};
   timer.speed_mode = LEDC_LOW_SPEED_MODE;
   timer.duty_resolution = LEDC_TIMER_8_BIT;
@@ -52,7 +56,7 @@ void led_mood_start(int gpio_led) {
   ESP_ERROR_CHECK(ledc_timer_config(&timer));
 
   ledc_channel_config_t ch = {};
-  ch.gpio_num = gpio_led;
+  ch.gpio_num = CONFIG_BUDDY_PIN_LED;
   ch.speed_mode = LEDC_LOW_SPEED_MODE;
   ch.channel = LEDC_CHANNEL_0;
   ch.timer_sel = LEDC_TIMER_0;
@@ -68,3 +72,5 @@ void led_mood_start(int gpio_led) {
 }
 
 }  // namespace buddy
+
+#endif  // CONFIG_BUDDY_LED_PWM

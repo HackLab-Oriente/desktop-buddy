@@ -19,6 +19,7 @@ struct Emotion {
   const char* name;
   EyeStyle eye;
   int blink_period_ms;  // mean ms between blinks — sets temperament
+  uint8_t r, g, b;      // mood color — the eye tint AND the LED ring color
 };
 
 extern const Emotion kEmotions[];

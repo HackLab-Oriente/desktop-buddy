@@ -24,7 +24,7 @@ buddy.on("touch.poke", def (ev)
   poke_count += 1
   if poke_count >= 3
     buddy.face.emotion("angry")   # sulking, now with proper eyebrows
-    buddy.led.mood("off")
+    buddy.led.mood("calm")        # slow red pulse — brooding, not off
     buddy.show("HMPH.")
     buddy.log("hmph. poked " + str(poke_count) + " times")
   else

@@ -13,8 +13,10 @@ namespace buddy {
 //           face.say     (short text shown on screen)
 void face_start();
 
-// Mood LED via PWM breathing (onboard LED or external + resistor).
-// Consumes: led.mood (payload: calm|excited|thinking|off)
-void led_mood_start(int gpio_led);
+// Mood indicator — the backend (single PWM LED or WS2812 ring) is chosen in
+// menuconfig. The ring tints itself with the emotion's mood color.
+// Consumes: led.mood     (calm|excited|thinking|off — animation)
+//           face.emotion (ring color; ignored by the single PWM LED)
+void led_start();
 
 }  // namespace buddy
