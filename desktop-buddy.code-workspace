@@ -1,0 +1,11 @@
+{
+  "folders": [
+    { "name": "firmware (ESP-IDF)", "path": "firmware" },
+    { "name": "desktop-buddy (repo)", "path": "." }
+  ],
+  "settings": {
+    "idf.currentSetup": "/Users/daniel.perez.ts/.espressif/v6.0.2/esp-idf",
+    "idf.port": "/dev/tty.usbmodem1234561",
+    "idf.openOcdConfigs": ["board/esp32s3-builtin.cfg"]
+  }
+}

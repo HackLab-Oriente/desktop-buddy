@@ -1,0 +1,18 @@
+{
+  "idf.currentSetup": "/Users/daniel.perez.ts/.espressif/v6.0.2/esp-idf",
+  "idf.customExtraVars": {
+    "IDF_TARGET": "esp32s3",
+    "OPENOCD_USB_ADAPTER_LOCATION": "1-1"
+  },
+  "idf.port": "/dev/tty.usbmodem1101",
+  "idf.openOcdConfigs": [
+    "board/esp32s3-builtin.cfg"
+  ],
+  "idf.flashType": "UART",
+  "clangd.path": "/Users/daniel.perez.ts/.espressif/tools/esp-clang/esp-20.1.1_20250829/esp-clang/bin/clangd",
+  "clangd.arguments": [
+    "--background-index",
+    "--query-driver=**",
+    "--compile-commands-dir=/Users/daniel.perez.ts/Developer/Personal/desktop-buddy/firmware/build"
+  ]
+}

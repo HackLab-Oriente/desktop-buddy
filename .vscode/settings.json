@@ -1,6 +1,5 @@
 {
-  "idf.currentSetup": "/Users/daniel.perez.ts/.espressif/v6.0.2/esp-idf",
-  "idf.customExtraVars": {},
+  "//": "The ESP-IDF project lives in firmware/, not at the repo root. Open desktop-buddy.code-workspace and select the 'firmware (ESP-IDF)' folder for build/flash/monitor. ESP-IDF settings live in firmware/.vscode/settings.json.",
   "clangd.path": "/Users/daniel.perez.ts/.espressif/tools/esp-clang/esp-20.1.1_20250829/esp-clang/bin/clangd",
   "clangd.arguments": [
     "--background-index",
@@ -8,6 +7,6 @@
     "--compile-commands-dir=/Users/daniel.perez.ts/Developer/Personal/desktop-buddy/build"
   ],
   "idf.openOcdConfigs": [
-    "board/esp32-wrover-kit-3.3v.cfg"
+    "board/esp32s3-builtin.cfg"
   ]
 }
