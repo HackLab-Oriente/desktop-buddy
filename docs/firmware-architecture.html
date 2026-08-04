@@ -1,0 +1,685 @@
+<title>Desktop Buddy · Firmware Architecture</title>
+<style>
+  :root{
+    --paper:#EDEFF2; --paper-2:#F7F8FA; --paper-3:#FFFFFF;
+    --ink:#10151B; --ink-2:#444E59; --ink-3:#79838F;
+    --rule:#D3D9E0; --rule-2:#BAC3CD;
+    --sig:#1F4FD8; --sig-soft:#DCE4FB;
+    --warm:#B8541A; --warm-soft:#F7E6DA;
+    --core0:#1F4FD8; --core1:#0E7C6B; --core1-soft:#D8EFE9;
+    --mono:ui-monospace,"SF Mono","JetBrains Mono","Cascadia Mono",Menlo,Consolas,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --paper:#0C1014; --paper-2:#141A21; --paper-3:#1B222B;
+      --ink:#E6EBF0; --ink-2:#9AA6B2; --ink-3:#67737F;
+      --rule:#232C36; --rule-2:#313D49;
+      --sig:#7CA0FF; --sig-soft:#16233F;
+      --warm:#F0913F; --warm-soft:#33220F;
+      --core0:#7CA0FF; --core1:#35C2A8; --core1-soft:#0D2A26;
+    }
+  }
+  :root[data-theme="light"]{
+    --paper:#EDEFF2; --paper-2:#F7F8FA; --paper-3:#FFFFFF;
+    --ink:#10151B; --ink-2:#444E59; --ink-3:#79838F;
+    --rule:#D3D9E0; --rule-2:#BAC3CD;
+    --sig:#1F4FD8; --sig-soft:#DCE4FB;
+    --warm:#B8541A; --warm-soft:#F7E6DA;
+    --core0:#1F4FD8; --core1:#0E7C6B; --core1-soft:#D8EFE9;
+  }
+  :root[data-theme="dark"]{
+    --paper:#0C1014; --paper-2:#141A21; --paper-3:#1B222B;
+    --ink:#E6EBF0; --ink-2:#9AA6B2; --ink-3:#67737F;
+    --rule:#232C36; --rule-2:#313D49;
+    --sig:#7CA0FF; --sig-soft:#16233F;
+    --warm:#F0913F; --warm-soft:#33220F;
+    --core0:#7CA0FF; --core1:#35C2A8; --core1-soft:#0D2A26;
+  }
+
+  *{box-sizing:border-box}
+  body,.doc{margin:0}
+  .doc{background:var(--paper);color:var(--ink);font-family:var(--sans);line-height:1.65;
+       -webkit-font-smoothing:antialiased}
+  .wrap{max-width:980px;margin:0 auto;padding:0 clamp(1rem,4vw,2rem)}
+  .mono{font-family:var(--mono)}
+
+  /* masthead */
+  .mast{border-bottom:2px solid var(--ink);background:var(--paper)}
+  .mast .wrap{display:flex;flex-wrap:wrap;gap:1rem;align-items:flex-end;
+              justify-content:space-between;padding-top:2.2rem;padding-bottom:1rem}
+  h1{font-size:clamp(1.7rem,4vw,2.5rem);line-height:1.1;margin:.3rem 0 0;font-weight:600;
+     letter-spacing:-.02em;text-wrap:balance}
+  .kicker{font-family:var(--mono);font-size:.72rem;letter-spacing:.2em;text-transform:uppercase;
+          color:var(--sig);font-weight:500}
+  .specline{font-family:var(--mono);font-size:.74rem;color:var(--ink-3);margin-top:.5rem}
+  .specline b{color:var(--ink-2);font-weight:500}
+  .tbtn{font-family:var(--mono);font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;
+        background:var(--paper-2);color:var(--ink-2);border:1px solid var(--rule-2);
+        padding:.4rem .7rem;border-radius:3px;cursor:pointer}
+  .tbtn:hover,.tbtn:focus-visible{border-color:var(--sig);color:var(--sig);outline:none}
+
+  /* section furniture */
+  section{padding:clamp(2.4rem,5vw,3.4rem) 0;border-bottom:1px solid var(--rule)}
+  .snum{font-family:var(--mono);font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;
+        color:var(--ink-3);display:flex;align-items:center;gap:.6rem;margin-bottom:.35rem}
+  .snum b{color:var(--sig);font-weight:500}
+  h2{font-size:clamp(1.25rem,2.6vw,1.6rem);margin:0 0 .5rem;font-weight:600;letter-spacing:-.01em;
+     text-wrap:balance}
+  h3{font-size:1rem;margin:0 0 .3rem;font-weight:600}
+  p{color:var(--ink-2);margin:.5rem 0;max-width:68ch}
+  p.lead{color:var(--ink);font-size:1.02rem}
+  code{font-family:var(--mono);font-size:.85em;background:var(--sig-soft);color:var(--sig);
+       padding:.1em .35em;border-radius:3px;white-space:nowrap}
+  code.w{background:var(--warm-soft);color:var(--warm)}
+  a{color:var(--sig)}
+
+  .grid{display:grid;gap:.9rem}
+  .g2{grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+  .g3{grid-template-columns:repeat(auto-fit,minmax(210px,1fr))}
+  .card{background:var(--paper-2);border:1px solid var(--rule);border-radius:6px;padding:.9rem 1rem}
+  .card .lbl{font-family:var(--mono);font-size:.68rem;letter-spacing:.12em;text-transform:uppercase;
+             color:var(--ink-3)}
+  .card p{font-size:.88rem;margin:.35rem 0 0}
+
+  /* ---- bus simulator ---- */
+  .sim{margin-top:1.2rem;border:1px solid var(--rule-2);border-radius:8px;overflow:hidden;
+       background:var(--paper-3)}
+  .sim-bar{display:flex;flex-wrap:wrap;gap:.4rem;align-items:center;padding:.7rem .8rem;
+           border-bottom:1px solid var(--rule);background:var(--paper-2)}
+  .sim-bar .cap{font-family:var(--mono);font-size:.68rem;letter-spacing:.12em;text-transform:uppercase;
+                color:var(--ink-3);margin-right:.3rem}
+  .trig{font-family:var(--mono);font-size:.78rem;background:var(--paper-3);color:var(--ink);
+        border:1px solid var(--rule-2);border-radius:4px;padding:.34rem .6rem;cursor:pointer}
+  .trig:hover:not(:disabled),.trig:focus-visible{border-color:var(--sig);color:var(--sig);outline:none}
+  .trig:disabled{opacity:.45;cursor:progress}
+  .sim-body{display:grid;grid-template-columns:1fr;gap:0}
+  @media(min-width:800px){.sim-body{grid-template-columns:1.15fr .85fr}}
+  .nodes{padding:.9rem;display:grid;gap:.5rem;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+         align-content:start}
+  .node{border:1px solid var(--rule);border-radius:5px;padding:.5rem .6rem;background:var(--paper-2);
+        transition:border-color .18s,background .18s,transform .18s}
+  .node .nm{font-family:var(--mono);font-size:.78rem;font-weight:500;color:var(--ink)}
+  .node .sub{font-family:var(--mono);font-size:.66rem;color:var(--ink-3);margin-top:.15rem;
+             word-break:break-all}
+  .node[data-core="0"]{border-left:3px solid var(--core0)}
+  .node[data-core="1"]{border-left:3px solid var(--core1)}
+  .node.hot{background:var(--sig-soft);border-color:var(--sig);transform:translateY(-1px)}
+  .node.emit{background:var(--warm-soft);border-color:var(--warm)}
+  .trace{border-top:1px solid var(--rule);padding:.7rem .8rem;background:var(--paper-3);
+         min-height:200px;max-height:290px;overflow-y:auto}
+  @media(min-width:800px){.trace{border-top:0;border-left:1px solid var(--rule)}}
+  .trace .th{font-family:var(--mono);font-size:.66rem;letter-spacing:.12em;text-transform:uppercase;
+             color:var(--ink-3);margin-bottom:.4rem}
+  .line{font-family:var(--mono);font-size:.72rem;line-height:1.5;color:var(--ink-2);
+        display:flex;gap:.5rem;padding:.1rem 0}
+  .line .t{color:var(--ink-3);flex:none}
+  .line .ev{color:var(--sig)}
+  .line .ev.w{color:var(--warm)}
+  .line .src{color:var(--ink-3)}
+  .hint{font-family:var(--mono);font-size:.7rem;color:var(--ink-3);padding:.5rem .8rem;
+        border-top:1px solid var(--rule);background:var(--paper-2)}
+
+  /* ---- tables ---- */
+  .tw{overflow-x:auto;margin-top:1rem;border:1px solid var(--rule);border-radius:6px}
+  table{border-collapse:collapse;width:100%;font-size:.82rem;background:var(--paper-2)}
+  th{font-family:var(--mono);font-size:.66rem;letter-spacing:.1em;text-transform:uppercase;
+     color:var(--ink-3);text-align:left;padding:.55rem .7rem;border-bottom:1px solid var(--rule-2);
+     font-weight:500;white-space:nowrap}
+  td{padding:.5rem .7rem;border-bottom:1px solid var(--rule);color:var(--ink-2);vertical-align:top}
+  tr:last-child td{border-bottom:0}
+  td.m,th.m{font-family:var(--mono);font-variant-numeric:tabular-nums}
+  td.name{color:var(--ink);font-family:var(--mono);white-space:nowrap}
+  .pill{font-family:var(--mono);font-size:.66rem;padding:.1rem .4rem;border-radius:3px;
+        border:1px solid currentColor;white-space:nowrap}
+  .p0{color:var(--core0)} .p1{color:var(--core1)}
+
+  /* ---- backend switcher ---- */
+  .sw{display:flex;flex-wrap:wrap;gap:1.4rem;margin-top:1rem}
+  .swgroup .lbl{font-family:var(--mono);font-size:.68rem;letter-spacing:.12em;text-transform:uppercase;
+                color:var(--ink-3);margin-bottom:.35rem}
+  .opts{display:flex;gap:.35rem}
+  .opt{font-family:var(--mono);font-size:.76rem;padding:.36rem .6rem;border:1px solid var(--rule-2);
+       background:var(--paper-2);color:var(--ink-2);border-radius:4px;cursor:pointer}
+  .opt[aria-pressed="true"]{border-color:var(--sig);color:var(--sig);background:var(--sig-soft)}
+  .opt:focus-visible{outline:2px solid var(--sig);outline-offset:1px}
+  .files{margin-top:1rem;display:grid;gap:.3rem;grid-template-columns:repeat(auto-fit,minmax(230px,1fr))}
+  .file{font-family:var(--mono);font-size:.76rem;padding:.4rem .6rem;border:1px solid var(--rule);
+        border-radius:4px;background:var(--paper-2);color:var(--ink);display:flex;
+        justify-content:space-between;gap:.6rem;transition:opacity .2s}
+  .file .st{color:var(--core1);font-size:.68rem}
+  .file.out{opacity:.4}
+  .file.out .st{color:var(--ink-3)}
+
+  /* ---- eyes ---- */
+  .emo{display:grid;gap:1rem;margin-top:1rem}
+  @media(min-width:760px){.emo{grid-template-columns:1fr 300px;align-items:start}}
+  .eyewrap{background:#05070A;border:1px solid var(--rule-2);border-radius:8px;padding:.8rem;
+           display:flex;flex-direction:column;align-items:center;gap:.5rem}
+  .eyewrap canvas{width:100%;height:auto;max-width:260px;display:block}
+  .eyewrap .cap{font-family:var(--mono);font-size:.68rem;color:#67737F}
+  tr.erow{cursor:pointer}
+  tr.erow:hover td{background:var(--sig-soft)}
+  tr.erow[aria-selected="true"] td{background:var(--sig-soft);color:var(--ink)}
+  .swatch{width:11px;height:11px;border-radius:2px;display:inline-block;vertical-align:-1px;
+          margin-right:.4rem;border:1px solid rgba(128,128,128,.35)}
+
+  /* ---- mem bars ---- */
+  .bar{height:12px;border-radius:2px;background:var(--rule);overflow:hidden;display:flex;margin-top:.4rem}
+  .bar i{display:block;height:100%}
+  .barlbl{display:flex;justify-content:space-between;font-family:var(--mono);font-size:.7rem;
+          color:var(--ink-3);margin-top:.3rem}
+
+  pre{font-family:var(--mono);font-size:.76rem;line-height:1.55;background:var(--paper-2);
+      border:1px solid var(--rule);border-radius:6px;padding:.8rem;overflow-x:auto;margin:.8rem 0 0;
+      color:var(--ink-2)}
+  pre .k{color:var(--sig)} pre .c{color:var(--ink-3)} pre .w{color:var(--warm)}
+
+  ul{color:var(--ink-2);max-width:68ch;padding-left:1.1rem}
+  li{margin:.3rem 0}
+  footer{padding:2rem 0 3rem;font-family:var(--mono);font-size:.72rem;color:var(--ink-3)}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+  @media (prefers-reduced-motion:reduce){*{transition-duration:.001ms!important}}
+</style>
+
+<div class="doc">
+  <header class="mast">
+    <div class="wrap">
+      <div>
+        <div class="kicker">Desktop Buddy</div>
+        <h1>Firmware architecture</h1>
+        <div class="specline">
+          ESP-IDF <b>v6.0.2</b> · targets <b>esp32s3</b> (default) / <b>esp32</b> ·
+          C++ core + Berry scripting · app <b>1.19 MB</b> of 2.5 MB
+        </div>
+      </div>
+      <button class="tbtn" id="theme">theme</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- 1 -->
+    <section>
+      <div class="wrap">
+        <div class="snum"><b>§1</b> The one rule</div>
+        <h2>Everything is an event on the bus</h2>
+        <p class="lead">No driver ever calls another driver. A Sense <em>publishes</em>; anything that
+          cares <em>subscribes</em>. One task drains the queue, so handlers run in a single context and
+          never need their own locks. This single decision is why a new sensor can be added without
+          touching a line of existing code.</p>
+        <p>Subscriptions match an exact name (<code>touch.pet</code>), a family
+          (<code>touch.*</code>), or everything (<code>*</code> — how the debug tracer and the Berry
+          host listen). Events published <em>inside</em> a handler land in the next drain, not the
+          current one, which keeps cascades from recursing.</p>
+
+        <div class="sim">
+          <div class="sim-bar">
+            <span class="cap">Publish</span>
+            <button class="trig" data-c="pet">touch.pet</button>
+            <button class="trig" data-c="joy">joystick.move</button>
+            <button class="trig" data-c="nfc">nfc.tag</button>
+            <button class="trig" data-c="reload">system.reload</button>
+            <button class="trig" data-c="offline">touch.pet <span style="opacity:.6">(offline)</span></button>
+          </div>
+          <div class="sim-body">
+            <div class="nodes" id="nodes"></div>
+            <div class="trace">
+              <div class="th">Serial trace</div>
+              <div id="log"></div>
+            </div>
+          </div>
+          <div class="hint" id="hint">Pick an event above to watch it propagate. Left border marks the core the task runs on.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2 -->
+    <section>
+      <div class="wrap">
+        <div class="snum"><b>§2</b> Components</div>
+        <h2>Four primitives, one component each</h2>
+        <p>Every feature must present itself as a <strong>Sense</strong> (input → events),
+          an <strong>Expression</strong> (actions → output), a <strong>Reflex</strong> (event → action
+          logic, in script), or a <strong>Skill</strong> (an LLM-mediated capability, v2+). The
+          directory layout follows the same split.</p>
+        <div class="tw">
+          <table>
+            <thead><tr><th>Component</th><th>Kind</th><th>Publishes</th><th>Subscribes</th></tr></thead>
+            <tbody>
+              <tr><td class="name">bus/</td><td>core</td><td class="m">—</td><td class="m">—</td></tr>
+              <tr><td class="name">senses/touch_sense</td><td>Sense</td><td class="m">touch.down · touch.pet · touch.poke</td><td class="m">—</td></tr>
+              <tr><td class="name">senses/joystick</td><td>Sense</td><td class="m">joystick.move · joystick.press/release</td><td class="m">—</td></tr>
+              <tr><td class="name">senses/rc522</td><td>Sense</td><td class="m">nfc.tag</td><td class="m">—</td></tr>
+              <tr><td class="name">expressions/round_face</td><td>Expression</td><td class="m">—</td><td class="m">face.emotion · face.say · face.look</td></tr>
+              <tr><td class="name">expressions/led_ring</td><td>Expression</td><td class="m">—</td><td class="m">face.emotion · led.mood</td></tr>
+              <tr><td class="name">brain/brain_cloud</td><td>Brain</td><td class="m">brain.reply · brain.error · led.mood</td><td class="m">brain.ask</td></tr>
+              <tr><td class="name">berry_host</td><td>Reflexes</td><td class="m">(whatever scripts emit)</td><td class="m">* · system.reload</td></tr>
+              <tr><td class="name">webui</td><td>core</td><td class="m">system.reload · time.synced</td><td class="m">—</td></tr>
+              <tr><td class="name">main</td><td>wiring</td><td class="m">face.* · led.mood</td><td class="m">brain.reply · *(trace)</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p style="margin-top:.9rem">Note what <code>main</code> is: not a god object, just wiring plus
+          the single framework-owned reflex that turns a Brain reply into expressions. Everything else
+          is a component that could be deleted without breaking its neighbours.</p>
+      </div>
+    </section>
+
+    <!-- 3 -->
+    <section>
+      <div class="wrap">
+        <div class="snum"><b>§3</b> Concurrency</div>
+        <h2>Nine tasks across two cores</h2>
+        <p>Network and TLS live on core 0 with the bus dispatcher; everything that must stay smooth —
+          rendering, sensing, the LED ring — lives on core 1. The rule of thumb: anything that can block
+          for seconds goes on core 0 and talks to the rest of the system only through the bus.</p>
+        <div class="tw">
+          <table>
+            <thead><tr><th>Task</th><th class="m">Core</th><th class="m">Stack</th><th class="m">Prio</th><th class="m">Period</th><th>Why it exists</th></tr></thead>
+            <tbody>
+              <tr><td class="name">main</td><td><span class="pill p0">0</span></td><td class="m">8192</td><td class="m">1</td><td class="m">once</td><td>brings up every subsystem, then exits</td></tr>
+              <tr><td class="name">bus</td><td><span class="pill p0">0</span></td><td class="m">6144</td><td class="m">5</td><td class="m">10 ms idle</td><td>drains the queue; all handlers run here</td></tr>
+              <tr><td class="name">brain</td><td><span class="pill p0">0</span></td><td class="m">10240</td><td class="m">4</td><td class="m">blocking</td><td>TLS + HTTP to Claude; deep stack for mbedTLS</td></tr>
+              <tr><td class="name">face</td><td><span class="pill p1">1</span></td><td class="m">6144</td><td class="m">4</td><td class="m">40 ms</td><td>blink, saccade, render, push framebuffer</td></tr>
+              <tr><td class="name">ring</td><td><span class="pill p1">1</span></td><td class="m">3072</td><td class="m">3</td><td class="m">40 ms</td><td>breathe / comet animation on the WS2812</td></tr>
+              <tr><td class="name">touch</td><td><span class="pill p1">1</span></td><td class="m">3072</td><td class="m">4</td><td class="m">25 ms</td><td>capacitive pad, 2-sample debounce</td></tr>
+              <tr><td class="name">joystick</td><td><span class="pill p1">1</span></td><td class="m">3072</td><td class="m">4</td><td class="m">40 ms</td><td>two ADC axes + button</td></tr>
+              <tr><td class="name">rc522</td><td><span class="pill p1">1</span></td><td class="m">3072</td><td class="m">4</td><td class="m">200 ms</td><td>polls for an NFC tag over SPI</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p style="margin-top:.9rem">The Brain never blocks the bus: <code>brain.ask</code> handlers just
+          <code>strdup</code> the prompt onto a 4-deep queue and return. If the queue is full the ask is
+          dropped rather than stalling the whole creature.</p>
+      </div>
+    </section>
+
+    <!-- 4 -->
+    <section>
+      <div class="wrap">
+        <div class="snum"><b>§4</b> Portability</div>
+        <h2>Hardware is a build-time choice, not a code fork</h2>
+        <p>Each display and mood-indicator backend is a whole source file guarded by its Kconfig symbol.
+          Exactly one compiles in; the rest vanish. Every backend implements the same two entry points
+          (<code>face_start()</code>, <code>led_start()</code>) and consumes the same events — so a pack
+          written for the round colour face works unchanged on the monochrome OLED.</p>
+        <div class="sw">
+          <div class="swgroup">
+            <div class="lbl">Face display backend</div>
+            <div class="opts" role="group" aria-label="Display backend">
+              <button class="opt" data-g="disp" data-v="gc" aria-pressed="true">GC9A01 round colour</button>
+              <button class="opt" data-g="disp" data-v="ssd" aria-pressed="false">SSD1306 mono</button>
+            </div>
+          </div>
+          <div class="swgroup">
+            <div class="lbl">Mood indicator backend</div>
+            <div class="opts" role="group" aria-label="LED backend">
+              <button class="opt" data-g="led" data-v="ws" aria-pressed="true">WS2812 ring</button>
+              <button class="opt" data-g="led" data-v="pwm" aria-pressed="false">Single PWM LED</button>
+            </div>
+          </div>
+        </div>
+        <div class="files" id="files"></div>
+        <pre id="kcode"></pre>
+      </div>
+    </section>
+
+    <!-- 5 -->
+    <section>
+      <div class="wrap">
+        <div class="snum"><b>§5</b> The Brain</div>
+        <h2>One contract, three possible brains</h2>
+        <p>The firmware never names an AI vendor. It publishes <code>brain.ask</code> and waits for
+          <code>brain.reply</code>. Today a device-side adapter fills that contract by calling Claude
+          Haiku directly over TLS; tomorrow a hub server can serve the identical contract; with no
+          network at all, nothing fills it and the reflexes simply keep running.</p>
+        <div class="grid g3" style="margin-top:1rem">
+          <div class="card"><div class="lbl">Default · today</div><h3>On-device adapter</h3>
+            <p>WiFi + an API key. One persistent TLS connection, reused across asks.</p></div>
+          <div class="card"><div class="lbl">Optional · v2</div><h3>Hub server</h3>
+            <p>Same contract over LAN. Unlocks webhooks, OAuth integrations, long-term memory.</p></div>
+          <div class="card"><div class="lbl">Always</div><h3>No brain</h3>
+            <p>Offline, reflexes still fire. The buddy is quieter, never bricked.</p></div>
+        </div>
+        <pre><span class="c">// device → brain</span>
+{ <span class="k">"event"</span>: "touch.pet", <span class="k">"personality"</span>: "…", <span class="k">"sensors"</span>: {…} }
+
+<span class="c">// brain → device (parsed defensively: the model loves ```json fences,</span>
+<span class="c">// so the framework extracts the outermost {…} rather than trusting framing)</span>
+{ <span class="w">"utterance"</span>: "All forgiven!", <span class="w">"emotion"</span>: "happy" }</pre>
+        <p>Two hard-won details live in this path: the reply parser tolerates markdown fences, and the
+          TLS connection is kept alive because on the classic ESP32 a fresh handshake costs 3–6 s of
+          software elliptic-curve maths — enough to trip the task watchdog.</p>
+      </div>
+    </section>
+
+    <!-- 6 -->
+    <section>
+      <div class="wrap">
+        <div class="snum"><b>§6</b> Behaviour is data</div>
+        <h2>Emotions are a table, not a code path</h2>
+        <p>An emotion is five integers, a blink temperament and a colour. The renderer and the LED ring
+          read the same row, which is why the eyes and the halo can never disagree. Click a row — the
+          eyes below are drawn by the same algorithm the firmware runs.</p>
+        <div class="emo">
+          <div class="tw" style="margin-top:0">
+            <table>
+              <thead><tr><th>Emotion</th><th class="m">W</th><th class="m">H</th><th class="m">Open</th><th class="m">Lift</th><th class="m">Brow</th><th class="m">Blink</th></tr></thead>
+              <tbody id="erows"></tbody>
+            </table>
+          </div>
+          <div class="eyewrap">
+            <canvas id="eyes" width="520" height="300" role="img" aria-label="Preview of the selected emotion"></canvas>
+            <div class="cap" id="ecap">neutral</div>
+          </div>
+        </div>
+        <p style="margin-top:1rem">Above the table sits the layer nobody recompiles: <strong>Berry
+          reflexes</strong>. Scripts are uploaded from the device's own web UI, which writes the file
+          and publishes <code>system.reload</code>; the host tears the VM down and rebuilds it in place.
+          Editing behaviour never involves a flash cable.</p>
+        <pre><span class="c"># packs/zero/reflexes/main.be — hot-reloaded, no rebuild</span>
+buddy.on(<span class="k">"touch.pet"</span>, def (ev)
+  buddy.face.emotion(<span class="k">"happy"</span>)
+  buddy.led.mood(<span class="k">"excited"</span>)
+  buddy.say(<span class="k">"The user just petted you gently."</span>)   <span class="c"># → brain.ask</span>
+end)</pre>
+        <p>The VM lives entirely on the bus dispatch task, so scripts need no locking — and equally, a
+          script that loops forever freezes every reflex. That constraint is the price of the
+          simplicity.</p>
+      </div>
+    </section>
+
+    <!-- 7 -->
+    <section>
+      <div class="wrap">
+        <div class="snum"><b>§7</b> Budgets</div>
+        <h2>Where the memory goes</h2>
+        <div class="grid g2" style="margin-top:1rem">
+          <div class="card">
+            <div class="lbl">Application image</div>
+            <div class="bar"><i style="width:45.6%;background:var(--sig)"></i></div>
+            <div class="barlbl"><span>1.19 MB used</span><span>2.5 MB partition</span></div>
+            <p>Includes the Berry VM, mbedTLS and the LCD stack.</p>
+          </div>
+          <div class="card">
+            <div class="lbl">Internal RAM · task stacks</div>
+            <div class="bar">
+              <i style="width:24%;background:var(--core0)"></i>
+              <i style="width:14%;background:var(--core0);opacity:.6"></i>
+              <i style="width:14%;background:var(--core1)"></i>
+              <i style="width:21%;background:var(--core1);opacity:.6"></i>
+            </div>
+            <div class="barlbl"><span>≈ 43 KB across 9 tasks</span><span>of 512 KB SRAM</span></div>
+            <p>Plus roughly 50 KB more while a TLS session is open.</p>
+          </div>
+        </div>
+        <p style="margin-top:1rem">The 240×240 framebuffer (112 KB) lives in <strong>PSRAM</strong>;
+          DMA and WiFi buffers must stay in internal RAM. Two crashes taught these limits the hard way:
+          <code>app_main</code> overflowing its default 3584-byte stack while bringing up the LCD and the
+          VM together, and a text-wrap buffer overrun that corrupted the heap on long replies. Both are
+          now fixed, and both are documented in the hardware notes so nobody re-learns them.</p>
+      </div>
+    </section>
+
+    <!-- 8 -->
+    <section>
+      <div class="wrap">
+        <div class="snum"><b>§8</b> Extending</div>
+        <h2>Adding something new</h2>
+        <div class="grid g3" style="margin-top:1rem">
+          <div class="card"><div class="lbl">New behaviour</div><h3>Write a reflex</h3>
+            <p>A few lines of Berry in the web editor. No toolchain, no rebuild, live in seconds.</p></div>
+          <div class="card"><div class="lbl">New sensor</div><h3>Add a Sense</h3>
+            <p>One <code>.cpp</code>, a task, and <code>bus().publish(…)</code>. Nothing existing changes.</p></div>
+          <div class="card"><div class="lbl">New output</div><h3>Add an Expression</h3>
+            <p>Subscribe to an action event and drive the hardware. Same isolation.</p></div>
+        </div>
+        <p style="margin-top:1rem">The honest limits of the current design, worth knowing before you
+          build on it: the emotion table is still compiled in rather than supplied by a pack; the Brain
+          call is non-streaming, so the face can't react mid-sentence; and there is no audio path yet —
+          chirps and the push-to-talk voice loop are the next milestone.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer><div class="wrap">desktop_buddy · firmware reference · a living document</div></footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  /* theme */
+  document.getElementById("theme").addEventListener("click", function(){
+    var cur = document.documentElement.getAttribute("data-theme");
+    if(!cur) cur = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    document.documentElement.setAttribute("data-theme", cur === "dark" ? "light" : "dark");
+  });
+
+  /* ---------- §1 bus simulator ---------- */
+  var NODES = [
+    {id:"touch",  nm:"touch_sense", core:1, sub:"— (publishes)"},
+    {id:"joy",    nm:"joystick",    core:1, sub:"— (publishes)"},
+    {id:"rc522",  nm:"rc522",       core:1, sub:"— (publishes)"},
+    {id:"bus",    nm:"bus",         core:0, sub:"queue → pump()"},
+    {id:"berry",  nm:"berry_host",  core:0, sub:"* · system.reload"},
+    {id:"main",   nm:"main",        core:0, sub:"brain.reply · *"},
+    {id:"brain",  nm:"brain_cloud", core:0, sub:"brain.ask"},
+    {id:"face",   nm:"round_face",  core:1, sub:"face.emotion · say · look"},
+    {id:"ring",   nm:"led_ring",    core:1, sub:"face.emotion · led.mood"}
+  ];
+  var nodesEl = document.getElementById("nodes"), logEl = document.getElementById("log"),
+      hintEl = document.getElementById("hint"), nodeMap = {};
+  NODES.forEach(function(n){
+    var d = document.createElement("div");
+    d.className = "node"; d.setAttribute("data-core", n.core);
+    d.innerHTML = '<div class="nm"></div><div class="sub"></div>';
+    d.querySelector(".nm").textContent = n.nm;
+    d.querySelector(".sub").textContent = n.sub;
+    nodesEl.appendChild(d); nodeMap[n.id] = d;
+  });
+
+  // step: [ms, source, event, payload, targets[], warm?]
+  var CHAINS = {
+    pet: {hint:"A pet with the network up: the reflex asks the Brain, and the reply drives the face and ring.", steps:[
+      [0,   "touch",  "touch.pet",   "pad0",        ["bus","berry","main"]],
+      [420, "berry",  "brain.ask",   "user petted you gently", ["bus","brain"], 1],
+      [260, "brain",  "led.mood",    "thinking",    ["bus","ring"]],
+      [1500,"brain",  "brain.reply", '{"utterance":"All forgiven!","emotion":"happy"}', ["bus","main"], 1],
+      [320, "main",   "face.emotion","happy",       ["bus","face","ring"]],
+      [160, "main",   "face.say",    "ALL FORGIVEN!", ["bus","face"]],
+      [160, "main",   "led.mood",    "calm",        ["bus","ring"]]
+    ]},
+    joy: {hint:"Local reflex, no cloud: from stick to eyeball in about 40 ms.", steps:[
+      [0,   "joy",   "joystick.move", "40,-20", ["bus","berry","main"]],
+      [200, "main",  "face.look",     "40,-20", ["bus","face"]]
+    ]},
+    nfc: {hint:"A tag carries meaning, not instructions — the reflex decides what it means.", steps:[
+      [0,   "rc522", "nfc.tag",     "04a1b2c9", ["bus","berry","main"]],
+      [380, "berry", "face.emotion","curious",  ["bus","face","ring"]],
+      [260, "berry", "brain.ask",   "user showed you a card", ["bus","brain"], 1]
+    ]},
+    reload: {hint:"Uploading a script from the web UI rebuilds the VM in place. No reflash, no reboot.", steps:[
+      [0,   "main",  "system.reload", "", ["bus","berry"]],
+      [500, "berry", "(vm rebuilt)",  "reflexes loaded", ["berry"], 1]
+    ]},
+    offline: {hint:"Same pet with no network: the ask goes nowhere and the local reflex still runs. Never bricked.", steps:[
+      [0,   "touch", "touch.pet",  "pad0",   ["bus","berry","main"]],
+      [420, "berry", "face.emotion","happy", ["bus","face","ring"]],
+      [260, "berry", "brain.ask",  "(no brain configured — dropped)", ["bus"], 1]
+    ]}
+  };
+
+  var t0 = 0, busy = false;
+  function stamp(ms){
+    var s = (ms/1000).toFixed(3);
+    while(s.length < 7) s = " " + s;
+    return "(" + s + ")";
+  }
+  function flash(ids, warm){
+    ids.forEach(function(id){
+      var el = nodeMap[id]; if(!el) return;
+      el.classList.add(warm ? "emit" : "hot");
+      setTimeout(function(){ el.classList.remove("hot","emit"); }, reduce ? 200 : 620);
+    });
+  }
+  function logline(ms, src, ev, payload, warm){
+    var d = document.createElement("div"); d.className = "line";
+    var a = document.createElement("span"); a.className = "t"; a.textContent = stamp(ms);
+    var b = document.createElement("span"); b.className = "ev" + (warm ? " w" : ""); b.textContent = ev;
+    var c = document.createElement("span"); c.className = "src"; c.textContent = payload ? payload : "";
+    d.appendChild(a); d.appendChild(b); if(payload) d.appendChild(c);
+    logEl.appendChild(d);
+    logEl.parentElement.scrollTop = logEl.parentElement.scrollHeight;
+  }
+  function run(key){
+    if(busy) return;
+    var chain = CHAINS[key]; if(!chain) return;
+    busy = true;
+    document.querySelectorAll(".trig").forEach(function(b){ b.disabled = true; });
+    logEl.innerHTML = ""; t0 = 0;
+    hintEl.textContent = chain.hint;
+    var acc = 0;
+    chain.steps.forEach(function(st, i){
+      acc += st[0];
+      var wait = reduce ? i * 60 : acc;
+      setTimeout(function(){
+        t0 += st[0];
+        logline(t0, st[1], st[2], st[3], st[5]);
+        flash(st[4], st[5]);
+        if(i === chain.steps.length - 1){
+          setTimeout(function(){
+            busy = false;
+            document.querySelectorAll(".trig").forEach(function(b){ b.disabled = false; });
+          }, reduce ? 100 : 500);
+        }
+      }, wait);
+    });
+  }
+  document.querySelectorAll(".trig").forEach(function(b){
+    b.addEventListener("click", function(){ run(b.dataset.c); });
+  });
+
+  /* ---------- §4 backend switcher ---------- */
+  var sel = {disp:"gc", led:"ws"};
+  var FILES = [
+    {f:"expressions/face_model.cpp", on:function(){ return true; },  why:"shared"},
+    {f:"expressions/round_face.cpp", on:function(){ return sel.disp==="gc"; }},
+    {f:"expressions/oled_face.cpp",  on:function(){ return sel.disp==="ssd"; }},
+    {f:"expressions/led_ring.cpp",   on:function(){ return sel.led==="ws"; }},
+    {f:"expressions/led_mood.cpp",   on:function(){ return sel.led==="pwm"; }}
+  ];
+  var filesEl = document.getElementById("files"), kEl = document.getElementById("kcode");
+  function renderFiles(){
+    filesEl.innerHTML = "";
+    FILES.forEach(function(x){
+      var on = x.on();
+      var d = document.createElement("div");
+      d.className = "file" + (on ? "" : " out");
+      var a = document.createElement("span"); a.textContent = x.f;
+      var b = document.createElement("span"); b.className = "st";
+      b.textContent = on ? (x.why || "compiled") : "excluded";
+      d.appendChild(a); d.appendChild(b); filesEl.appendChild(d);
+    });
+    var disp = sel.disp === "gc" ? "BUDDY_DISPLAY_GC9A01" : "BUDDY_DISPLAY_SSD1306";
+    var led  = sel.led  === "ws" ? "BUDDY_LED_WS2812"     : "BUDDY_LED_PWM";
+    kEl.innerHTML =
+      '<span class="c">// sdkconfig — set in menuconfig, read by #if guards</span>\n' +
+      'CONFIG_<span class="k">' + disp + '</span>=y\n' +
+      'CONFIG_<span class="k">' + led + '</span>=y\n\n' +
+      '<span class="c">// both backends expose the same entry point:</span>\n' +
+      'buddy::<span class="w">face_start</span>();   <span class="c">// main.cpp never knows which panel</span>\n' +
+      'buddy::<span class="w">led_start</span>();';
+  }
+  document.querySelectorAll(".opt").forEach(function(btn){
+    btn.addEventListener("click", function(){
+      sel[btn.dataset.g] = btn.dataset.v;
+      document.querySelectorAll('.opt[data-g="' + btn.dataset.g + '"]').forEach(function(o){
+        o.setAttribute("aria-pressed", o === btn ? "true" : "false");
+      });
+      renderFiles();
+    });
+  });
+  renderFiles();
+
+  /* ---------- §6 emotion table + live eyes ---------- */
+  var EMO = [
+    {n:"neutral",    w:26,h:30,o:100,l:0, b:0,  bl:3800, c:[0,190,255]},
+    {n:"happy",      w:26,h:30,o:100,l:14,b:0,  bl:3000, c:[40,235,120]},
+    {n:"curious",    w:30,h:34,o:100,l:0, b:0,  bl:2600, c:[0,210,235]},
+    {n:"sleepy",     w:26,h:30,o:35, l:0, b:0,  bl:6000, c:[90,90,200]},
+    {n:"surprised",  w:34,h:40,o:100,l:0, b:0,  bl:5000, c:[150,240,255]},
+    {n:"angry",      w:28,h:28,o:100,l:0, b:1,  bl:3200, c:[255,50,25]},
+    {n:"sad",        w:24,h:26,o:75, l:0, b:-1, bl:5200, c:[50,110,255]},
+    {n:"suspicious", w:26,h:30,o:55, l:0, b:1,  bl:2200, c:[255,180,20]}
+  ];
+  var rows = document.getElementById("erows"), cap = document.getElementById("ecap");
+  var cv = document.getElementById("eyes"), ctx = cv.getContext("2d");
+  var cur = 0, blinkAt = performance.now() + 1800, openPct = 100;
+
+  EMO.forEach(function(e, i){
+    var tr = document.createElement("tr");
+    tr.className = "erow"; tr.setAttribute("aria-selected", i === 0 ? "true" : "false");
+    var sw = '<span class="swatch" style="background:rgb(' + e.c.join(",") + ')"></span>';
+    tr.innerHTML = '<td class="name">' + sw + e.n + '</td><td class="m">' + e.w + '</td><td class="m">' + e.h +
+      '</td><td class="m">' + e.o + '%</td><td class="m">' + e.l + '</td><td class="m">' +
+      (e.b > 0 ? "+1" : e.b < 0 ? "−1" : "0") + '</td><td class="m">' + (e.bl/1000).toFixed(1) + 's</td>';
+    tr.addEventListener("click", function(){
+      cur = i; cap.textContent = e.n;
+      rows.querySelectorAll("tr").forEach(function(r){ r.setAttribute("aria-selected","false"); });
+      tr.setAttribute("aria-selected","true");
+    });
+    rows.appendChild(tr);
+  });
+
+  function rr(x,y,w,h,r,col,alpha){
+    ctx.globalAlpha = alpha === undefined ? 1 : alpha;
+    ctx.fillStyle = col;
+    ctx.beginPath();
+    if(ctx.roundRect) ctx.roundRect(x,y,w,h,r); else ctx.rect(x,y,w,h);
+    ctx.fill(); ctx.globalAlpha = 1;
+  }
+  function drawEyes(){
+    var e = EMO[cur], W = cv.width, H = cv.height, S = 3.2;
+    ctx.fillStyle = "#05070A"; ctx.fillRect(0,0,W,H);
+    var col = "rgb(" + e.c.join(",") + ")";
+    var glow = "rgb(" + e.c.map(function(v){ return Math.round(v/4); }).join(",") + ")";
+    var eyeW = e.w * S;
+    var open = e.h * S * (e.o/100) * (openPct/100);
+    if(open < 8) open = 8;
+    var cy = H/2, r = Math.min(eyeW*0.42, open/2);
+    [W/2 - 62, W/2 + 62].forEach(function(cx, side){
+      var x0 = cx - eyeW/2, top = cy - open/2;
+      rr(x0-6, top-6, eyeW+12, open+12, r+6, glow, 0.55);
+      rr(x0, top, eyeW, open, r, col);
+      if(e.l > 0){
+        ctx.fillStyle = "#05070A";
+        ctx.fillRect(x0-2, top+open-e.l*S, eyeW+4, e.l*S+3);
+      }
+      if(e.b !== 0){
+        var depth = open*0.5;
+        var deepRight = (e.b > 0) === (side === 0);
+        ctx.fillStyle = "#05070A";
+        ctx.beginPath();
+        ctx.moveTo(x0-3, top-4); ctx.lineTo(x0+eyeW+3, top-4);
+        ctx.lineTo(x0+eyeW+3, top + (deepRight ? depth : 0));
+        ctx.lineTo(x0-3, top + (deepRight ? 0 : depth));
+        ctx.closePath(); ctx.fill();
+      }
+    });
+  }
+  function loop(t){
+    if(!reduce){
+      if(t >= blinkAt){
+        openPct = 12; drawEyes();
+        setTimeout(function(){ openPct = 100; drawEyes(); }, 80);
+        blinkAt = t + EMO[cur].bl/2 + Math.random()*EMO[cur].bl;
+      }
+    }
+    drawEyes();
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+})();
+</script>

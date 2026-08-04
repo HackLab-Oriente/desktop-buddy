@@ -59,6 +59,9 @@ docs/         Architecture, decisions, workshop plans
 - [Hardware: components & wiring](docs/hardware.md)
 - [Third-party services & providers](docs/services.md)
 - [Pack format (draft proposal)](docs/pack-format.md)
+- [Firmware architecture (interactive)](docs/firmware-architecture.html)
+- [Local model bring-up — Step 0](docs/local-model-bringup.md)
+- [Idea register: open threads & dead ends (interactive)](docs/ideas-exploration.html)
 - [Workshop plan (4 sessions)](docs/workshops.md)
 
 ## Status

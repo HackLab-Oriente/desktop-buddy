@@ -1,0 +1,1682 @@
+<title>Desktop Buddy · Idea register</title>
+<style>
+  :root{
+    --paper:#EDEFF2; --paper-2:#F7F8FA; --paper-3:#FFFFFF;
+    --ink:#10151B; --ink-2:#444E59; --ink-3:#79838F;
+    --rule:#D3D9E0; --rule-2:#BAC3CD;
+    --sig:#1F4FD8; --sig-soft:#DCE4FB;
+    --warm:#B8541A; --warm-soft:#F7E6DA;
+    --ok:#0E7C6B; --ok-soft:#D8EFE9;
+    --bad:#B3261E; --bad-soft:#F8DEDC;
+    --amber:#8A6100; --amber-soft:#F7EDD3;
+    --plum:#6B3FA0; --plum-soft:#EBE1F7;
+    --mono:ui-monospace,"SF Mono","JetBrains Mono","Cascadia Mono",Menlo,Consolas,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --paper:#0C1014; --paper-2:#141A21; --paper-3:#1B222B;
+      --ink:#E6EBF0; --ink-2:#9AA6B2; --ink-3:#67737F;
+      --rule:#232C36; --rule-2:#313D49;
+      --sig:#7CA0FF; --sig-soft:#16233F;
+      --warm:#F0913F; --warm-soft:#33220F;
+      --ok:#35C2A8; --ok-soft:#0D2A26;
+      --bad:#FF8A80; --bad-soft:#331614;
+      --amber:#E8B93C; --amber-soft:#2E2510;
+      --plum:#C4A2F0; --plum-soft:#241A33;
+    }
+  }
+  :root[data-theme="light"]{
+    --paper:#EDEFF2; --paper-2:#F7F8FA; --paper-3:#FFFFFF;
+    --ink:#10151B; --ink-2:#444E59; --ink-3:#79838F;
+    --rule:#D3D9E0; --rule-2:#BAC3CD;
+    --sig:#1F4FD8; --sig-soft:#DCE4FB;
+    --warm:#B8541A; --warm-soft:#F7E6DA;
+    --ok:#0E7C6B; --ok-soft:#D8EFE9;
+    --bad:#B3261E; --bad-soft:#F8DEDC;
+    --amber:#8A6100; --amber-soft:#F7EDD3;
+    --plum:#6B3FA0; --plum-soft:#EBE1F7;
+  }
+  :root[data-theme="dark"]{
+    --paper:#0C1014; --paper-2:#141A21; --paper-3:#1B222B;
+    --ink:#E6EBF0; --ink-2:#9AA6B2; --ink-3:#67737F;
+    --rule:#232C36; --rule-2:#313D49;
+    --sig:#7CA0FF; --sig-soft:#16233F;
+    --warm:#F0913F; --warm-soft:#33220F;
+    --ok:#35C2A8; --ok-soft:#0D2A26;
+    --bad:#FF8A80; --bad-soft:#331614;
+    --amber:#E8B93C; --amber-soft:#2E2510;
+    --plum:#C4A2F0; --plum-soft:#241A33;
+  }
+
+  *{box-sizing:border-box}
+  body,.doc{margin:0}
+  .doc{background:var(--paper);color:var(--ink);font-family:var(--sans);line-height:1.65;
+       -webkit-font-smoothing:antialiased;overflow-x:hidden}
+  .wrap{max-width:1040px;margin:0 auto;padding:0 clamp(1rem,4vw,2rem)}
+  .mono{font-family:var(--mono)}
+  img,svg,canvas{max-width:100%;height:auto}
+
+  /* masthead */
+  .mast{border-bottom:2px solid var(--ink);background:var(--paper)}
+  .mast .wrap{display:flex;flex-wrap:wrap;gap:1rem;align-items:flex-end;
+              justify-content:space-between;padding-top:2.2rem;padding-bottom:1rem}
+  h1{font-size:clamp(1.7rem,4vw,2.5rem);line-height:1.1;margin:.3rem 0 0;font-weight:600;
+     letter-spacing:-.02em;text-wrap:balance}
+  .kicker{font-family:var(--mono);font-size:.72rem;letter-spacing:.2em;text-transform:uppercase;
+          color:var(--sig);font-weight:500}
+  .specline{font-family:var(--mono);font-size:.74rem;color:var(--ink-3);margin-top:.5rem}
+  .specline b{color:var(--ink-2);font-weight:500}
+  .tbtn{font-family:var(--mono);font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;
+        background:var(--paper-2);color:var(--ink-2);border:1px solid var(--rule-2);
+        padding:.4rem .7rem;border-radius:3px;cursor:pointer}
+  .tbtn:hover,.tbtn:focus-visible{border-color:var(--sig);color:var(--sig);outline:none}
+
+  section{padding:clamp(2.2rem,5vw,3.2rem) 0;border-bottom:1px solid var(--rule)}
+  .snum{font-family:var(--mono);font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;
+        color:var(--ink-3);display:flex;align-items:center;gap:.6rem;margin-bottom:.35rem;flex-wrap:wrap}
+  .snum b{color:var(--sig);font-weight:500}
+  h2{font-size:clamp(1.25rem,2.6vw,1.6rem);margin:0 0 .5rem;font-weight:600;letter-spacing:-.01em;
+     text-wrap:balance}
+  h3{font-size:1rem;margin:1.2rem 0 .3rem;font-weight:600}
+  h4{font-size:.86rem;margin:0 0 .25rem;font-weight:600}
+  p{color:var(--ink-2);margin:.5rem 0;max-width:70ch}
+  p.lead{color:var(--ink);font-size:1.02rem}
+  code{font-family:var(--mono);font-size:.85em;background:var(--sig-soft);color:var(--sig);
+       padding:.1em .35em;border-radius:3px;white-space:nowrap}
+  code.w{background:var(--warm-soft);color:var(--warm)}
+  code.n{background:var(--bad-soft);color:var(--bad)}
+  a{color:var(--sig)}
+  ul{color:var(--ink-2);max-width:70ch;padding-left:1.1rem;margin:.4rem 0}
+  li{margin:.25rem 0}
+  strong{color:var(--ink)}
+
+  /* framing callout */
+  .callout{border:1px solid var(--rule-2);border-left:3px solid var(--warm);border-radius:6px;
+           background:var(--paper-2);padding:1rem 1.1rem;margin-top:1rem}
+  .callout .lbl{font-family:var(--mono);font-size:.68rem;letter-spacing:.14em;text-transform:uppercase;
+                color:var(--warm)}
+  .callout p{margin:.4rem 0 0}
+  .callout p:first-of-type{margin-top:.5rem}
+
+  /* legend */
+  .legend{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.9rem}
+
+  /* verdict + effort pills */
+  .vp{font-family:var(--mono);font-size:.66rem;letter-spacing:.06em;text-transform:uppercase;
+      padding:.18rem .45rem;border-radius:3px;border:1px solid currentColor;white-space:nowrap;
+      display:inline-block}
+  .v-donow{color:var(--ok);background:var(--ok-soft)}
+  .v-v1{color:var(--sig);background:var(--sig-soft)}
+  .v-v2{color:var(--plum);background:var(--plum-soft)}
+  .v-hardware{color:var(--warm);background:var(--warm-soft)}
+  .v-research{color:var(--amber);background:var(--amber-soft)}
+  .v-rejected{color:var(--bad);background:var(--bad-soft)}
+  .ep{font-family:var(--mono);font-size:.66rem;color:var(--ink-3);border:1px solid var(--rule-2);
+      background:var(--paper-3);padding:.18rem .45rem;border-radius:3px;white-space:nowrap}
+
+  /* controls */
+  .ctrls{display:flex;flex-wrap:wrap;gap:1.2rem;align-items:flex-end;margin-top:1.1rem;
+         padding:.9rem 1rem;border:1px solid var(--rule);border-radius:6px;background:var(--paper-2)}
+  .cgroup .lbl{font-family:var(--mono);font-size:.66rem;letter-spacing:.12em;text-transform:uppercase;
+               color:var(--ink-3);margin-bottom:.35rem}
+  .opts{display:flex;gap:.3rem;flex-wrap:wrap}
+  .opt{font-family:var(--mono);font-size:.72rem;padding:.3rem .55rem;border:1px solid var(--rule-2);
+       background:var(--paper-3);color:var(--ink-2);border-radius:4px;cursor:pointer}
+  .opt[aria-pressed="true"]{border-color:var(--sig);color:var(--sig);background:var(--sig-soft)}
+  .opt:focus-visible{outline:2px solid var(--sig);outline-offset:1px}
+  select{font-family:var(--mono);font-size:.72rem;padding:.3rem .4rem;border:1px solid var(--rule-2);
+         background:var(--paper-3);color:var(--ink);border-radius:4px}
+  .count{font-family:var(--mono);font-size:.7rem;color:var(--ink-3);margin-left:auto}
+
+  /* board */
+  .board{display:grid;gap:.9rem;margin-top:1rem;
+         grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}
+  .idea{border:1px solid var(--rule);border-radius:7px;background:var(--paper-2);
+        padding:.9rem 1rem;display:flex;flex-direction:column;scroll-margin-top:1rem}
+  .idea.flag{outline:2px solid var(--sig);outline-offset:2px}
+  .idea .top{display:flex;flex-wrap:wrap;gap:.35rem;align-items:center;margin-bottom:.4rem}
+  .idea .idn{font-family:var(--mono);font-size:.66rem;color:var(--ink-3);margin-right:auto}
+  .idea h3{margin:0 0 .3rem;font-size:1rem;line-height:1.3;color:var(--ink)}
+  .idea p{font-size:.87rem;margin:.3rem 0;max-width:none}
+  .idea .why{color:var(--ink-2)}
+  .pc{display:grid;gap:.5rem;margin-top:.6rem;
+      grid-template-columns:repeat(auto-fit,minmax(215px,1fr))}
+  .pc div{border-radius:5px;padding:.45rem .6rem;font-size:.8rem}
+  .pros{background:var(--ok-soft);border:1px solid var(--rule)}
+  .cons{background:var(--bad-soft);border:1px solid var(--rule)}
+  .pc h4{font-family:var(--mono);font-size:.63rem;letter-spacing:.1em;text-transform:uppercase}
+  .pros h4{color:var(--ok)} .cons h4{color:var(--bad)}
+  .pc ul{margin:.2rem 0 0;padding-left:.95rem;color:var(--ink-2);max-width:none}
+  .pc li{margin:.15rem 0}
+  .meta{margin-top:.6rem;border-top:1px dashed var(--rule-2);padding-top:.5rem;
+        font-size:.8rem;color:var(--ink-2)}
+  .meta .k{font-family:var(--mono);font-size:.63rem;letter-spacing:.1em;text-transform:uppercase;
+           color:var(--ink-3);display:block}
+  .meta .row+.row{margin-top:.4rem}
+  .cmm{border-left:2px solid var(--sig);padding-left:.6rem}
+  .cmm .k{color:var(--sig)}
+  details{margin-top:.6rem;border-top:1px dashed var(--rule-2);padding-top:.5rem}
+  details summary{font-family:var(--mono);font-size:.7rem;color:var(--sig);cursor:pointer;
+                  list-style:none}
+  details summary::-webkit-details-marker{display:none}
+  details summary::before{content:"▸ ";}
+  details[open] summary::before{content:"▾ ";}
+  details .body{font-size:.83rem;color:var(--ink-2);margin-top:.4rem}
+  details .body p{font-size:.83rem}
+  details .body ul{font-size:.83rem;max-width:none}
+  .hidden{display:none !important}
+
+  /* matrix */
+  .matrix{margin-top:1.1rem;border:1px solid var(--rule-2);border-radius:8px;background:var(--paper-3);
+          padding:1rem 1rem .6rem}
+  .plot{position:relative;width:100%;height:0;padding-bottom:62%;min-height:300px;
+        border-left:1px solid var(--rule-2);border-bottom:1px solid var(--rule-2);
+        background:
+          repeating-linear-gradient(to right,transparent 0 19.9%,var(--rule) 19.9% 20%),
+          repeating-linear-gradient(to top,transparent 0 24.9%,var(--rule) 24.9% 25%)}
+  .pt{position:absolute;width:15px;height:15px;border-radius:50%;transform:translate(-50%,50%);
+      border:2px solid var(--paper-3);cursor:pointer;padding:0;
+      font-size:0;line-height:0}
+  .pt:hover,.pt:focus-visible{outline:2px solid var(--ink);outline-offset:2px;z-index:5}
+  .pt-donow{background:var(--ok)} .pt-v1{background:var(--sig)} .pt-v2{background:var(--plum)}
+  .pt-hardware{background:var(--warm)} .pt-research{background:var(--amber)}
+  .pt-rejected{background:var(--bad)}
+  .axlab{font-family:var(--mono);font-size:.66rem;color:var(--ink-3);
+         display:flex;justify-content:space-between;margin-top:.35rem}
+  .yax{font-family:var(--mono);font-size:.66rem;color:var(--ink-3);margin-bottom:.3rem}
+  .readout{font-family:var(--mono);font-size:.74rem;color:var(--ink-2);margin-top:.5rem;
+           min-height:2.6em;border-top:1px solid var(--rule);padding-top:.5rem}
+  .readout b{color:var(--ink)}
+
+  /* generic tool panel */
+  .tool{margin-top:1.1rem;border:1px solid var(--rule-2);border-radius:8px;overflow:hidden;
+        background:var(--paper-3)}
+  .tool-bar{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;padding:.7rem .85rem;
+            border-bottom:1px solid var(--rule);background:var(--paper-2)}
+  .tool-bar .cap{font-family:var(--mono);font-size:.66rem;letter-spacing:.12em;text-transform:uppercase;
+                 color:var(--ink-3);margin-right:.2rem}
+  .tool-body{padding:.9rem .85rem}
+  .sliders{display:grid;gap:.8rem;grid-template-columns:repeat(auto-fit,minmax(230px,1fr))}
+  .sl label{font-family:var(--mono);font-size:.7rem;color:var(--ink-2);display:flex;
+            justify-content:space-between;gap:.5rem}
+  .sl label b{color:var(--ink)}
+  .sl input[type=range]{width:100%;accent-color:var(--sig);margin-top:.2rem}
+  .chk{font-family:var(--mono);font-size:.72rem;color:var(--ink-2);display:flex;align-items:center;
+       gap:.4rem;cursor:pointer}
+  .chk input{accent-color:var(--sig)}
+
+  .stack{display:flex;height:26px;border-radius:4px;overflow:hidden;border:1px solid var(--rule-2);
+         margin-top:.9rem;background:var(--rule)}
+  .stack i{display:block;height:100%;transition:width .18s}
+  .s-res{background:var(--ink-3)} .s-app{background:var(--sig)} .s-fs{background:var(--ok)}
+  .s-mod{background:var(--warm)} .s-free{background:transparent}
+  .stack.over{border-color:var(--bad);box-shadow:0 0 0 2px var(--bad-soft)}
+  .keys{display:flex;flex-wrap:wrap;gap:.7rem;margin-top:.45rem;font-family:var(--mono);
+        font-size:.68rem;color:var(--ink-3)}
+  .keys span{display:flex;align-items:center;gap:.3rem}
+  .keys i{width:10px;height:10px;border-radius:2px;display:block}
+  .verdictline{margin-top:.8rem;font-family:var(--mono);font-size:.82rem;padding:.55rem .7rem;
+               border-radius:5px;border:1px solid currentColor}
+  .verdictline.fit{color:var(--ok);background:var(--ok-soft)}
+  .verdictline.over{color:var(--bad);background:var(--bad-soft)}
+  .verdictline b{color:inherit}
+
+  .tw{overflow-x:auto;margin-top:.9rem;border:1px solid var(--rule);border-radius:6px}
+  table{border-collapse:collapse;width:100%;font-size:.8rem;background:var(--paper-2);min-width:420px}
+  th{font-family:var(--mono);font-size:.64rem;letter-spacing:.1em;text-transform:uppercase;
+     color:var(--ink-3);text-align:left;padding:.5rem .65rem;border-bottom:1px solid var(--rule-2);
+     font-weight:500;white-space:nowrap}
+  td{padding:.45rem .65rem;border-bottom:1px solid var(--rule);color:var(--ink-2);vertical-align:top}
+  tr:last-child td{border-bottom:0}
+  td.m,th.m{font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+  td.name{color:var(--ink);font-family:var(--mono);white-space:nowrap}
+  td.yes{color:var(--ok)} td.no{color:var(--bad)} td.warnc{color:var(--amber)}
+
+  .figs{display:grid;gap:.6rem;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));margin-top:.9rem}
+  .fig{border:1px solid var(--rule);border-radius:6px;background:var(--paper-2);padding:.6rem .7rem}
+  .fig .n{font-family:var(--mono);font-size:1.15rem;color:var(--ink);font-variant-numeric:tabular-nums}
+  .fig .l{font-family:var(--mono);font-size:.64rem;letter-spacing:.1em;text-transform:uppercase;
+          color:var(--ink-3);margin-top:.15rem}
+  .fig .s{font-size:.74rem;color:var(--ink-3);margin-top:.2rem}
+
+  pre{font-family:var(--mono);font-size:.76rem;line-height:1.55;background:var(--paper-2);
+      border:1px solid var(--rule);border-radius:6px;padding:.8rem;overflow-x:auto;margin:.8rem 0 0;
+      color:var(--ink-2)}
+  pre .k{color:var(--sig)} pre .c{color:var(--ink-3)} pre .w{color:var(--warm)}
+
+  .ladder{display:grid;gap:.4rem;margin-top:.9rem}
+  .rung{display:grid;gap:.2rem;grid-template-columns:8.5rem 1fr;align-items:start;
+        border-left:3px solid var(--rule-2);padding:.35rem .7rem;background:var(--paper-2);
+        border-radius:0 5px 5px 0;font-size:.84rem;color:var(--ink-2)}
+  @media(max-width:520px){.rung{grid-template-columns:1fr}}
+  .rung .sz{font-family:var(--mono);font-size:.74rem;color:var(--ink)}
+  .rung.hit{border-left-color:var(--ok);background:var(--ok-soft)}
+  .rung.sweet{border-left-color:var(--sig)}
+  .rung.never{border-left-color:var(--bad)}
+
+  .twolayer{display:grid;gap:.6rem;margin-top:.9rem;grid-template-columns:repeat(auto-fit,minmax(250px,1fr))}
+  .lay{border:1px solid var(--rule);border-radius:6px;padding:.7rem .8rem;background:var(--paper-2)}
+  .lay .t{font-family:var(--mono);font-size:.72rem;color:var(--sig)}
+  .lay.pack .t{color:var(--warm)}
+  .lay p{font-size:.82rem;margin:.3rem 0 0}
+  .lay .ex{font-family:var(--mono);font-size:.72rem;color:var(--ink-3);margin-top:.4rem;
+           word-break:break-word}
+
+  footer{padding:2rem 0 3rem;font-family:var(--mono);font-size:.72rem;color:var(--ink-3)}
+  footer p{font-family:var(--mono);font-size:.72rem;color:var(--ink-3)}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+  @media (prefers-reduced-motion:reduce){*{transition-duration:.001ms!important}}
+</style>
+
+<div class="doc">
+  <header class="mast">
+    <div class="wrap">
+      <div>
+        <div class="kicker">Desktop Buddy</div>
+        <h1>Idea register: open threads &amp; dead ends</h1>
+        <div class="specline">
+          15 entries · every verdict is a <b>proposal</b> · last revised <b>2026-08</b> ·
+          companion doc to <b>docs/architecture.md</b>
+        </div>
+      </div>
+      <button class="tbtn" id="theme">theme</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- 0 -->
+    <section>
+      <div class="wrap">
+        <div class="snum"><b>§0</b> How to read this</div>
+        <h2>This is a decision register, not a roadmap</h2>
+        <p class="lead">Each entry below is something someone in the lab wanted to try. For each one
+          you get: what it is, why it is tempting, the honest pros and cons, a proposed verdict, a
+          rough effort estimate, and — most importantly — <strong>the line that says what would change
+          our mind</strong>.</p>
+
+        <div class="callout">
+          <div class="lbl">Framing note — please read</div>
+          <p>Nothing here is decided. The verdicts are the current thinking of whoever did the
+            legwork, written down so the group has something concrete to attack instead of arguing
+            from vibes. <strong>Argue with them.</strong> Where an idea is marked
+            <span class="vp v-rejected">rejected</span> you will find the exact number or constraint
+            that killed it — if you can move that number, the verdict moves with it. That is the whole
+            point of writing the numbers down.</p>
+          <p>Two commitments are not up for revision, because everything else depends on them:
+            <strong>extensibility and customization are paramount</strong> (every member wants a
+            different creature), and <strong>the project does not dictate the final set of emotions,
+            moods or actions</strong> — what you find here are starting points, deliberately shaped so
+            the group can replace them without a rewrite.</p>
+        </div>
+
+        <div class="legend">
+          <span class="vp v-donow">do now</span>
+          <span class="vp v-v1">v1 committed</span>
+          <span class="vp v-v2">v2 / later</span>
+          <span class="vp v-hardware">needs hardware change</span>
+          <span class="vp v-research">open research</span>
+          <span class="vp v-rejected">rejected</span>
+        </div>
+        <p style="font-size:.82rem;margin-top:.6rem">Effort scale:
+          <span class="ep">XS</span> a few hours ·
+          <span class="ep">S</span> one session ·
+          <span class="ep">M</span> two or three sessions ·
+          <span class="ep">L</span> a milestone of its own ·
+          <span class="ep">XL</span> spans milestones.</p>
+      </div>
+    </section>
+
+    <!-- 1 -->
+    <section>
+      <div class="wrap">
+        <div class="snum"><b>§1</b> The board</div>
+        <h2>Every open idea, filterable</h2>
+        <p>Filter by verdict or effort, sort by whichever axis you are arguing about today. Expand a
+          card for the detail that backs the verdict.</p>
+
+        <div class="ctrls">
+          <div class="cgroup">
+            <div class="lbl">Verdict</div>
+            <div class="opts" id="fv">
+              <button class="opt" data-f="all" aria-pressed="true">all</button>
+              <button class="opt" data-f="donow" aria-pressed="false">do now</button>
+              <button class="opt" data-f="v1" aria-pressed="false">v1</button>
+              <button class="opt" data-f="v2" aria-pressed="false">v2</button>
+              <button class="opt" data-f="hardware" aria-pressed="false">hardware</button>
+              <button class="opt" data-f="research" aria-pressed="false">research</button>
+              <button class="opt" data-f="rejected" aria-pressed="false">rejected</button>
+            </div>
+          </div>
+          <div class="cgroup">
+            <div class="lbl">Effort</div>
+            <div class="opts" id="fe">
+              <button class="opt" data-f="all" aria-pressed="true">all</button>
+              <button class="opt" data-f="1" aria-pressed="false">XS</button>
+              <button class="opt" data-f="2" aria-pressed="false">S</button>
+              <button class="opt" data-f="3" aria-pressed="false">M</button>
+              <button class="opt" data-f="4" aria-pressed="false">L</button>
+              <button class="opt" data-f="5" aria-pressed="false">XL</button>
+            </div>
+          </div>
+          <div class="cgroup">
+            <div class="lbl">Sort</div>
+            <label class="sr" for="sort">Sort ideas</label>
+            <select id="sort">
+              <option value="doc">register order</option>
+              <option value="effort">effort, low to high</option>
+              <option value="value">payoff, high to low</option>
+              <option value="ratio">payoff per effort</option>
+              <option value="verdict">verdict</option>
+            </select>
+          </div>
+          <div class="count" id="count">15 of 15 shown</div>
+        </div>
+
+        <div class="board" id="board">
+
+          <!-- ============ 1 · PWA cheap win ============ -->
+          <article class="idea" id="i-a2hs" data-id="a2hs" data-title="Add to Home Screen (manifest only)"
+                   data-verdict="donow" data-effort="1" data-value="4" data-order="1">
+            <div class="top"><span class="idn">A-01</span>
+              <span class="vp v-donow">do now</span><span class="ep">XS</span></div>
+            <h3>&ldquo;Add to Home Screen&rdquo; without a service worker</h3>
+            <p class="why">A <code>manifest.json</code>, an
+              <code>apple-mobile-web-app-capable</code> meta tag and one icon, served by the existing
+              <code>esp_http_server</code>. About 40 lines. The buddy's web UI then opens full-screen
+              from the phone home screen with its own icon, over plain HTTP.</p>
+            <div class="pc">
+              <div class="pros"><h4>Pros</h4><ul>
+                <li>Delivers ~80% of what people actually mean by &ldquo;make it a PWA&rdquo;</li>
+                <li>Zero TLS, zero heap cost, zero new dependencies</li>
+                <li>Works today on the HTTP server we already ship</li>
+              </ul></div>
+              <div class="cons"><h4>Cons</h4><ul>
+                <li>Android gives a shortcut, not a full WebAPK install, without HTTPS + SW</li>
+                <li>No offline shell, no push — those need a secure context</li>
+                <li>Icon must be embedded in flash (small, but it is bytes)</li>
+              </ul></div>
+            </div>
+            <div class="meta">
+              <div class="row"><span class="k">Depends on</span>Nothing. Can land next session.</div>
+              <div class="row cmm"><span class="k">What would change our mind</span>
+                If the icon + manifest measurably confuses first-boot provisioning (people tapping the
+                home-screen icon while the buddy is in AP mode and getting a blank page), we gate it
+                behind &ldquo;connected to your WiFi&rdquo;.</div>
+            </div>
+            <details><summary>detail</summary><div class="body">
+              <p>This is the honest floor of the whole PWA thread. Everything else in A-02 to A-05 is
+                about buying <em>service workers</em> and <em>push</em> on top of it, and each of those
+                purchases costs a lot more than 40 lines. Do this one first regardless of how the rest
+                of the argument goes — it is not a stepping stone, it is a complete feature.</p>
+            </div></details>
+          </article>
+
+          <!-- ============ 2 · Push via hub ============ -->
+          <article class="idea" id="i-push-hub" data-id="push-hub" data-title="Web Push via the hub tier"
+                   data-verdict="v2" data-effort="4" data-value="4" data-order="2">
+            <div class="top"><span class="idn">A-02</span>
+              <span class="vp v-v2">v2 / later</span><span class="ep">L</span></div>
+            <h3>Web Push, delivered by the hub</h3>
+            <p class="why">The device publishes an event; the hub — which has a domain and a real
+              certificate — hosts the PWA, owns the push subscription, and sends the notification.
+              The buddy nudges you when you are not at your desk: <em>&ldquo;offline for 2
+              days&rdquo;</em>, <em>&ldquo;SD card full&rdquo;</em>, <em>&ldquo;someone petted
+              me&rdquo;</em>.</p>
+            <div class="pc">
+              <div class="pros"><h4>Pros</h4><ul>
+                <li>The only path where the certificate problem simply does not exist</li>
+                <li>Best architectural fit: push is exactly the &ldquo;device is behind NAT&rdquo;
+                  class of problem the hub was invented for</li>
+                <li>One hub serves N buddies with one origin — see the 3-buddies con opposite</li>
+                <li>Works on iOS, where every other path is fragile</li>
+              </ul></div>
+              <div class="cons"><h4>Cons</h4><ul>
+                <li>Requires the hub, which does not exist yet</li>
+                <li>Breaks the &ldquo;device-first, works standalone&rdquo; promise for this one
+                  feature — has to be framed as a hub perk, not a buddy feature</li>
+                <li>Someone has to run and maintain a domain + cert renewal for the lab</li>
+              </ul></div>
+            </div>
+            <div class="meta">
+              <div class="row"><span class="k">Depends on</span>Hub server (H-01). Also on someone
+                wanting notifications enough to maintain infrastructure for them.</div>
+              <div class="row cmm"><span class="k">What would change our mind</span>
+                If a member volunteers a domain and stands up the hub anyway for webhooks/calendar,
+                push becomes nearly free and jumps the queue. Conversely, if nobody can name three
+                notifications they would genuinely want, we drop the whole thread.</div>
+            </div>
+            <details><summary>detail — how push actually works</summary><div class="body">
+              <p>Correct the common mental model first: <strong>push is not device&nbsp;→&nbsp;phone.</strong>
+                The sender makes an <em>outbound</em> HTTPS POST to the browser vendor's push service
+                (FCM, Mozilla autopush, Apple) carrying a VAPID ES256 JWT and a payload encrypted with
+                ECDH-P256 / HKDF / AES128GCM. Every one of those primitives exists in mbedtls, so an
+                ESP32-S3 can send push perfectly well from anywhere with internet.</p>
+              <p><strong>Sending was never the blocker. Registration is.</strong> To get a subscription
+                you need a page in a secure context running a service worker — and that is what the
+                device cannot provide over plain HTTP. See §3 for the full wall.</p>
+            </div></details>
+          </article>
+
+          <!-- ============ 3 · local-ip.sh ============ -->
+          <article class="idea" id="i-localip" data-id="localip" data-title="Publicly-trusted cert for a LAN IP"
+                   data-verdict="research" data-effort="3" data-value="2" data-order="3">
+            <div class="top"><span class="idn">A-03</span>
+              <span class="vp v-research">open research</span><span class="ep">M</span></div>
+            <h3>TLS on the device via <code>local-ip.sh</code> / <code>traefik.me</code></h3>
+            <p class="why">These services publish a wildcard certificate — <em>and its private
+              key</em> — for hostnames that encode a LAN IP. The device serves
+              <code class="w">https://192-168-1-42.local-ip.sh</code> with a certificate every browser
+              already trusts. Zero infrastructure, works on iOS, unlocks service workers and push
+              registration.</p>
+            <div class="pc">
+              <div class="pros"><h4>Pros</h4><ul>
+                <li>The only zero-infrastructure route to a genuinely trusted origin</li>
+                <li>Satisfies iOS Safari, which refuses everything else</li>
+                <li>No DNS, no ACME client, no renewal robot on the device</li>
+              </ul></div>
+              <div class="cons"><h4>Cons</h4><ul>
+                <li><strong>The private key is published by design.</strong> It satisfies the browser
+                  without providing any real confidentiality — anyone on your LAN can decrypt</li>
+                <li>Origin is tied to the IP: a DHCP lease change orphans the installed PWA
+                  <em>and</em> its push subscription</li>
+                <li>Depends on a third party's DNS staying up, forever, for free</li>
+                <li>~30–45 KB heap per TLS session on a device that also wants PSRAM-free internal RAM
+                  for audio DMA</li>
+              </ul></div>
+            </div>
+            <div class="meta">
+              <div class="row"><span class="k">Depends on</span>TLS server in the firmware
+                (<code>esp_https_server</code>), static DHCP reservations in practice.</div>
+              <div class="row cmm"><span class="k">What would change our mind</span>
+                If we decide the web UI never carries anything secret (API keys stay entered over a
+                serial/AP flow), the published-key objection loses most of its force and this becomes
+                a decent hack. Also: measure the heap cost with the audio pipeline running — if TLS
+                and I2S coexist comfortably, this gets much more attractive.</div>
+            </div>
+          </article>
+
+          <!-- ============ 4 · own domain ============ -->
+          <article class="idea" id="i-dns01" data-id="dns01" data-title="Own domain + DNS-01 Let's Encrypt"
+                   data-verdict="rejected" data-effort="5" data-value="2" data-order="4">
+            <div class="top"><span class="idn">A-04</span>
+              <span class="vp v-rejected">rejected — cost/benefit</span><span class="ep">XL</span></div>
+            <h3>Own domain + DNS-01 certificate on the device</h3>
+            <p class="why">The technically correct answer: buy a domain, issue a real Let's Encrypt
+              cert via DNS-01 (the only challenge type that works for a device with no public inbound
+              port), point a record at the buddy's LAN IP.</p>
+            <div class="pc">
+              <div class="pros"><h4>Pros</h4><ul>
+                <li>Actually secure — real confidentiality, private key stays ours</li>
+                <li>Stable origin if paired with split-horizon DNS</li>
+              </ul></div>
+              <div class="cons"><h4>Cons</h4><ul>
+                <li>A volunteer maker group would be running a DNS-01 renewal robot for a desk toy</li>
+                <li>Every buddy needs its own record; every member needs access to the zone</li>
+                <li>Renewal failure = the buddy's web UI stops loading, which violates &ldquo;never
+                  bricks&rdquo; in spirit</li>
+                <li>Recurring cost and a single maintainer bus factor</li>
+              </ul></div>
+            </div>
+            <div class="meta">
+              <div class="row"><span class="k">Killed by</span>Not a number — a maintenance model.
+                Correct and horrible.</div>
+              <div class="row cmm"><span class="k">What would change our mind</span>
+                If the hub happens (H-01), the hub gets the domain and the cert, and this collapses
+                into A-02 for free. That is the intended resolution: the same work, in the right
+                place.</div>
+            </div>
+          </article>
+
+          <!-- ============ 5 · self-signed ============ -->
+          <article class="idea" id="i-selfsigned" data-id="selfsigned" data-title="Self-signed cert / mDNS as secure context"
+                   data-verdict="rejected" data-effort="2" data-value="1" data-order="5">
+            <div class="top"><span class="idn">A-05</span>
+              <span class="vp v-rejected">rejected — browsers refuse</span><span class="ep">S</span></div>
+            <h3>Self-signed cert, or trusting <code>buddy.local</code></h3>
+            <p class="why">The obvious first thought: generate a cert on first boot, click through the
+              warning, done. Or: mDNS gives us a nice name, surely <code>buddy.local</code> counts as
+              local enough.</p>
+            <div class="pc">
+              <div class="pros"><h4>Pros</h4><ul>
+                <li>Free, self-contained, no third party</li>
+                <li>mDNS is worth adding anyway for the friendly hostname</li>
+              </ul></div>
+              <div class="cons"><h4>Cons</h4><ul>
+                <li>Chrome refuses <code class="n">serviceWorker.register()</code> on an origin with a
+                  certificate error — <em>even after you click through</em>. Not degraded: zero</li>
+                <li><code>buddy.local</code> is <strong>not</strong> a secure context. Only
+                  <code>localhost</code> is exempt from the HTTPS requirement</li>
+                <li>A scary browser warning on every first visit, in a workshop, is a support disaster</li>
+                <li>Hosting the PWA elsewhere and pointing it at the buddy fails on mixed-content and
+                  Private Network Access rules</li>
+              </ul></div>
+            </div>
+            <div class="meta">
+              <div class="row"><span class="k">Killed by</span>Browser policy, not effort. There is no
+                amount of work that makes a self-signed origin register a service worker.</div>
+              <div class="row cmm"><span class="k">What would change our mind</span>
+                A browser policy change (unlikely), or a device-local pairing flow that installs a CA
+                into the phone's trust store (an MDM-grade ask for a desk toy — we are not doing that
+                to our members). <strong>mDNS itself is still worth doing</strong> for
+                <code>http://buddy.local</code> — just not as a PWA enabler.</div>
+            </div>
+          </article>
+
+          <!-- ============ 6 · esp32-ai ============ -->
+          <article class="idea" id="i-esp32ai" data-id="esp32ai" data-title="Port slvDev/esp32-ai (28.9M LLM)"
+                   data-verdict="rejected" data-effort="3" data-value="1" data-order="6">
+            <div class="top"><span class="idn">B-01</span>
+              <span class="vp v-rejected">rejected — 106,534 bytes short</span><span class="ep">M</span></div>
+            <h3>Run the existing 28.9M-param ESP32 LLM</h3>
+            <p class="why">Someone already did it:
+              <code class="mono">slvDev/esp32-ai</code> runs a 28.9M-parameter 4-bit model on an
+              ESP32-S3 with 8 MB PSRAM at 9.88 tok/s. It uses Per-Layer Embeddings borrowed from
+              Google's Gemma 3n, so 25M of the 28.9M parameters live in a memory-mapped flash lookup
+              table and only the needed rows are pulled per token. Genuinely clever.</p>
+            <div class="pc">
+              <div class="pros"><h4>Pros</h4><ul>
+                <li>It exists and it runs — no research risk</li>
+                <li>Proves memory-mapped flash weights are viable on our exact chip</li>
+                <li>The PLE trick is worth stealing even if the model is not</li>
+              </ul></div>
+              <div class="cons"><h4>Cons</h4><ul>
+                <li><strong>Does not fit.</strong> 16,777,216 − 15,623,782 (model) − 65,536 (bootloader
+                  + partition table + nvs + phy; the app must start at 0x10000) = 1,087,898 bytes left.
+                  Our app binary alone is 1,194,432 bytes. Short by 106,534 bytes
+                  <em>before a single byte of pack storage</em></li>
+                <li>Trained on TinyStories. The author is honest: it writes short coherent stories but
+                  <strong>cannot answer questions, follow instructions, or recall facts</strong></li>
+                <li>Cannot satisfy the Brain contract — it is a pure continuation model, it cannot emit
+                  JSON or pick an emotion. It is an Expression, not a Brain</li>
+                <li>94.9 ms/token pegs a core, contending with the face render task.
+                  <strong>The face is the product</strong></li>
+              </ul></div>
+            </div>
+            <div class="meta">
+              <div class="row"><span class="k">Killed by</span>Flash arithmetic. No trim rescues it —
+                see the calculator in §2 and try it yourself.</div>
+              <div class="row cmm"><span class="k">What would change our mind</span>
+                A 32 MB flash module (H-03) removes the size objection entirely — but the other three
+                objections survive: it still cannot follow the Brain contract, still cannot answer
+                anything, and still costs a core. Size was the <em>least</em> interesting reason to say
+                no.</div>
+            </div>
+          </article>
+
+          <!-- ============ 7 · our own tiny model ============ -->
+          <article class="idea" id="i-tinymodel" data-id="tinymodel" data-title="Train our own tiny utterance model"
+                   data-verdict="research" data-effort="4" data-value="5" data-order="7">
+            <div class="top"><span class="idn">B-02</span>
+              <span class="vp v-research">open research — lab's chosen direction</span><span class="ep">L</span></div>
+            <h3>Train a 1–5M param companion-utterance model</h3>
+            <p class="why">Do not chase 28.9M parameters for stories. Train a <strong>1–5M</strong>
+              parameter model whose only job is short, in-character one-liners. The lab voted for this
+              and wants a pre-workshop session on it. At this scale the entire budget is vocabulary:
+              TinyStories-1M carries ~3.2M params of embedding table purely because it reuses the
+              GPT-Neo 50,257-token vocab. A custom 1024–2048 token BPE trained on our own corpus fixes
+              that on day one.</p>
+            <div class="pc">
+              <div class="pros"><h4>Pros</h4><ul>
+                <li>Config S is <strong>faster than the cloud round-trip</strong> (~0.6 s vs ~1.5 s) —
+                  this inverts local from &ldquo;degraded fallback&rdquo; to &ldquo;low-latency
+                  path&rdquo;</li>
+                <li>Emotion as a <em>control token emitted first</em>
+                  (<code class="w">&lt;happy&gt; oh! that tickles</code>) structurally cannot be
+                  malformed — unlike the JSON fences that forced defensive brace-scanning in the Claude
+                  path (see <code>main.cpp</code>, <code>brain.reply</code>)</li>
+                <li>Kills repetition, which is the actual enemy of a desk companion — not stupidity</li>
+                <li>The training corpus <em>is</em> a personality definition: a pack could ship its own
+                  <code>voice.bin</code></li>
+                <li>Cheap: ~100k mood-labelled utterances generated with Claude Haiku ≈ <strong>$15</strong>,
+                  plus a couple of GPU-hours on nanoGPT or llama2.c</li>
+              </ul></div>
+              <div class="cons"><h4>Cons</h4><ul>
+                <li>A trained model has a <strong>fixed control-token vocabulary</strong> — which is the
+                  opposite of extensible, and risks exactly the &ldquo;dictating the emotion set&rdquo;
+                  outcome the project promised to avoid. See the resolution in §4</li>
+                <li>Never, at any size, does facts, reasoning or instruction-following. It is a
+                  renderer, not a thinker</li>
+                <li>Nobody in the lab has trained a language model before — the learning is the point,
+                  but it is real time</li>
+                <li>Retraining per-pack is a 20-minute GPU job someone has to be able to run</li>
+                <li>Needs the flash reclamation (C-01) and a raw <code>model</code> partition to land
+                  first</li>
+              </ul></div>
+            </div>
+            <div class="meta">
+              <div class="row"><span class="k">Depends on</span>C-01 flash reclamation · a raw
+                (non-LittleFS) partition for <code>esp_partition_mmap</code> · a decision on the
+                two-layer affect vocabulary (§4).</div>
+              <div class="row cmm"><span class="k">What would change our mind</span>
+                If a trained Config S model turns out to produce output the lab finds embarrassing
+                rather than charming, the whole premise collapses and we stay cloud-only with a much
+                better local chirp table. <strong>The pre-workshop session should end with everyone
+                reading 50 sampled utterances and voting.</strong> That is the gate.</div>
+            </div>
+            <details><summary>detail — the capability ladder and why steering is cheap</summary><div class="body">
+              <p>Steering is cheap at tiny scale; substance is not. A ~3M model will reliably condition
+                on a mood token and produce grammatical, varied, on-tone text. It will never know what
+                day it is. That is fine, because <strong>reflexes and sensors already decide the
+                mood</strong> — the model's job is to turn a decided mood into words that are never
+                the same twice. Prior art: <code>roneneldan/TinyStories-1M/3M/8M/28M/33M</code>, and
+                crucially the <strong>TinyStories-Instruct</strong> variants, which prove a 1–3M model
+                can be <em>aimed</em> by a prompt spec.</p>
+              <p>Full ladder and the interactive sizer are in §4.</p>
+            </div></details>
+          </article>
+
+          <!-- ============ 8 · flash reclamation ============ -->
+          <article class="idea" id="i-flash" data-id="flash" data-title="Flash partition reclamation"
+                   data-verdict="donow" data-effort="2" data-value="5" data-order="8">
+            <div class="top"><span class="idn">C-01</span>
+              <span class="vp v-donow">do now — in progress</span><span class="ep">S</span></div>
+            <h3>Reclaim the 12.44 MB we never mapped</h3>
+            <p class="why">The partition table is a leftover from the classic 4 MB ESP32 proof of
+              concept: it maps 3.56 MB of a 16 MB chip
+              (<code>0x10000</code> reserved + <code>0x280000</code> app + <code>0x100000</code>
+              LittleFS), leaving <strong>12.44 MB unallocated and invisible</strong>. Being fixed now:
+              a bigger app partition, 4 MB of LittleFS for packs, and a dedicated <em>raw</em>
+              <code>model</code> partition.</p>
+            <div class="pc">
+              <div class="pros"><h4>Pros</h4><ul>
+                <li>Free capacity — the flash is already bought and soldered</li>
+                <li>Unblocks B-02 (weights), content packs, and OTA slots</li>
+                <li>Cheapest high-value change on this entire board</li>
+              </ul></div>
+              <div class="cons"><h4>Cons</h4><ul>
+                <li>Changing the table means a full erase &amp; reflash — fine now, painful once
+                  people have packs on their buddies. <strong>Do it before session 1</strong></li>
+                <li>Needs a decision on OTA now, because two app slots double the app cost</li>
+              </ul></div>
+            </div>
+            <div class="meta">
+              <div class="row"><span class="k">Design note</span>The <code>model</code> partition must
+                be <strong>raw</strong>, not a file inside LittleFS: <code>esp_partition_mmap</code>
+                works on raw partitions but not on LittleFS files, and memory-mapping is precisely what
+                makes flash-resident weights viable.</div>
+              <div class="row cmm"><span class="k">What would change our mind</span>
+                Nothing about doing it. The open question is only the <em>split</em> — how much goes to
+                packs vs. the model partition vs. an OTA slot. Play with §2 and bring a proposal.</div>
+            </div>
+          </article>
+
+          <!-- ============ 9 · LVGL for eyes ============ -->
+          <article class="idea" id="i-lvgl-eyes" data-id="lvgl-eyes" data-title="LVGL for the face"
+                   data-verdict="rejected" data-effort="3" data-value="1" data-order="9">
+            <div class="top"><span class="idn">D-01</span>
+              <span class="vp v-rejected">rejected — for the eyes</span><span class="ep">M</span></div>
+            <h3>Migrate the face renderer to LVGL</h3>
+            <p class="why">LVGL is the default ESP-IDF answer for anything on a screen, and the
+              architecture doc originally assumed it.</p>
+            <div class="pc">
+              <div class="pros"><h4>Pros</h4><ul>
+                <li>Well-trodden path, good ESP-IDF integration</li>
+                <li>Animation timeline and easing for free</li>
+              </ul></div>
+              <div class="cons"><h4>Cons</h4><ul>
+                <li>The eyes are organic blobs with per-frame geometry (openness, lift, brow slant) —
+                  a widget toolkit fights that. Raw framebuffer gives strictly better control</li>
+                <li>An extra abstraction layer between <code>face_model.h</code> and pixels, for a
+                  renderer that is already written and working</li>
+                <li>Memory overhead on a chip that also wants audio buffers</li>
+              </ul></div>
+            </div>
+            <div class="meta">
+              <div class="row"><span class="k">Scope of the verdict</span>Rejected <em>for the eyes
+                only</em>. See D-02.</div>
+              <div class="row cmm"><span class="k">What would change our mind</span>
+                If someone demonstrates an LVGL canvas rendering the current parametric eyes at the
+                same frame rate with less code, the argument is over and we switch.</div>
+            </div>
+          </article>
+
+          <!-- ============ 10 · LVGL for chrome ============ -->
+          <article class="idea" id="i-lvgl-ui" data-id="lvgl-ui" data-title="LVGL for UI chrome"
+                   data-verdict="v2" data-effort="3" data-value="3" data-order="10">
+            <div class="top"><span class="idn">D-02</span>
+              <span class="vp v-v2">v2 / later</span><span class="ep">M</span></div>
+            <h3>LVGL for on-screen chrome and scrolling text</h3>
+            <p class="why">Menus, setup wizards, scrolling speech text, status screens — everything
+              that is <em>not</em> the creature's face. The current 3×5 bitmap font in
+              <code>face_model.h</code> is charming and will not carry a settings screen.</p>
+            <div class="pc">
+              <div class="pros"><h4>Pros</h4><ul>
+                <li>Text layout, scrolling and fonts are exactly what LVGL is good at</li>
+                <li>Can coexist: LVGL owns a chrome layer, the raw renderer owns the face</li>
+              </ul></div>
+              <div class="cons"><h4>Cons</h4><ul>
+                <li>Two rendering paths on one 240×240 panel needs a clear ownership rule</li>
+                <li>Nobody has asked for it yet — this is anticipated, not requested</li>
+              </ul></div>
+            </div>
+            <div class="meta">
+              <div class="row"><span class="k">Depends on</span>Nothing technically; only on someone
+                wanting an on-device menu.</div>
+              <div class="row cmm"><span class="k">What would change our mind</span>
+                The first time we need on-device text longer than a few words — likely the moment
+                push-to-talk transcripts appear on screen — this moves to &ldquo;do now&rdquo;.</div>
+            </div>
+          </article>
+
+          <!-- ============ 11 · hub ============ -->
+          <article class="idea" id="i-hub" data-id="hub" data-title="Optional hub server"
+                   data-verdict="v2" data-effort="4" data-value="4" data-order="11">
+            <div class="top"><span class="idn">H-01</span>
+              <span class="vp v-v2">v2 / later</span><span class="ep">L</span></div>
+            <h3>The optional hub server</h3>
+            <p class="why">Already described in the architecture doc as the second implementation of
+              the Brain contract. It is the natural home for everything an ESP32 behind NAT genuinely
+              cannot do: inbound webhooks, OAuth'd email/calendar, long-term memory, cheaper local
+              models — <strong>and push notifications</strong>.</p>
+            <div class="pc">
+              <div class="pros"><h4>Pros</h4><ul>
+                <li>Contract already designed for it — pointing at a hub URL is a settings change</li>
+                <li>Absorbs A-02, A-04 and long-term memory in one move</li>
+                <li>Any Pi or spare laptop is enough</li>
+              </ul></div>
+              <div class="cons"><h4>Cons</h4><ul>
+                <li>Someone must run it, forever, or the features that depend on it rot</li>
+                <li>Every feature that lands here weakens the &ldquo;works standalone&rdquo; story
+                  unless it is explicitly framed as optional</li>
+                <li>Competes for the same volunteer hours as the buddy itself</li>
+              </ul></div>
+            </div>
+            <div class="meta">
+              <div class="row"><span class="k">Rule to keep</span>Nothing that lands on the hub may
+                ever become a prerequisite for a buddy being alive and charming. Degrade, never
+                brick.</div>
+              <div class="row cmm"><span class="k">What would change our mind</span>
+                A member who wants to own it. This is a people question far more than a technical
+                one.</div>
+            </div>
+          </article>
+
+          <!-- ============ 12 · fly ============ -->
+          <article class="idea" id="i-fly" data-id="fly" data-title="A fly around the buddy"
+                   data-verdict="donow" data-effort="2" data-value="3" data-order="12">
+            <div class="top"><span class="idn">E-01</span>
+              <span class="vp v-donow">do now — fun, cheap</span><span class="ep">S</span></div>
+            <h3>&ldquo;A fly around the buddy&rdquo;</h3>
+            <p class="why">A small sprite that wanders the 240×240 canvas while the eyes track it.
+              Drive it with the joystick that is already wired
+              (<code>senses/joystick.cpp</code>, <code>joystick.move</code> →
+              <code>face.look</code>), or let it wander on its own during idle.</p>
+            <div class="pc">
+              <div class="pros"><h4>Pros</h4><ul>
+                <li>Pure charm per line of code — the cheapest personality win on the board</li>
+                <li>Exercises <code>face.look</code>, which already exists</li>
+                <li>Perfect first contribution for a new member: a Reflex, not firmware</li>
+              </ul></div>
+              <div class="cons"><h4>Cons</h4><ul>
+                <li>Sprite compositing over the eyes needs a draw-order rule in the renderer</li>
+                <li>Risk of becoming a toy nobody turns on — must be pack-authorable, not hardcoded</li>
+              </ul></div>
+            </div>
+            <div class="meta">
+              <div class="row"><span class="k">Depends on</span>A sprite/overlay concept in the face
+                renderer. Small, but it is a real interface decision.</div>
+              <div class="row cmm"><span class="k">What would change our mind</span>
+                If the overlay layer turns out to cost real frame time on the round face render task,
+                this becomes an idle-only effect rather than a general capability.</div>
+            </div>
+          </article>
+
+          <!-- ============ 13 · SD weights ============ -->
+          <article class="idea" id="i-sdweights" data-id="sdweights" data-title="Stream model weights off the SD card"
+                   data-verdict="research" data-effort="3" data-value="5" data-order="13">
+            <div class="top"><span class="idn">B-03</span>
+              <span class="vp v-research">open research</span><span class="ep">M</span></div>
+            <h3>Stream model weights from the SD card</h3>
+            <p class="why">If weights could live on the SD card instead of flash, <strong>model size
+              stops being a flash-budget problem forever</strong> — and every argument in B-01 and
+              H-03 evaporates. This is the highest-leverage unknown on the board.</p>
+            <div class="pc">
+              <div class="pros"><h4>Pros</h4><ul>
+                <li>Unbounded model size, on hardware we already ordered</li>
+                <li>Swapping a personality's <code>voice.bin</code> becomes swapping a file</li>
+                <li>Fits the existing &ldquo;content packs live on SD&rdquo; storage tier</li>
+              </ul></div>
+              <div class="cons"><h4>Cons</h4><ul>
+                <li>SD is a <strong>block device with ~1 ms random-read latency</strong>; flash is
+                  memory-mapped and effectively free to address. Naive per-token embedding-row lookups
+                  would very likely collapse throughput</li>
+                <li>Shares the display's SPI bus — contention with the face render path</li>
+                <li>Untested. Nobody has measured whether row caching rescues it</li>
+              </ul></div>
+            </div>
+            <div class="meta">
+              <div class="row"><span class="k">The experiment</span>Benchmark: sequential vs random
+                4 KB reads on our SD module while the face is rendering, then simulate a token's worth
+                of embedding-row access with and without an LRU row cache. Half a day of work for an
+                answer that reshapes three other entries.</div>
+              <div class="row cmm"><span class="k">What would change our mind</span>
+                A measurement. Either direction. <strong>This is the single most valuable half-day of
+                work on this page</strong> — it is the only entry where one experiment can flip
+                multiple verdicts at once.</div>
+            </div>
+          </article>
+
+          <!-- ============ 14 · 32MB flash ============ -->
+          <article class="idea" id="i-32mb" data-id="mb32" data-title="Move to a 32 MB flash module"
+                   data-verdict="hardware" data-effort="2" data-value="2" data-order="14">
+            <div class="top"><span class="idn">H-03</span>
+              <span class="vp v-hardware">needs hardware change</span><span class="ep">S</span></div>
+            <h3>Move to a 32 MB flash module</h3>
+            <p class="why">The brute-force answer to every flash argument on this page. Modules exist;
+              the S3 supports it.</p>
+            <div class="pc">
+              <div class="pros"><h4>Pros</h4><ul>
+                <li>Removes the B-01 size objection outright and gives B-02 unlimited headroom</li>
+                <li>Cheap in money terms</li>
+              </ul></div>
+              <div class="cons"><h4>Cons</h4><ul>
+                <li>The N16R8 devkits are <strong>already ordered and delivered</strong> (3-pack, per
+                  the BOM) — this is a re-order plus a re-verify of the whole bring-up</li>
+                <li>Splits the fleet: packs and docs would have to care which module a member has</li>
+                <li>Solves the least interesting objection to B-01 while leaving all the others</li>
+                <li>B-03, if it works, makes this pointless</li>
+              </ul></div>
+            </div>
+            <div class="meta">
+              <div class="row"><span class="k">Depends on</span>Answer to B-03 first. Do not buy flash
+                to solve a problem an SD card may already solve.</div>
+              <div class="row cmm"><span class="k">What would change our mind</span>
+                B-03 failing <em>and</em> a trained Config M/L model proving its worth. Then this is a
+                cheap, boring, correct purchase — and we should make it for the whole fleet at
+                once.</div>
+            </div>
+          </article>
+
+          <!-- ============ 15 · audio ============ -->
+          <article class="idea" id="i-audio" data-id="audio" data-title="Audio: PTT in v1, wake word v2"
+                   data-verdict="v1" data-effort="4" data-value="5" data-order="15">
+            <div class="top"><span class="idn">F-01</span>
+              <span class="vp v-v1">v1 committed</span><span class="ep">L</span></div>
+            <h3>Audio: INMP441 + MAX98357A, push-to-talk</h3>
+            <p class="why">Already committed in the architecture doc and the BOM. Listed here because
+              it is the biggest consumer of the same internal RAM, cores and heap that A-03 and B-02
+              want — it belongs in the same budget conversation as everything else on this board.</p>
+            <div class="pc">
+              <div class="pros"><h4>Pros</h4><ul>
+                <li>PTT <em>deletes</em> the two hardest voice problems: echo/barge-in (half-duplex by
+                  construction) and endpointing (release = end of utterance)</li>
+                <li>Parts are ordered; milestone M3 exists for it</li>
+              </ul></div>
+              <div class="cons"><h4>Cons</h4><ul>
+                <li>DMA and WiFi buffers must live in <em>internal</em> RAM — PSRAM will not do. That
+                  is the same pool a TLS server session wants (A-03)</li>
+                <li>1.5–3 s round-trip latency is irreducible; it can only be masked by a thinking
+                  emote</li>
+                <li>Wake word (v2) reopens VAD and barge-in, and Espressif's WakeNet only ships
+                  pre-trained words — a custom &ldquo;Hey Buddy&rdquo; means microWakeWord or paying
+                  Espressif</li>
+              </ul></div>
+            </div>
+            <div class="meta">
+              <div class="row"><span class="k">Interaction with this board</span>Audio wins any
+                contest for internal RAM. Anything else that wants internal RAM (device-side TLS
+                server) has to prove it coexists.</div>
+              <div class="row cmm"><span class="k">What would change our mind</span>
+                Nothing about PTT — it is committed. What is open is whether a fast local model (B-02)
+                changes the <em>latency masking</em> design: a 0.6 s local quip while the cloud request
+                is in flight is a much better &ldquo;thinking&rdquo; behaviour than a canned
+                chirp.</div>
+            </div>
+          </article>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- 2 -->
+    <section>
+      <div class="wrap">
+        <div class="snum"><b>§2</b> Payoff × effort</div>
+        <h2>Where the ideas sit</h2>
+        <p>Both axes are subjective judgements by whoever wrote the card — that is exactly the kind of
+          thing worth arguing about. Click a point to jump to its card. Colour is the proposed
+          verdict.</p>
+
+        <div class="matrix">
+          <div class="yax">↑ payoff if it works</div>
+          <div class="plot" id="plot"></div>
+          <div class="axlab"><span>lower effort →</span><span>higher effort</span></div>
+          <div class="keys" style="margin-top:.55rem">
+            <span><i style="background:var(--ok)"></i>do now</span>
+            <span><i style="background:var(--sig)"></i>v1</span>
+            <span><i style="background:var(--plum)"></i>v2</span>
+            <span><i style="background:var(--warm)"></i>hardware</span>
+            <span><i style="background:var(--amber)"></i>research</span>
+            <span><i style="background:var(--bad)"></i>rejected</span>
+          </div>
+          <div class="readout" id="ro">Hover or focus a point for its verdict.</div>
+        </div>
+
+        <p style="margin-top:1rem">The pattern worth noticing: the two entries in the top-left —
+          <strong>flash reclamation (C-01)</strong> and <strong>the SD-weights experiment
+          (B-03)</strong> — are cheap and unblock several others. The bottom-right cluster is where
+          effort goes to die. If you only have one weekend, spend it on the top-left.</p>
+      </div>
+    </section>
+
+    <!-- 3 -->
+    <section>
+      <div class="wrap">
+        <div class="snum"><b>§3</b> Interactive · flash budget</div>
+        <h2>Does it fit in 16 MB?</h2>
+        <p class="lead">This is the arithmetic that killed B-01, made live. Pick a model, drag the
+          partitions, watch the chip fill up.</p>
+        <p>The reserved 65,536 bytes at the bottom are non-negotiable: bootloader, partition table,
+          NVS and PHY calibration all live below <code>0x10000</code>, which is where the app must
+          start.</p>
+
+        <div class="tool">
+          <div class="tool-bar">
+            <span class="cap">Preset</span>
+            <button class="opt" data-preset="current" aria-pressed="true">today (3.56 MB mapped)</button>
+            <button class="opt" data-preset="proposed" aria-pressed="false">C-01 proposal</button>
+            <button class="opt" data-preset="esp32ai" aria-pressed="false">B-01 esp32-ai</button>
+            <button class="opt" data-preset="cfgS" aria-pressed="false">B-02 Config S</button>
+            <button class="opt" data-preset="cfgM" aria-pressed="false">B-02 Config M</button>
+            <button class="opt" data-preset="cfgL" aria-pressed="false">B-02 Config L</button>
+          </div>
+          <div class="tool-body">
+            <div class="sliders">
+              <div class="sl">
+                <label for="chip">flash chip <b id="chipv">16 MB</b></label>
+                <input type="range" id="chip" min="0" max="1" step="1" value="0">
+              </div>
+              <div class="sl">
+                <label for="app">app partition <b id="appv">2.50 MB</b></label>
+                <input type="range" id="app" min="1.25" max="6" step="0.25" value="2.5">
+              </div>
+              <div class="sl">
+                <label for="fs">LittleFS packs <b id="fsv">1.00 MB</b></label>
+                <input type="range" id="fs" min="0" max="8" step="0.25" value="1">
+              </div>
+              <div class="sl">
+                <label for="mod">raw model partition <b id="modv">0.00 MB</b></label>
+                <input type="range" id="mod" min="0" max="16" step="0.05" value="0">
+              </div>
+            </div>
+            <label class="chk" style="margin-top:.8rem">
+              <input type="checkbox" id="ota"> OTA — two app slots (doubles the app cost)
+            </label>
+
+            <div class="stack" id="stack">
+              <i class="s-res" style="width:0"></i><i class="s-app" style="width:0"></i>
+              <i class="s-fs" style="width:0"></i><i class="s-mod" style="width:0"></i>
+            </div>
+            <div class="keys">
+              <span><i style="background:var(--ink-3)"></i>reserved</span>
+              <span><i style="background:var(--sig)"></i>app</span>
+              <span><i style="background:var(--ok)"></i>packs</span>
+              <span><i style="background:var(--warm)"></i>model</span>
+              <span><i style="background:var(--rule)"></i>unallocated</span>
+            </div>
+
+            <div class="verdictline fit" id="fitline">—</div>
+
+            <div class="tw">
+              <table>
+                <thead><tr><th>Region</th><th class="m">Bytes</th><th class="m">MiB</th><th>Note</th></tr></thead>
+                <tbody id="frows"></tbody>
+              </table>
+            </div>
+            <p style="font-size:.8rem;margin-top:.7rem">Reality check the calculator does not model:
+              app partitions want 64 KB alignment, and the app binary itself
+              (<strong>1,194,432 bytes</strong> today) must fit inside whatever app partition you
+              pick — the calculator warns you when it does not.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4 -->
+    <section>
+      <div class="wrap">
+        <div class="snum"><b>§4</b> Interactive · model sizing</div>
+        <h2>How big a creature can we afford?</h2>
+        <p class="lead">Transformer parameter count is
+          <code>params = vocab×d + layers×12×d²</code>. At this scale, vocabulary <em>is</em> the
+          budget — which is why a custom 1024–2048 token BPE is the first design decision, not an
+          optimisation.</p>
+
+        <div class="tool">
+          <div class="tool-bar">
+            <span class="cap">Preset</span>
+            <button class="opt" data-mp="S" aria-pressed="true">Config S</button>
+            <button class="opt" data-mp="M" aria-pressed="false">Config M</button>
+            <button class="opt" data-mp="L" aria-pressed="false">Config L</button>
+            <button class="opt" data-mp="TS1M" aria-pressed="false">TinyStories-1M (GPT-Neo vocab)</button>
+          </div>
+          <div class="tool-body">
+            <div class="sliders">
+              <div class="sl">
+                <label for="vocab">vocab <b id="vocabv">1024</b></label>
+                <input type="range" id="vocab" min="256" max="8192" step="256" value="1024">
+              </div>
+              <div class="sl">
+                <label for="dim">d (width) <b id="dimv">128</b></label>
+                <input type="range" id="dim" min="64" max="512" step="32" value="128">
+              </div>
+              <div class="sl">
+                <label for="layers">layers <b id="layersv">6</b></label>
+                <input type="range" id="layers" min="2" max="16" step="1" value="6">
+              </div>
+            </div>
+
+            <div class="figs">
+              <div class="fig"><div class="n" id="mParams">1.31 M</div><div class="l">parameters</div>
+                <div class="s" id="mSplit">—</div></div>
+              <div class="fig"><div class="n" id="mBytes">0.66 MB</div><div class="l">int4 on flash</div>
+                <div class="s">params ÷ 2</div></div>
+              <div class="fig"><div class="n" id="mTok">30 tok/s</div><div class="l">est. throughput</div>
+                <div class="s" id="mMs">—</div></div>
+              <div class="fig"><div class="n" id="mQuip">0.6 s</div><div class="l">15-word quip</div>
+                <div class="s" id="mVs">—</div></div>
+            </div>
+
+            <div class="verdictline fit" id="mline">—</div>
+
+            <div class="ladder" id="ladder">
+              <div class="rung" data-lo="0" data-hi="2"><span class="sz">under ~2M</span>
+                <span>Around <strong>0.3–1M</strong>: grammatical but incoherent creature-babble.
+                  Charming for exactly one afternoon. <em>Config S lands here</em> — fast, but close to
+                  the floor. That trade-off is the open question.</span></div>
+              <div class="rung sweet" data-lo="2" data-hi="7"><span class="sz">~2–7M</span>
+                <span><strong>The sweet spot, around 3–4M.</strong> Short coherent sentences with
+                  reliable mood conditioning. This is a companion. Configs M and L live here.</span></div>
+              <div class="rung" data-lo="7" data-hi="20"><span class="sz">~7–20M</span>
+                <span>By <strong>10–15M</strong>: multi-sentence replies; responds to structured
+                  prompts. Costs real latency.</span></div>
+              <div class="rung" data-lo="20" data-hi="999"><span class="sz">~20M and up</span>
+                <span>At <strong>28M</strong>, short stories — this is <code>esp32-ai</code>'s regime.
+                  94.9 ms/token pegs a core.</span></div>
+              <div class="rung never"><span class="sz">never</span>
+                <span>Facts, reasoning, instruction-following, recall. <strong>At no size.</strong>
+                  That is what the Brain contract and the cloud path are for.</span></div>
+            </div>
+            <p style="font-size:.78rem;color:var(--ink-3);margin-top:.7rem">Throughput is a fitted
+              estimate anchored on the three configs the lab sized (30 / 12 / 7 tok/s). Treat it as
+              ±30% until someone benchmarks a real build.</p>
+          </div>
+        </div>
+
+        <h3>The renderer, not the thinker</h3>
+        <p>Steering is cheap at tiny scale; substance is not. So the model is a <strong>renderer</strong>:
+          reflexes and sensors decide the mood, the model turns that mood into words that are never the
+          same twice. The product argument is simple —
+          <strong>the enemy of a desk companion is repetition, not stupidity.</strong> A buddy that says
+          something dumb but new is alive. A buddy that says the same clever line for the fourth time
+          is furniture.</p>
+
+        <pre><span class="c">// emotion as a control token, emitted first — cannot be malformed</span>
+&lt;happy&gt; oh! that tickles
+
+<span class="c">// versus the cloud path, which needs defensive parsing (main.cpp):</span>
+```json
+{"utterance": "oh! that tickles", "emotion": "happy"}
+```     <span class="w">← the fences the model was told not to emit</span></pre>
+
+        <h3>The tension nobody should paper over</h3>
+        <div class="callout">
+          <div class="lbl">Open conflict — needs a group decision</div>
+          <p>A trained model has a <strong>fixed control-token vocabulary</strong>. You cannot add
+            <code class="w">&lt;smug&gt;</code> after training without retraining. That is the exact
+            opposite of extensible, and it is uncomfortably close to the project
+            <em>dictating the emotion set</em> — the one thing the director has said this project must
+            not do.</p>
+          <p><strong>Proposed resolution — two layers.</strong> Argue with it.</p>
+        </div>
+
+        <div class="twolayer">
+          <div class="lay">
+            <div class="t">layer 1 · affect register (model-side, small, stable)</div>
+            <p>A deliberately tiny, deliberately abstract set of control tokens the model is trained
+              on. Not emotions — <em>registers</em>. Chosen so they span the tonal space rather than
+              enumerate feelings.</p>
+            <div class="ex">&lt;up&gt; &lt;down&gt; &lt;alert&gt; &lt;calm&gt; &lt;cross&gt; &lt;soft&gt;</div>
+          </div>
+          <div class="lay pack">
+            <div class="t">layer 2 · expression set (pack-side, unlimited)</div>
+            <p>Any number of named face expressions a pack invents, each mapping onto a register plus
+              its own eye geometry, colour, blink temperament and sound. No retraining, no firmware
+              change — this is just pack data, exactly like <code>face_model.h</code> becoming pack
+              content in v1.</p>
+            <div class="ex">smug → &lt;up&gt; · betrayed → &lt;down&gt; · caffeinated → &lt;alert&gt; · unimpressed → &lt;cross&gt;</div>
+          </div>
+        </div>
+        <p>The claim being made is that <em>tone</em> is low-dimensional and <em>identity</em> is not.
+          If that claim is wrong — if the lab tries it and &ldquo;smug&rdquo; and
+          &ldquo;delighted&rdquo; sound identical because they share a register — then the resolution
+          fails and we need either a larger register set or per-pack retraining as the norm. The
+          convergence that makes the second option less scary: <strong>the training corpus already
+          <em>is</em> a personality definition</strong>. Fork the corpus, retrain in ~20 minutes, ship
+          <code>voice.bin</code> inside the pack, and you get a genuinely different creature rather
+          than the same creature with a different palette.</p>
+      </div>
+    </section>
+
+    <!-- 5 -->
+    <section>
+      <div class="wrap">
+        <div class="snum"><b>§5</b> Interactive · the secure-context wall</div>
+        <h2>What actually works, per transport and platform</h2>
+        <p class="lead">The PWA thread is where the most engineering hours were nearly spent on the
+          least reward. Pick a transport and a client and see precisely what you get.</p>
+
+        <div class="tool">
+          <div class="tool-bar">
+            <span class="cap">Transport</span>
+            <button class="opt" data-tr="http" aria-pressed="true">http:// LAN IP (today)</button>
+            <button class="opt" data-tr="mdns" aria-pressed="false">http://buddy.local</button>
+            <button class="opt" data-tr="self" aria-pressed="false">https:// self-signed</button>
+            <button class="opt" data-tr="localip" aria-pressed="false">https:// local-ip.sh</button>
+            <button class="opt" data-tr="own" aria-pressed="false">https:// own domain</button>
+            <button class="opt" data-tr="hub" aria-pressed="false">hub-hosted</button>
+          </div>
+          <div class="tool-bar">
+            <span class="cap">Client</span>
+            <button class="opt" data-cl="ios" aria-pressed="true">iOS Safari</button>
+            <button class="opt" data-cl="android" aria-pressed="false">Android Chrome</button>
+            <button class="opt" data-cl="desktop" aria-pressed="false">Desktop Chrome</button>
+          </div>
+          <div class="tool-body">
+            <div class="tw">
+              <table>
+                <thead><tr><th>Capability</th><th>Result</th><th>Why</th></tr></thead>
+                <tbody id="pwarows"></tbody>
+              </table>
+            </div>
+            <div class="verdictline fit" id="pwaline">—</div>
+          </div>
+        </div>
+
+        <h3>Underrated downfalls, even on the paths that &ldquo;work&rdquo;</h3>
+        <ul>
+          <li><strong>Origin identity is tied to the IP.</strong> A DHCP lease change orphans the
+            installed PWA <em>and</em> its push subscription. Silently.</li>
+          <li><strong>Three buddies = three separate PWAs.</strong> PWAs are origin-scoped. There is no
+            &ldquo;my buddies&rdquo; app unless a hub provides the origin.</li>
+          <li><strong>Service-worker cache staleness is a real footgun</strong> on a device whose entire
+            selling point is hot-reloading. You would be shipping a caching layer that fights the
+            product's core promise.</li>
+          <li><strong>Offline caching is nearly pointless here.</strong> A cached shell still cannot
+            reach the buddy — the buddy <em>is</em> the server. You cache a UI that has nothing to talk
+            to.</li>
+        </ul>
+        <p>Which leaves push, and push alone, as the thing that earns its keep — and only for
+          away-from-desk messages. If the group cannot name three of those it genuinely wants, the
+          honest move is to ship A-01 and close the thread.</p>
+      </div>
+    </section>
+
+    <!-- 6 -->
+    <section>
+      <div class="wrap">
+        <div class="snum"><b>§6</b> How to overturn any of this</div>
+        <h2>Arguing with the register</h2>
+        <p>Every card has a <em>what would change our mind</em> line, and they fall into three
+          kinds:</p>
+        <ul>
+          <li><strong>A measurement.</strong> B-03 (SD weights), A-03 (TLS heap alongside audio),
+            B-02's throughput. Someone runs a benchmark, the verdict updates. These are the cheapest
+            arguments to win — go get the number.</li>
+          <li><strong>A taste judgement.</strong> B-02's output quality, E-01's charm, D-01's
+            rendering. No benchmark settles these; the lab looks at it and votes. Build the smallest
+            thing that lets people look.</li>
+          <li><strong>A people question.</strong> H-01, A-02, H-03. These need a volunteer or a budget,
+            not an argument. If nobody wants to own it, that <em>is</em> the answer.</li>
+        </ul>
+        <p>Recommended sequence if you want the most decision-value per hour:
+          <strong>C-01</strong> (unblocks everything, half a day) →
+          <strong>B-03 benchmark</strong> (flips up to three verdicts) →
+          <strong>A-01</strong> (40 lines, ship it) →
+          <strong>B-02 pre-workshop session</strong>, ending with everyone reading 50 sampled
+          utterances and voting on whether the creature is worth building.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <p>Desktop Buddy · idea register · every verdict is a proposal, not a decision.</p>
+      <p>Sources in-repo: docs/architecture.md · docs/hardware.md · firmware/partitions.csv ·
+        firmware/main/main.cpp · firmware/components/webui/webui.cpp ·
+        firmware/components/expressions/include/face_model.h</p>
+    </div>
+  </footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------- theme ---------- */
+  document.getElementById("theme").addEventListener("click", function(){
+    var cur = document.documentElement.getAttribute("data-theme");
+    if(!cur) cur = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    document.documentElement.setAttribute("data-theme", cur === "dark" ? "light" : "dark");
+  });
+
+  var EFFORT = {1:"XS",2:"S",3:"M",4:"L",5:"XL"};
+  var VORDER = {donow:0, v1:1, v2:2, hardware:3, research:4, rejected:5};
+  var VLABEL = {donow:"do now", v1:"v1 committed", v2:"v2 / later",
+                hardware:"needs hardware change", research:"open research", rejected:"rejected"};
+
+  /* ---------- §1 board: filter + sort ---------- */
+  var board = document.getElementById("board");
+  var cards = Array.prototype.slice.call(board.querySelectorAll(".idea"));
+  var countEl = document.getElementById("count");
+  var state = {verdict:"all", effort:"all", sort:"doc"};
+
+  function num(c, a){ return parseFloat(c.getAttribute(a)); }
+
+  function apply(){
+    var shown = 0;
+    cards.forEach(function(c){
+      var okV = state.verdict === "all" || c.getAttribute("data-verdict") === state.verdict;
+      var okE = state.effort === "all" || c.getAttribute("data-effort") === state.effort;
+      var vis = okV && okE;
+      c.classList.toggle("hidden", !vis);
+      if(vis) shown++;
+    });
+    countEl.textContent = shown + " of " + cards.length + " shown";
+
+    var sorted = cards.slice();
+    if(state.sort === "effort"){
+      sorted.sort(function(a,b){ return num(a,"data-effort") - num(b,"data-effort") ||
+                                        num(b,"data-value") - num(a,"data-value"); });
+    } else if(state.sort === "value"){
+      sorted.sort(function(a,b){ return num(b,"data-value") - num(a,"data-value") ||
+                                        num(a,"data-effort") - num(b,"data-effort"); });
+    } else if(state.sort === "ratio"){
+      sorted.sort(function(a,b){
+        return (num(b,"data-value")/num(b,"data-effort")) - (num(a,"data-value")/num(a,"data-effort"));
+      });
+    } else if(state.sort === "verdict"){
+      sorted.sort(function(a,b){
+        return VORDER[a.getAttribute("data-verdict")] - VORDER[b.getAttribute("data-verdict")] ||
+               num(a,"data-effort") - num(b,"data-effort");
+      });
+    } else {
+      sorted.sort(function(a,b){ return num(a,"data-order") - num(b,"data-order"); });
+    }
+    sorted.forEach(function(c){ board.appendChild(c); });
+  }
+
+  function wireFilter(id, key){
+    var box = document.getElementById(id);
+    box.addEventListener("click", function(e){
+      var b = e.target.closest ? e.target.closest(".opt") : null;
+      if(!b || !box.contains(b)) return;
+      state[key] = b.getAttribute("data-f");
+      box.querySelectorAll(".opt").forEach(function(o){
+        o.setAttribute("aria-pressed", o === b ? "true" : "false");
+      });
+      apply();
+    });
+  }
+  wireFilter("fv","verdict");
+  wireFilter("fe","effort");
+  document.getElementById("sort").addEventListener("change", function(e){
+    state.sort = e.target.value; apply();
+  });
+  apply();
+
+  /* ---------- §2 matrix ---------- */
+  var plot = document.getElementById("plot"), ro = document.getElementById("ro");
+  cards.forEach(function(c){
+    var eff = num(c,"data-effort"), val = num(c,"data-value");
+    var v = c.getAttribute("data-verdict");
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "pt pt-" + v;
+    /* jitter identical coordinates a little so points do not fully overlap */
+    var j = (parseInt(c.getAttribute("data-order"),10) % 3 - 1) * 1.6;
+    b.style.left = (10 + (eff - 1) * 20 + j) + "%";
+    b.style.bottom = (10 + (val - 1) * 20 + j) + "%";
+    var idn = c.querySelector(".idn").textContent;
+    var label = idn + " " + c.getAttribute("data-title");
+    b.setAttribute("aria-label", label + " — " + VLABEL[v] +
+                   ", effort " + EFFORT[eff] + ", payoff " + val + " of 5");
+    b.title = label;
+    function show(){
+      ro.innerHTML = "<b>" + label + "</b> — " + VLABEL[v] +
+                     " · effort " + EFFORT[eff] + " · payoff " + val + "/5";
+    }
+    b.addEventListener("mouseenter", show);
+    b.addEventListener("focus", show);
+    b.addEventListener("click", function(){
+      var t = document.getElementById("i-" + c.getAttribute("data-id"));
+      var target = t || c;
+      /* make sure it is not filtered out before jumping */
+      state.verdict = "all"; state.effort = "all";
+      document.querySelectorAll("#fv .opt, #fe .opt").forEach(function(o){
+        o.setAttribute("aria-pressed", o.getAttribute("data-f") === "all" ? "true" : "false");
+      });
+      apply();
+      target.scrollIntoView({behavior:"smooth", block:"center"});
+      target.classList.add("flag");
+      setTimeout(function(){ target.classList.remove("flag"); }, 2200);
+    });
+    plot.appendChild(b);
+  });
+
+  /* ---------- §3 flash budget ---------- */
+  var MIB = 1048576, RESERVED = 65536, APP_BIN = 1194432, ESP32AI = 15623782;
+  var CHIPS = [16 * MIB, 32 * MIB];
+  var els = {
+    chip: document.getElementById("chip"), app: document.getElementById("app"),
+    fs: document.getElementById("fs"), mod: document.getElementById("mod"),
+    ota: document.getElementById("ota"), stack: document.getElementById("stack"),
+    fit: document.getElementById("fitline"), rows: document.getElementById("frows"),
+    chipv: document.getElementById("chipv"), appv: document.getElementById("appv"),
+    fsv: document.getElementById("fsv"), modv: document.getElementById("modv")
+  };
+  var segs = els.stack.querySelectorAll("i");
+
+  function fmt(n){ return n.toLocaleString("en-US"); }
+  function mib(b){ return (b / MIB).toFixed(2); }
+
+  function row(name, bytes, note, cls){
+    var tr = document.createElement("tr");
+    var a = document.createElement("td"); a.className = "name"; a.textContent = name;
+    var b = document.createElement("td"); b.className = "m"; b.textContent = fmt(bytes);
+    var c = document.createElement("td"); c.className = "m"; c.textContent = mib(bytes);
+    var d = document.createElement("td"); if(cls) d.className = cls; d.textContent = note;
+    tr.appendChild(a); tr.appendChild(b); tr.appendChild(c); tr.appendChild(d);
+    return tr;
+  }
+
+  function renderFlash(){
+    var chip = CHIPS[parseInt(els.chip.value, 10)];
+    var appOne = Math.round(parseFloat(els.app.value) * MIB);
+    var slots = els.ota.checked ? 2 : 1;
+    var app = appOne * slots;
+    var fs = Math.round(parseFloat(els.fs.value) * MIB);
+    var mod = Math.round(parseFloat(els.mod.value) * MIB);
+    var used = RESERVED + app + fs + mod;
+    var free = chip - used;
+
+    els.chipv.textContent = (chip / MIB) + " MB";
+    els.appv.textContent = parseFloat(els.app.value).toFixed(2) + " MB" + (slots === 2 ? " ×2" : "");
+    els.fsv.textContent = parseFloat(els.fs.value).toFixed(2) + " MB";
+    els.modv.textContent = parseFloat(els.mod.value).toFixed(2) + " MB";
+
+    var scale = Math.max(chip, used);
+    var w = [RESERVED, app, fs, mod].map(function(v){ return (v / scale * 100) + "%"; });
+    for(var i = 0; i < segs.length; i++) segs[i].style.width = w[i];
+    els.stack.classList.toggle("over", free < 0);
+
+    els.rows.innerHTML = "";
+    els.rows.appendChild(row("reserved", RESERVED, "bootloader + partition table + nvs + phy; app starts at 0x10000"));
+    els.rows.appendChild(row("app" + (slots === 2 ? " (×2, OTA)" : ""), app,
+      appOne >= APP_BIN ? "binary is 1,194,432 B — fits with " + fmt(appOne - APP_BIN) + " B spare"
+                        : "TOO SMALL for the 1,194,432 B binary",
+      appOne >= APP_BIN ? "yes" : "no"));
+    els.rows.appendChild(row("littlefs packs", fs, fs === 0 ? "no pack storage at all" : "personality packs, hot-reloaded",
+      fs === 0 ? "warnc" : ""));
+    els.rows.appendChild(row("model (raw)", mod, mod === 0 ? "—" : "raw so esp_partition_mmap works; a LittleFS file cannot be mmap'd"));
+    els.rows.appendChild(row("unallocated", Math.abs(free), free < 0 ? "OVER BUDGET" : (free > 2 * MIB ? "wasted capacity" : "headroom"),
+      free < 0 ? "no" : (free > 2 * MIB ? "warnc" : "yes")));
+
+    var msgs = [];
+    if(free < 0) msgs.push("Over budget by " + fmt(-free) + " bytes (" + mib(-free) + " MiB).");
+    else msgs.push("Fits, with " + fmt(free) + " bytes (" + mib(free) + " MiB) unallocated.");
+    if(appOne < APP_BIN) msgs.push("App partition is smaller than the current 1,194,432 B binary — it will not flash.");
+    if(mod > 0){
+      var leftForApp = chip - RESERVED - mod - fs;
+      msgs.push("After reserved + model + packs, " + fmt(leftForApp) + " bytes remain for the app; " +
+                "the binary alone is " + fmt(APP_BIN) + " → " +
+                (leftForApp >= APP_BIN ? fmt(leftForApp - APP_BIN) + " bytes spare."
+                                       : "short by " + fmt(APP_BIN - leftForApp) + " bytes."));
+    }
+    if(mod >= ESP32AI - MIB && mod <= ESP32AI + MIB && chip === 16 * MIB)
+      msgs.push("That is the esp32-ai model — this is the arithmetic that killed B-01.");
+    els.fit.className = "verdictline " + ((free < 0 || appOne < APP_BIN) ? "over" : "fit");
+    els.fit.textContent = msgs.join(" ");
+  }
+
+  var PRESETS = {
+    current:  {chip:0, app:2.5,  fs:1,    mod:0,     ota:false},
+    proposed: {chip:0, app:3,    fs:4,    mod:4,     ota:false},
+    esp32ai:  {chip:0, app:1.25, fs:0,    mod:14.9,  ota:false},
+    cfgS:     {chip:0, app:3,    fs:4,    mod:0.65,  ota:false},
+    cfgM:     {chip:0, app:3,    fs:4,    mod:1.95,  ota:false},
+    cfgL:     {chip:0, app:3,    fs:4,    mod:3.4,   ota:false}
+  };
+  document.querySelectorAll("[data-preset]").forEach(function(btn){
+    btn.addEventListener("click", function(){
+      var p = PRESETS[btn.getAttribute("data-preset")];
+      els.chip.value = p.chip; els.app.value = p.app; els.fs.value = p.fs;
+      els.mod.value = p.mod; els.ota.checked = p.ota;
+      document.querySelectorAll("[data-preset]").forEach(function(o){
+        o.setAttribute("aria-pressed", o === btn ? "true" : "false");
+      });
+      renderFlash();
+    });
+  });
+  ["chip","app","fs","mod","ota"].forEach(function(k){
+    els[k].addEventListener("input", function(){
+      document.querySelectorAll("[data-preset]").forEach(function(o){
+        o.setAttribute("aria-pressed","false");
+      });
+      renderFlash();
+    });
+  });
+  renderFlash();
+
+  /* ---------- §4 model sizer ---------- */
+  var mEl = {
+    vocab: document.getElementById("vocab"), dim: document.getElementById("dim"),
+    layers: document.getElementById("layers"),
+    vocabv: document.getElementById("vocabv"), dimv: document.getElementById("dimv"),
+    layersv: document.getElementById("layersv"),
+    params: document.getElementById("mParams"), split: document.getElementById("mSplit"),
+    bytes: document.getElementById("mBytes"), tok: document.getElementById("mTok"),
+    ms: document.getElementById("mMs"), quip: document.getElementById("mQuip"),
+    vs: document.getElementById("mVs"), line: document.getElementById("mline")
+  };
+  var rungs = Array.prototype.slice.call(document.querySelectorAll("#ladder .rung[data-lo]"));
+  var CLOUD_S = 1.5;
+
+  function renderModel(){
+    var v = parseInt(mEl.vocab.value, 10), d = parseInt(mEl.dim.value, 10),
+        L = parseInt(mEl.layers.value, 10);
+    var emb = v * d, blocks = L * 12 * d * d, params = emb + blocks;
+    var pm = params / 1e6;
+    var bytes = params / 2;                       /* int4 */
+    var msTok = 7.4 + 19.93 * pm;                 /* fitted to 30 / 12 / 7 tok/s at S / M / L */
+    var tok = 1000 / msTok;
+    var tokens = Math.round(15 * 1.2) + 1;        /* 15 words + the control token */
+    var quip = tokens * msTok / 1000;
+
+    mEl.vocabv.textContent = v;
+    mEl.dimv.textContent = d;
+    mEl.layersv.textContent = L;
+    mEl.params.textContent = pm.toFixed(2) + " M";
+    mEl.split.textContent = "embeddings " + Math.round(emb / params * 100) + "% · blocks " +
+                            Math.round(blocks / params * 100) + "%";
+    mEl.bytes.textContent = (bytes / 1e6).toFixed(2) + " MB";
+    mEl.tok.textContent = tok.toFixed(1) + " tok/s";
+    mEl.ms.textContent = msTok.toFixed(1) + " ms/token";
+    mEl.quip.textContent = quip.toFixed(2) + " s";
+    mEl.vs.textContent = quip < CLOUD_S
+      ? "beats the ~1.5 s cloud round-trip"
+      : (quip / CLOUD_S).toFixed(1) + "× the cloud round-trip";
+
+    rungs.forEach(function(r){
+      var lo = parseFloat(r.getAttribute("data-lo")), hi = parseFloat(r.getAttribute("data-hi"));
+      r.classList.toggle("hit", pm >= lo && pm < hi);
+    });
+
+    var msg = [];
+    if(emb / params > 0.5)
+      msg.push("Vocabulary is eating " + Math.round(emb / params * 100) +
+               "% of the budget — this is the TinyStories-1M trap. Shrink the vocab first.");
+    if(quip < CLOUD_S)
+      msg.push("Local is the fast path here, not the fallback: " + quip.toFixed(2) +
+               " s vs ~1.5 s to the cloud.");
+    else
+      msg.push("Slower than the cloud round-trip — local stops being a latency win at this size.");
+    msg.push("Needs a " + (bytes / 1e6).toFixed(2) + " MB raw model partition (try it in §3).");
+    mEl.line.className = "verdictline " + (quip < CLOUD_S && emb / params <= 0.5 ? "fit" : "over");
+    mEl.line.textContent = msg.join(" ");
+  }
+  var MPRESET = {
+    S:    {vocab:1024, dim:128, layers:6},
+    M:    {vocab:2048, dim:192, layers:8},
+    L:    {vocab:2048, dim:256, layers:8},
+    TS1M: {vocab:8192, dim:64,  layers:8}
+  };
+  document.querySelectorAll("[data-mp]").forEach(function(btn){
+    btn.addEventListener("click", function(){
+      var p = MPRESET[btn.getAttribute("data-mp")];
+      mEl.vocab.value = p.vocab; mEl.dim.value = p.dim; mEl.layers.value = p.layers;
+      document.querySelectorAll("[data-mp]").forEach(function(o){
+        o.setAttribute("aria-pressed", o === btn ? "true" : "false");
+      });
+      renderModel();
+    });
+  });
+  ["vocab","dim","layers"].forEach(function(k){
+    mEl[k].addEventListener("input", function(){
+      document.querySelectorAll("[data-mp]").forEach(function(o){
+        o.setAttribute("aria-pressed","false");
+      });
+      renderModel();
+    });
+  });
+  renderModel();
+
+  /* ---------- §5 secure-context matrix ---------- */
+  var TR = {
+    http: {
+      name:"http:// LAN IP", secure:false, cert:"none",
+      note:"What we ship today (esp_http_server, no TLS, no mDNS).", heap:"0 KB"
+    },
+    mdns: {
+      name:"http://buddy.local", secure:false, cert:"none",
+      note:"mDNS gives a friendly name. It does NOT give a secure context — only localhost is exempt.",
+      heap:"0 KB"
+    },
+    self: {
+      name:"https:// self-signed", secure:"broken", cert:"untrusted",
+      note:"Chrome refuses serviceWorker.register() on a cert-error origin even after click-through.",
+      heap:"~30–45 KB/session"
+    },
+    localip: {
+      name:"https:// local-ip.sh", secure:true, cert:"publicly trusted (key is published)",
+      note:"Browser is satisfied; confidentiality is not real. Origin is bound to the LAN IP.",
+      heap:"~30–45 KB/session"
+    },
+    own: {
+      name:"https:// own domain", secure:true, cert:"real Let's Encrypt via DNS-01",
+      note:"Correct and horrible: a renewal robot on a desk toy, one zone, one maintainer.",
+      heap:"~30–45 KB/session"
+    },
+    hub: {
+      name:"hub-hosted origin", secure:true, cert:"the hub's, renewed once for everyone",
+      note:"Device does an outbound POST to the hub; the hub owns origin, PWA and push.",
+      heap:"0 KB extra on device"
+    }
+  };
+  var CL = {ios:"iOS Safari", android:"Android Chrome", desktop:"Desktop Chrome"};
+  var sel = {tr:"http", cl:"ios"};
+  var pwaRows = document.getElementById("pwarows"), pwaLine = document.getElementById("pwaline");
+
+  function cell(txt, cls){
+    var td = document.createElement("td");
+    if(cls) td.className = cls;
+    td.textContent = txt;
+    return td;
+  }
+  function addRow(cap, val, cls, why){
+    var tr = document.createElement("tr");
+    tr.appendChild(cell(cap, "name"));
+    tr.appendChild(cell(val, cls));
+    tr.appendChild(cell(why));
+    pwaRows.appendChild(tr);
+  }
+
+  function renderPwa(){
+    var t = TR[sel.tr], c = sel.cl;
+    pwaRows.innerHTML = "";
+
+    var secureTxt = t.secure === true ? "yes" : (t.secure === "broken" ? "nominally, but flagged" : "no");
+    addRow("Secure context", secureTxt, t.secure === true ? "yes" : "no",
+      t.secure === true ? "valid certificate on the origin"
+                        : "HTTPS with a trusted cert is the only way in; buddy.local does not count");
+
+    var sw = t.secure === true;
+    addRow("Service worker registers", sw ? "yes" : "no", sw ? "yes" : "no",
+      sw ? "secure context satisfied"
+         : (t.secure === "broken" ? "Chrome refuses registration on a cert-error origin — not degraded, zero"
+                                  : "no secure context, so no service worker machinery at all"));
+
+    var a2hs = (t.secure !== "broken");
+    addRow("Add to Home Screen (standalone)", a2hs ? "yes" : "possible but ugly",
+      a2hs ? "yes" : "warnc",
+      a2hs ? "manifest.json + apple-mobile-web-app-capable + one icon — works over plain HTTP too"
+           : "a certificate warning on every launch; nobody will keep it");
+    if(!sw && a2hs && c === "android")
+      addRow("↳ Android nuance", "shortcut, not a WebAPK", "warnc",
+        "Chrome needs HTTPS + a service worker for a real install");
+
+    var push = sw && (c !== "ios" || t.secure === true);
+    if(c === "ios") push = sw;
+    addRow("Web Push subscription", push ? "yes" : "no", push ? "yes" : "no",
+      push ? (c === "ios" ? "iOS 16.4+ — only from a Home-Screen-installed PWA, and there is no install prompt"
+                          : "standard VAPID subscription flow")
+           : "registration needs a service worker; sending was never the blocker");
+
+    addRow("Sending push from the device", "possible on every row", "yes",
+      "outbound HTTPS POST + VAPID ES256 JWT + ECDH-P256/HKDF/AES128GCM — all in mbedtls");
+
+    addRow("Device heap cost", t.heap, t.heap === "0 KB" || t.heap.indexOf("0 KB") === 0 ? "yes" : "warnc",
+      "TLS server sessions compete with I2S/WiFi buffers in internal RAM");
+
+    addRow("Origin stability", sel.tr === "hub" ? "stable" : (sel.tr === "own" ? "stable-ish" : "DHCP-fragile"),
+      sel.tr === "hub" ? "yes" : "warnc",
+      sel.tr === "hub" ? "one origin, N buddies"
+                       : "IP-bound origin: a lease change orphans the install and the push subscription");
+
+    var verdict;
+    if(sel.tr === "hub")
+      verdict = "The only path where the certificate problem simply does not exist — but it needs a hub (H-01) and someone to run it.";
+    else if(sel.tr === "http" || sel.tr === "mdns")
+      verdict = "Ship the manifest (A-01) and stop. ~40 lines gets standalone Home-Screen launch on " +
+                CL[c] + "; everything past that needs a certificate we do not have.";
+    else if(sel.tr === "self")
+      verdict = "Dead end. Not degraded — zero. Browsers refuse service workers on cert-error origins by policy.";
+    else if(sel.tr === "localip")
+      verdict = "Technically works on " + CL[c] + ", including push. The price is a published private key and an IP-bound origin.";
+    else
+      verdict = "Works and is genuinely secure. The price is a DNS-01 renewal robot maintained by a volunteer group, forever.";
+    pwaLine.className = "verdictline " + (sel.tr === "self" ? "over" : "fit");
+    pwaLine.textContent = t.name + " on " + CL[c] + " — " + verdict + " " + t.note;
+  }
+  document.querySelectorAll("[data-tr]").forEach(function(b){
+    b.addEventListener("click", function(){
+      sel.tr = b.getAttribute("data-tr");
+      document.querySelectorAll("[data-tr]").forEach(function(o){
+        o.setAttribute("aria-pressed", o === b ? "true" : "false");
+      });
+      renderPwa();
+    });
+  });
+  document.querySelectorAll("[data-cl]").forEach(function(b){
+    b.addEventListener("click", function(){
+      sel.cl = b.getAttribute("data-cl");
+      document.querySelectorAll("[data-cl]").forEach(function(o){
+        o.setAttribute("aria-pressed", o === b ? "true" : "false");
+      });
+      renderPwa();
+    });
+  });
+  renderPwa();
+})();
+</script>
