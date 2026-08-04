@@ -2,9 +2,7 @@
 // emotion's mood color (shared with the eyes via face_model.h) and animates
 // per led.mood: breathe (calm/excited), a rotating comet (thinking), or off.
 // Brightness is hard-capped here — the power governor's citizen for the ring.
-// Compiled only when selected in menuconfig.
 #include "sdkconfig.h"
-#if CONFIG_BUDDY_LED_WS2812
 
 #include "bus.h"
 #include "expressions.h"
@@ -113,4 +111,3 @@ void led_start() {
 
 }  // namespace buddy
 
-#endif  // CONFIG_BUDDY_LED_WS2812

@@ -14,21 +14,7 @@ config BUDDY_ANTHROPIC_API_KEY
     string "Anthropic API key (PoC only — v1 stores this in NVS via web UI)"
     default ""
 
-choice BUDDY_DISPLAY
-    prompt "Face display backend"
-    default BUDDY_DISPLAY_GC9A01
-    help
-      GC9A01 = 1.28" round 240x240 color (the v1 face, on ESP32-S3).
-      SSD1306 = 0.96" 128x64 mono OLED (the Buddy Zero PoC, classic ESP32).
-
-config BUDDY_DISPLAY_GC9A01
-    bool "GC9A01 round color (SPI)"
-config BUDDY_DISPLAY_SSD1306
-    bool "SSD1306 mono OLED (I2C)"
-endchoice
-
 menu "GC9A01 round display pins (SPI)"
-    depends on BUDDY_DISPLAY_GC9A01
 config BUDDY_GC9A01_SCLK
     int "SCL / SCLK"
     default 12
@@ -49,50 +35,25 @@ config BUDDY_GC9A01_BL
     default 7
 endmenu
 
-menu "SSD1306 OLED pins (I2C)"
-    depends on BUDDY_DISPLAY_SSD1306
-config BUDDY_PIN_I2C_SDA
-    int "OLED I2C SDA"
-    default 21
-config BUDDY_PIN_I2C_SCL
-    int "OLED I2C SCL"
-    default 22
-endmenu
-
 config BUDDY_PIN_TOUCH
-    int "Petting pad GPIO (touch-capable; ESP32 T-pins or S3 GPIO1-14)"
+    int "Petting pad GPIO (touch-capable: ESP32-S3 GPIO 1-14)"
     default 4
 
-choice BUDDY_LED
-    prompt "Mood indicator backend"
-    default BUDDY_LED_WS2812
-    help
-      WS2812 = addressable RGB ring, tinted with the emotion's mood color (v1).
-      PWM    = a single mono LED that breathes (Buddy Zero PoC).
-
-config BUDDY_LED_WS2812
-    bool "WS2812 RGB ring"
-config BUDDY_LED_PWM
-    bool "Single PWM LED"
-endchoice
-
+menu "WS2812 mood ring"
 config BUDDY_WS2812_PIN
     int "WS2812 ring data GPIO"
-    depends on BUDDY_LED_WS2812
     default 21
 config BUDDY_WS2812_COUNT
     int "WS2812 LED count"
-    depends on BUDDY_LED_WS2812
     default 12
-
-config BUDDY_PIN_LED
-    int "Single mood LED GPIO"
-    depends on BUDDY_LED_PWM
-    default 2
+endmenu
 
 config BUDDY_RC522_ENABLED
     bool "Enable RC522 RFID reader"
     default n
+    help
+      Not yet wired for the S3 — the pin defaults in main.cpp are still the
+      classic-ESP32 PoC values and need replacing before this is switched on.
 
 config BUDDY_DEBUG
     bool "Verbose debug logging (event bus trace, brain HTTP, touch values)"

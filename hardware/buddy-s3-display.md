@@ -30,14 +30,13 @@ Match the firmware defaults in `firmware/main/Kconfig.projbuild`. Wire by the
 ```bash
 cd firmware
 idf.py set-target esp32s3      # first time on S3 — regenerates config
-idf.py menuconfig              # Buddy Zero → Face display backend = GC9A01
-                              #             → WiFi + Anthropic key (optional)
+idf.py menuconfig              # Buddy Zero → WiFi + Anthropic key (optional)
 idf.py build flash monitor
 ```
 
-The display backend defaults to **GC9A01** already, so a plain build targets
-the round face. To go back to the OLED PoC on a classic ESP32:
-`idf.py set-target esp32` then pick SSD1306 in menuconfig.
+The ESP32-S3 + GC9A01 is the only target — there is no backend to choose. The
+classic-ESP32 + SSD1306 PoC this grew out of was removed once the S3 landed;
+it lives on in git at `4d7b12e`.
 
 ## First-boot checklist (idf.py monitor)
 
@@ -92,9 +91,8 @@ Notes:
 - **Brightness is capped in firmware** (`kMaxBright = 0.35` in `led_ring.cpp`).
   12 LEDs at full white pull ~700 mA — past what the devkit's 5 V pin likes.
   Keep the cap unless the ring gets its own 5 V supply (the v1 power rail).
-- Config: `menuconfig → Buddy Zero → Mood indicator backend = WS2812 RGB ring`,
-  pin `BUDDY_WS2812_PIN` (21), count `BUDDY_WS2812_COUNT` (12). Choose
-  "Single PWM LED" instead for the classic OLED PoC.
+- Config: `menuconfig → Buddy Zero → WS2812 mood ring`, pin `BUDDY_WS2812_PIN`
+  (21), count `BUDDY_WS2812_COUNT` (12).
 - Ring check on boot: `ring: WS2812 ring: 12 LEDs on GPIO 21`, then a gentle
   cyan breathe. Wrong colors (e.g. red/blue swapped) → the strip isn't GRB;
   change `LED_STRIP_COLOR_COMPONENT_FMT_GRB` to `_RGB` in `led_ring.cpp`.
@@ -103,8 +101,6 @@ Notes:
 
 Same S3, incremental — each is one more Sense/Expression on the bus:
 - **Petting pad** — touch works on S3 (GPIO 1–14). Enable `BUDDY_PIN_TOUCH`.
-- **Joystick (HW-504)** — 2 analog axes + button → a new Sense on ADC pins;
-  great as a debug "look direction" control for the eyes.
 - **Mic (INMP441) + amp (MAX98357A) + speaker** — the I2S audio path (chirps
   first, then the push-to-talk voice loop).
 - **Buttons** — extra digital Senses.

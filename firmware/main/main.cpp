@@ -1,6 +1,6 @@
-// Buddy Zero — framework seed + PoC testbed for the parts on Daniel's desk.
-// DevKit V1 (classic ESP32): touch wire, GME12864 OLED face, RC522 reader,
-// mood LED, and a real Brain. Everything talks through the event bus.
+// Buddy Zero — the framework seed, wired up. ESP32-S3: a touch wire for
+// petting, the GC9A01 round color face, a WS2812 mood ring, and a real Brain.
+// Everything talks through the event bus; nothing here calls a driver directly.
 #include "berry_host.h"
 #include "brain.h"
 #include "bus.h"
@@ -64,8 +64,8 @@ extern "C" void app_main() {
 #endif
 
   // Expressions first, so early events have somewhere to land.
-  buddy::led_start();   // backend (WS2812 ring / PWM LED) chosen in menuconfig
-  buddy::face_start();  // backend (OLED / round GC9A01) chosen in menuconfig
+  buddy::led_start();   // WS2812 mood ring
+  buddy::face_start();  // GC9A01 round color face
 
   // Reflex layer: Berry when present, C fallback otherwise.
   if (!buddy::berry_host_start()) c_reflexes();

@@ -1,13 +1,11 @@
-// GC9A01 240×240 round color face backend — the v1 display. Renders the same
-// shared emotion model (face_model.h) as the OLED, but bigger, in color, with
-// a soft glow behind each eye and anti-aliased rounded corners. Compiled only
-// when this backend is selected in menuconfig.
+// GC9A01 240×240 round color face backend — the buddy's face. Renders the
+// shared emotion model (face_model.h) in color, with a soft glow behind each
+// eye and anti-aliased rounded corners.
 //
 // Panel driver: esp_lcd + espressif/esp_lcd_gc9a01 (managed component).
 // Framebuffer lives in PSRAM (240*240*2 = 112 KB) and is pushed whole on each
 // state change (blink, saccade, emotion, text) — not continuously.
 #include "sdkconfig.h"
-#if CONFIG_BUDDY_DISPLAY_GC9A01
 
 #include "bus.h"
 #include "expressions.h"
@@ -403,4 +401,3 @@ void face_start() {
 
 }  // namespace buddy
 
-#endif  // CONFIG_BUDDY_DISPLAY_GC9A01

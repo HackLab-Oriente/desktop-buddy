@@ -1,33 +1,34 @@
 # Buddy Zero — framework seed & PoC testbed
 
 The event bus, Berry host, and Sense/Expression drivers here are the real
-framework's first commit — written for the parts already on the desk (ESP32
-DevKit V1, GME12864 OLED, RC522, LEDs) and portable to the ESP32-S3 build.
+framework's first commit.
 
-## Two targets, two faces (one framework)
+## One target: ESP32-S3
 
-The bus, Berry host, Brain and web UI are shared. Only the display backend and
-target differ, chosen in menuconfig (`Buddy Zero → Face display backend`):
+| Part | Hardware | Driver |
+|---|---|---|
+| Face | GC9A01 1.28" round color 240×240 (SPI) | `round_face.cpp` |
+| Mood | WS2812 12-LED ring | `led_ring.cpp` |
+| Petting | capacitive touch, GPIO 1–14 | `touch_sense.cpp` |
 
-| Target | Display | Face backend | Status |
-|---|---|---|---|
-| `esp32s3` | GC9A01 1.28" round color 240×240 (SPI) | `round_face.cpp` | **default** |
-| `esp32` | SSD1306 128×64 mono OLED (I2C) | `oled_face.cpp` | Buddy Zero PoC |
+Both the face and the ring render the same `face_model.h` — 8 emotions, each
+carrying eye geometry *and* a mood color, so the eyes and the halo always
+agree. Wiring: [../hardware/buddy-s3-display.md](../hardware/buddy-s3-display.md).
 
-Both render the same `face_model.h` (8 emotions + text) — the round backend
-just scales it up, in color, with a soft glow. Wiring for the S3 + round
-display: [../hardware/buddy-s3-display.md](../hardware/buddy-s3-display.md).
+The classic-ESP32 + SSD1306 PoC that this grew out of was removed once the S3
+became the only target; it lives on in git at `4d7b12e` if you ever need it.
 
 ## Status
 
-- **Verified**: `idf.py build` succeeds on **ESP-IDF v6.0.2** for both
-  `esp32s3` (GC9A01, default) and `esp32` (SSD1306), Berry compiled in
-  (2026-07-17). Written against v6 driver APIs (`esp_driver_touch_sens`,
-  `i2c_master`, `esp_lcd` + `espressif/esp_lcd_gc9a01`, managed
-  `espressif/cjson`) — v5.x is NOT supported.
+- **Verified**: `idf.py build` succeeds on **ESP-IDF v6.0.2**, Berry compiled
+  in. Written against v6 driver APIs (`esp_driver_touch_sens`, `esp_lcd` +
+  `espressif/esp_lcd_gc9a01`, `espressif/led_strip` 3.x, managed
+  `espressif/cjson`) — **v5.x is NOT supported**.
 - **Verified**: event bus passes its host tests (`host_test/`).
-- **Unverified on hardware**: nothing flashed yet. First-flash tuning spots:
-  GC9A01 color order / invert (see round_face.cpp), touch thresholds, RC522.
+- **Verified on hardware**: face, ring, touch, WiFi and the Claude brain all
+  run on the S3. Gotchas we already hit are written up in the hardware doc.
+- **Not yet wired**: RC522 (pin defaults are still classic-ESP32 values),
+  audio, SD card.
 
 ## Setup
 
@@ -43,30 +44,29 @@ mkdir -p generate && python3 tools/coc/coc -o generate src default -c default/be
 #     back to C — main.cpp mirrors packs/zero/reflexes/main.be.)
 
 cd firmware
-idf.py set-target esp32s3         # the real buddy + round display (default)
-#   or: idf.py set-target esp32   # classic DevKit V1 + OLED (Buddy Zero PoC)
-idf.py menuconfig                 # "Buddy Zero": display backend, WiFi, key, pins
+idf.py set-target esp32s3         # first time only
+idf.py menuconfig                 # "Buddy Zero": WiFi, API key, pins
 idf.py build flash monitor
 ```
 
-## Wiring (DevKit V1)
+## Wiring (ESP32-S3 N16R8)
 
 | Peripheral | Pins |
 |---|---|
-| Petting pad | bare jumper wire on GPIO 4 (touch T0) |
-| Mood LED | GPIO 2 (onboard) — or external LED + 220 Ω |
-| GME12864 OLED | SDA 21, SCL 22, VCC 3V3, GND |
-| RC522 | SCK 18, MISO 19, MOSI 23, CS 5, RST 27, **VCC 3V3** (5 V kills it), GND |
+| Petting pad | bare jumper wire on GPIO 4 (any of GPIO 1–14) |
+| GC9A01 round display | SCL 12, SDA 11, CS 10, DC 9, RST 8, BL 7, **VCC 3V3** |
+| WS2812 mood ring | DIN 21, **VCC 5V**, GND shared |
 
-DevKit V1 landmines: GPIO 6–11 = flash (never), 34–39 = input-only,
-0/2/12 = boot straps.
+S3 landmines: **GPIO 33–37 are the octal PSRAM — never touch them.**
+GPIO 19/20 = USB, 26–32 = flash, 0/3/45/46 = strapping pins.
 
 ## The PoC ladder
 
 1. **Heartbeat** — flash, watch the serial log, touch the jumper wire:
-   `touch.pet` → LED breathes excited. The bus works.
-2. **Proto-face** — OLED shows two parametric eyes: blinks, saccades,
-   emotions. `face.emotion` payloads: neutral, happy, curious, sleepy, surprised.
+   `touch.pet` → the ring breathes excited. The bus works.
+2. **Proto-face** — the round display shows two parametric eyes: blinks,
+   saccades, gaze, emotions. `face.emotion` payloads: neutral, happy, curious,
+   sleepy, surprised, angry, sad, suspicious.
 3. **Cartridges** — tap an RFID fob: `nfc.tag` + UID in the log. Edit
    `packs/zero/reflexes/main.be` with your UIDs, upload via web UI, tap again.
 4. **Brain** — with WiFi + API key configured: pet the wire, the buddy asks
@@ -80,7 +80,7 @@ DevKit V1 landmines: GPIO 6–11 = flash (never), 34–39 = input-only,
 ```
 components/bus/          event bus (host-testable — see host_test/)
 components/senses/       touch pad, RC522 → events
-components/expressions/  OLED face, mood LED ← actions
+components/expressions/  round color face, WS2812 mood ring ← actions
 components/brain/        Brain contract: cloud adapter (Claude)
 components/webui/        WiFi STA + reflex editor + hot reload
 components/berry_host/   Berry VM, buddy.* API, event dispatch

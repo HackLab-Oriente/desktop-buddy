@@ -1,5 +1,5 @@
 idf_component_register(
-  SRCS "face_model.cpp" "oled_face.cpp" "round_face.cpp" "led_mood.cpp" "led_ring.cpp"
+  SRCS "face_model.cpp" "round_face.cpp" "led_ring.cpp"
   INCLUDE_DIRS "include"
-  REQUIRES bus esp_driver_ledc esp_driver_i2c esp_driver_spi esp_driver_gpio esp_lcd
+  REQUIRES bus esp_driver_spi esp_driver_gpio esp_lcd
 )
