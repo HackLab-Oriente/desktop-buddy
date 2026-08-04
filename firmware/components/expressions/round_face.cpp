@@ -14,6 +14,7 @@
 #include "face_model.h"
 
 #include <cmath>
+#include <cstdio>
 #include <cstring>
 #include <mutex>
 #include <string>
@@ -95,10 +96,10 @@ inline float sd_round_rect(float px, float py, float cx, float cy,
   return outside + inside - r;
 }
 
-// One anti-aliased eye: rounded lozenge with a soft glow halo, a vertical
-// gradient (brighter at top), a slanted upper lid (brow) and a raised lower
-// lid (happy squint) — all as smooth coverage, no hard carving.
-void draw_eye(int cxi, int side, int open_pct, int gaze) {
+// One anti-aliased eye: rounded lozenge with a soft glow halo, a slanted
+// upper lid (brow) and a raised lower lid (happy squint) — all as smooth
+// coverage. gaze_x/gaze_y shift where the eye looks.
+void draw_eye(int cxi, int side, int open_pct, int gaze_x, int gaze_y) {
   const EyeStyle& e = kEmotions[s_emotion].eye;
   const uint16_t base_col = eye_base(s_emotion);
   const uint16_t glow_col = eye_glow(s_emotion);
@@ -106,7 +107,7 @@ void draw_eye(int cxi, int side, int open_pct, int gaze) {
   const float eyeW = e.width * S;
   float open = e.height * S * (e.openness / 100.f) * (open_pct / 100.f);
   if (open < 6.f) open = 6.f;
-  const float cx = cxi + gaze, cy = CY;
+  const float cx = cxi + gaze_x, cy = CY + gaze_y;
   const float hw = eyeW / 2, hh = open / 2;
   float r = eyeW * 0.42f;
   if (r > hh) r = hh;
@@ -147,10 +148,10 @@ void draw_eye(int cxi, int side, int open_pct, int gaze) {
 
 void push() { esp_lcd_panel_draw_bitmap(s_panel, 0, 0, W, H, s_fb); }
 
-void draw_eyes(int open_pct, int gaze) {
+void draw_eyes(int open_pct, int gaze_x, int gaze_y) {
   clear();
-  draw_eye(CX - GAP, 0, open_pct, gaze);
-  draw_eye(CX + GAP, 1, open_pct, gaze);
+  draw_eye(CX - GAP, 0, open_pct, gaze_x, gaze_y);
+  draw_eye(CX + GAP, 1, open_pct, gaze_x, gaze_y);
   push();
 }
 
@@ -256,8 +257,15 @@ char s_say_text[128];
 volatile int64_t s_say_until = 0;
 volatile bool s_say_dirty = false;
 
+// Gaze override — face.look sets a target; while active the eyes follow it
+// instead of doing idle saccades. Any Sense or reflex can drive it: a tracked
+// sprite, a detected face, a pack script. The target expires so the buddy
+// always drifts back to its own idle behavior.
+volatile int s_look_tx = 0, s_look_ty = 0;
+volatile int64_t s_look_until = 0;
+
 void face_task(void*) {
-  int gaze = 0;
+  int gaze_x = 0, gaze_y = 0;
   bool was_saying = false;
   int64_t next_blink = 2000, next_saccade = 1500;
   for (;;) {
@@ -272,17 +280,40 @@ void face_task(void*) {
       vTaskDelay(pdMS_TO_TICKS(40));
       continue;
     }
-    if (was_saying || s_dirty) { was_saying = false; s_dirty = false; draw_eyes(100, gaze); }
+    if (was_saying) { was_saying = false; s_dirty = true; }
+
+    const bool looking = now < s_look_until;
+    if (looking) {  // ease toward the look target
+      const int nx = gaze_x + (s_look_tx - gaze_x) / 2;
+      const int ny = gaze_y + (s_look_ty - gaze_y) / 2;
+      if (nx != gaze_x || ny != gaze_y || s_dirty) {
+        gaze_x = nx; gaze_y = ny; s_dirty = false;
+        draw_eyes(100, gaze_x, gaze_y);
+      }
+      if (now >= next_blink) {
+        draw_eyes(12, gaze_x, gaze_y);
+        vTaskDelay(pdMS_TO_TICKS(75));
+        draw_eyes(100, gaze_x, gaze_y);
+        const int period = kEmotions[s_emotion].blink_period_ms;
+        next_blink = now + period / 2 + esp_random() % period;
+      }
+      vTaskDelay(pdMS_TO_TICKS(30));
+      continue;
+    }
+
+    // idle: random saccades + blinks (gaze_y drifts back to 0)
+    if (s_dirty) { s_dirty = false; draw_eyes(100, gaze_x, gaze_y); }
     if (now >= next_blink) {
-      draw_eyes(12, gaze);
+      draw_eyes(12, gaze_x, gaze_y);
       vTaskDelay(pdMS_TO_TICKS(75));
-      draw_eyes(100, gaze);
+      draw_eyes(100, gaze_x, gaze_y);
       const int period = kEmotions[s_emotion].blink_period_ms;
       next_blink = now + period / 2 + esp_random() % period;
     }
     if (now >= next_saccade) {
-      gaze = static_cast<int>(esp_random() % 21) - 10;
-      draw_eyes(100, gaze);
+      gaze_x = static_cast<int>(esp_random() % 21) - 10;
+      gaze_y = 0;
+      draw_eyes(100, gaze_x, gaze_y);
       next_saccade = now + 800 + esp_random() % 2500;
     }
     vTaskDelay(pdMS_TO_TICKS(40));
@@ -354,8 +385,18 @@ void face_start() {
     s_say_until = esp_log_timestamp() + (hold > 8000 ? 8000 : hold);
     s_say_dirty = true;
   });
+  // face.look "x,y" (each -100..100) points the eyes at a spot on the screen.
+  bus().subscribe("face.look", [](const Event& ev) {
+    int x = 0, y = 0;
+    sscanf(ev.payload.c_str(), "%d,%d", &x, &y);
+    if (x < -100) x = -100; else if (x > 100) x = 100;
+    if (y < -100) y = -100; else if (y > 100) y = 100;
+    s_look_tx = x * 30 / 100;   // max ±30 px horizontal
+    s_look_ty = y * 22 / 100;   // max ±22 px vertical
+    s_look_until = esp_log_timestamp() + 1500;
+  });
 
-  draw_eyes(100, 0);
+  draw_eyes(100, 0, 0);
   // Full-frame render + esp_lcd draw want more than the OLED path did.
   xTaskCreatePinnedToCore(face_task, "face", 6144, nullptr, 4, nullptr, 1);
 }
