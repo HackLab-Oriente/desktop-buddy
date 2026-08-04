@@ -2,7 +2,8 @@ CONFIG_COMPILER_CXX_EXCEPTIONS=n
 CONFIG_COMPILER_OPTIMIZATION_SIZE=y
 CONFIG_PARTITION_TABLE_CUSTOM=y
 CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
-CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
+# ESP32-S3 N16R8 — 16 MB flash, 8 MB octal PSRAM.
+CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
 CONFIG_FREERTOS_HZ=1000
 # app_main brings up esp_lcd, the first framebuffer draw, and the Berry VM on
 # one task — the 3584-byte default overflows. Give it real headroom.
@@ -11,8 +12,8 @@ CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
 # without this the crt bundle rejects it with "No matching trusted root".
 CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_DEFAULT_FULL=y
 CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_CROSS_SIGNED_VERIFY=y
-# Classic ESP32 has no ECC hardware: the TLS ECDHE handshake runs 3-6 s of
-# soft math on core 0, starving IDLE0 past the default 5 s watchdog.
+# TLS handshakes can run long on a busy core 0 and starve IDLE0 past the
+# default 5 s watchdog (this bit us badly on the pre-S3 board).
 CONFIG_ESP_TASK_WDT_TIMEOUT_S=15
 # Hosyond/clone boards ship BOYA flash chips; the generic driver works but
 # the dedicated one enables proper suspend/resume support.
