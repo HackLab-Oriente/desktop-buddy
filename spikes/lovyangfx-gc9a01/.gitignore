@@ -1,0 +1,6 @@
+build/
+sdkconfig
+sdkconfig.old
+# Cloned in by hand — see README.md. Not vendored: it is 40 MB of git history
+# and we may not keep it.
+components/LovyanGFX/

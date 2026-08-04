@@ -1,0 +1,11 @@
+# Match the real buddy's board so measurements transfer: ESP32-S3 N16R8.
+CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
+CONFIG_SPIRAM=y
+CONFIG_SPIRAM_MODE_OCT=y
+CONFIG_SPIRAM_SPEED_80M=y
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
+CONFIG_FREERTOS_HZ=1000
+CONFIG_COMPILER_OPTIMIZATION_SIZE=y
+# This board's USB-C goes to the native USB pins, so the console must ride
+# USB-Serial-JTAG — UART0 output would go nowhere we can see.
+CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
