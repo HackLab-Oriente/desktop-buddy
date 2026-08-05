@@ -138,20 +138,26 @@ void draw_eye_sdf(int cxi, int side, const Emotion& em, int open_pct,
       const float d = outside + fminf(fmaxf(qx, qy), 0.f) - r;
       if (d > 7.f) continue;
 
-      float ecov = clampf(0.5f - d, 0.f, 1.f);
-      const float gcov = clampf((7.f - d) / 7.f, 0.f, 1.f) * 0.5f;
-      if (ecov > 0.f) {
-        if (browAmt > 0.f) {
-          const float t = clampf((x + 0.5f - (cx - hw)) / eyeW, 0.f, 1.f);
-          const bool deep_right = (e.brow > 0) == (side == 0);
-          const float frac = deep_right ? t : 1.f - t;
-          ecov *= clampf((y + 0.5f) - (top + browAmt * frac) + 0.5f, 0.f, 1.f);
-        }
-        if (e.lift > 0) {
-          const float bot_y = cy + hh - e.lift * S;
-          ecov *= clampf(bot_y - (y + 0.5f) + 0.5f, 0.f, 1.f);
-        }
+      // The lid cut has to apply to the GLOW as well as the eye body. It used
+      // to multiply only ecov, so the halo was still computed from the uncut
+      // lozenge and filled in the region the lid had removed — most obvious on
+      // happy, where the squint left a dark block instead of black. A lid that
+      // covers the eye covers its glow too.
+      float cut = 1.f;
+      if (browAmt > 0.f) {
+        const float t = clampf((x + 0.5f - (cx - hw)) / eyeW, 0.f, 1.f);
+        const bool deep_right = (e.brow > 0) == (side == 0);
+        const float frac = deep_right ? t : 1.f - t;
+        cut *= clampf((y + 0.5f) - (top + browAmt * frac) + 0.5f, 0.f, 1.f);
       }
+      if (e.lift > 0) {
+        const float bot_y = cy + hh - e.lift * S;
+        cut *= clampf(bot_y - (y + 0.5f) + 0.5f, 0.f, 1.f);
+      }
+      if (cut <= 0.f) continue;
+
+      const float ecov = clampf(0.5f - d, 0.f, 1.f) * cut;
+      const float gcov = clampf((7.f - d) / 7.f, 0.f, 1.f) * 0.5f * cut;
 
       uint16_t col = base_col;
       if (ecov > 0.f && gradient) {
@@ -184,6 +190,11 @@ void draw_eye_prim(int cxi, int side, const Emotion& em, int open_pct, int gx, i
   if (r > hh) r = hh;
   const int left = cx - hw, top = cy - hh;
 
+  // A 2 px black rim before the fill. Invisible against the black background,
+  // but where the eyes overlap (surprised) it keeps a seam so they read as two
+  // overlapping eyes instead of merging into one blob — which the SDF variants
+  // get for free from their anti-aliased edges.
+  spr.fillSmoothRoundRect(left - 2, top - 2, hw * 2 + 4, hh * 2 + 4, r + 2, TFT_BLACK);
   spr.fillSmoothRoundRect(left, top, hw * 2, hh * 2, r,
                           spr.color565(em.r, em.g, em.b));
 
