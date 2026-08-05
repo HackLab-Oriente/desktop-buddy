@@ -109,14 +109,22 @@ void draw_eye_sdf(int cxi, int side, const Emotion& em, int open_pct,
                   bool gradient, int gx, int gy) {
   const EyeStyle& e = em.eye;
   const float eyeW = e.width * S;
-  float open = e.height * S * (e.openness / 100.f) * (open_pct / 100.f);
+  const float full = e.height * S * (e.openness / 100.f);  // fully-open height
+  float open = full * (open_pct / 100.f);
   if (open < 6.f) open = 6.f;
-  const float cx = cxi + gx, cy = CY + gy;
+  // A blink closes DOWNWARD: the lower lid stays put and the upper lid comes
+  // down to meet it. Shrinking about the centre reads as a squash, not a blink.
+  const float cx = cxi + gx;
+  const float cy = (CY + gy + full / 2) - open / 2;
   const float hw = eyeW / 2, hh = open / 2;
   float r = eyeW * 0.42f;
   if (r > hh) r = hh;
   const float browAmt = e.brow != 0 ? open * kBrowDepth : 0.f;
   const float top = cy - hh;
+  // The squint has to shrink with the eye. It used to be an absolute amount,
+  // so mid-blink the lid sat ABOVE the shrunken eye and removed all of it —
+  // happy did not blink, it vanished and reappeared.
+  const float lift_px = e.lift * S * (open / full);
 
   const int gm = 10;
   const int x0 = static_cast<int>(cx - hw) - gm, x1 = static_cast<int>(cx + hw) + gm;
@@ -151,7 +159,7 @@ void draw_eye_sdf(int cxi, int side, const Emotion& em, int open_pct,
         cut *= clampf((y + 0.5f) - (top + browAmt * frac) + 0.5f, 0.f, 1.f);
       }
       if (e.lift > 0) {
-        const float bot_y = cy + hh - e.lift * S;
+        const float bot_y = cy + hh - lift_px;
         cut *= clampf(bot_y - (y + 0.5f) + 0.5f, 0.f, 1.f);
       }
       if (cut <= 0.f) continue;
@@ -182,9 +190,11 @@ void draw_eye_sdf(int cxi, int side, const Emotion& em, int open_pct,
 void draw_eye_prim(int cxi, int side, const Emotion& em, int open_pct, int gx, int gy) {
   const EyeStyle& e = em.eye;
   const float eyeW = e.width * S;
-  float open = e.height * S * (e.openness / 100.f) * (open_pct / 100.f);
+  const float full = e.height * S * (e.openness / 100.f);
+  float open = full * (open_pct / 100.f);
   if (open < 6.f) open = 6.f;
-  const int cx = cxi + gx, cy = CY + gy;
+  const int cx = cxi + gx;
+  const int cy = static_cast<int>((CY + gy + full / 2) - open / 2);
   const int hw = static_cast<int>(eyeW / 2), hh = static_cast<int>(open / 2);
   int r = static_cast<int>(eyeW * 0.42f);
   if (r > hh) r = hh;
@@ -212,7 +222,7 @@ void draw_eye_prim(int cxi, int side, const Emotion& em, int open_pct, int gx, i
                        TFT_BLACK);
   }
   if (e.lift > 0) {
-    const int bot = cy + hh - static_cast<int>(e.lift * S);
+    const int bot = cy + hh - static_cast<int>(e.lift * S * (open / full));
     spr.fillRect(left - 4, bot, hw * 2 + 8, cy + hh - bot + 6, TFT_BLACK);
   }
 }
@@ -252,12 +262,15 @@ void build_cache(int emo) {
 }
 
 void draw_face(const Emotion& em, int emo_idx, Variant v, int open_pct, int gx, int gy) {
+  // build_cache renders into spr as scratch, so it must run BEFORE the clear —
+  // otherwise its last level survives under the transparent blit and shows as
+  // a stray bar below the eyes.
+  if (v != V_PRIM) build_cache(emo_idx);
   spr.fillScreen(TFT_BLACK);
   if (v == V_PRIM) {
     draw_eye_prim(CX - GAP, 0, em, open_pct, gx, gy);
     draw_eye_prim(CX + GAP, 1, em, open_pct, gx, gy);
   } else {
-    build_cache(emo_idx);
     int li = 0;  // nearest cached openness level
     for (int i = 1; i < kLevelCount; i++)
       if (abs(kLevels[i] - open_pct) < abs(kLevels[li] - open_pct)) li = i;
@@ -307,7 +320,7 @@ void animate(int emo, Variant v, int ms) {
     gx += (tx - gx) / 2;
     gy += (ty - gy) / 2;
     if (now >= next_blink) {
-      for (int li = 1; li < kLevelCount; li++) {
+      for (int li : {1, 2, 1}) {
         draw_face(em, emo, v, kLevels[li], gx, gy);
         spr.pushSprite(0, 0);
         frames++;
@@ -394,15 +407,15 @@ extern "C" void app_main() {
            (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
            (unsigned)heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
 
-  // Contact sheet: every emotion in every surviving technique, clean — no
-  // logo, no gaze offset — so the sheet compares the eye rendering and
-  // nothing else. Ordered emotion-major so the decoder lays out one row per
-  // emotion, three techniques across.
-  for (int e = 0; e < kEmotionCount; e++)
-    for (int v : {V_FLAT, V_GRAD, V_PRIM}) {
+  // Blink progression: happy (which has the squint) and neutral (which does
+  // not), at each openness level, so the blink can be checked frame by frame
+  // instead of guessed at from a moving panel.
+  for (int e : {1, 0})
+    for (int i = 0; i < kLevelCount; i++) {
       char label[40];
-      snprintf(label, sizeof label, "%02d%d-%s", e, v, kEmotions[e].name);
-      draw_face(kEmotions[e], e, static_cast<Variant>(v), 100, 0, 0);
+      snprintf(label, sizeof label, "%d%d-%s-%03d", e == 1 ? 0 : 1, i,
+               kEmotions[e].name, kLevels[i]);
+      draw_face(kEmotions[e], e, V_GRAD, kLevels[i], 0, 0);
       spr.pushSprite(0, 0);
       dump_fb(label);
     }
