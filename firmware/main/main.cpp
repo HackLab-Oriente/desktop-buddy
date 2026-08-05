@@ -52,7 +52,6 @@ void c_reflexes() {
 
 extern "C" void app_main() {
   ESP_ERROR_CHECK(nvs_flash_init());
-  mount_flash();
   buddy::bus_start();
 
 #if CONFIG_BUDDY_DEBUG
@@ -63,11 +62,17 @@ extern "C" void app_main() {
   });
 #endif
 
-  // Expressions first, so early events have somewhere to land.
+  // The face comes up first so the boot splash is on screen while everything
+  // slower happens behind it. Each step below announces itself on the bus, and
+  // the splash shows that as its status line — a real step, not a fake timer.
+  buddy::face_start();  // GC9A01 round color face + boot splash
   buddy::led_start();   // WS2812 mood ring
-  buddy::face_start();  // GC9A01 round color face
+
+  buddy::bus().publish("boot.status", "mounting packs");
+  mount_flash();
 
   // Reflex layer: Berry when present, C fallback otherwise.
+  buddy::bus().publish("boot.status", "loading reflexes");
   if (!buddy::berry_host_start()) c_reflexes();
 
   // brain.reply is the one contract-level reflex the framework owns:
@@ -97,13 +102,17 @@ extern "C" void app_main() {
   });
 
   // Senses.
+  buddy::bus().publish("boot.status", "waking senses");
   buddy::touch_sense_start(CONFIG_BUDDY_PIN_TOUCH);
 #if CONFIG_BUDDY_RC522_ENABLED
   buddy::rc522_start({.sck = 18, .miso = 19, .mosi = 23, .cs = 5, .rst = 27});
 #endif
 
-  // Network layer — optional by design ("never brick").
+  // Network layer — optional by design ("never brick"). This is the slow part:
+  // wifi_start blocks for up to 15 s, which is exactly why the splash exists.
+  buddy::bus().publish("boot.status", "connecting wifi");
   if (buddy::wifi_start(CONFIG_BUDDY_WIFI_SSID, CONFIG_BUDDY_WIFI_PASS)) {
+    buddy::bus().publish("boot.status", "waking brain");
     buddy::webui_start();
     buddy::brain_cloud_start({
         .api_key = CONFIG_BUDDY_ANTHROPIC_API_KEY,
@@ -113,9 +122,13 @@ extern "C" void app_main() {
             "parts on a breadboard. You are curious, easily delighted, and a "
             "little dramatic. Keep utterances under 20 words.",
     });
+  } else {
+    buddy::bus().publish("boot.status", "offline");
   }
 
   buddy::bus().publish("face.emotion", "neutral");
   buddy::bus().publish("led.mood", "calm");
+  // Tells the face to glitch out of the splash and become a creature.
+  buddy::bus().publish("boot.ready");
   ESP_LOGI(TAG, "buddy zero is alive");
 }

@@ -1,3 +1,2 @@
 dependencies:
-  espressif/esp_lcd_gc9a01: "^2.0.0"
   espressif/led_strip: "^3.0.0"

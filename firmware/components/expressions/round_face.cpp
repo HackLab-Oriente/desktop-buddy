@@ -1,11 +1,20 @@
-// GC9A01 240×240 round color face backend — the buddy's face. Renders the
-// shared emotion model (face_model.h) in color, with a soft glow behind each
-// eye and anti-aliased rounded corners.
+// GC9A01 240x240 round color face — the buddy's face.
 //
-// Panel driver: esp_lcd + espressif/esp_lcd_gc9a01 (managed component).
-// Framebuffer lives in PSRAM (240*240*2 = 112 KB) and is pushed whole on each
-// state change (blink, saccade, emotion, text) — not continuously.
+// Two layers, which is the arrangement the LovyanGFX spike settled on:
+//   * the EYES are ours — a signed-distance-field renderer, because the brow
+//     slant and the happy squint are carved out of the shape as coverage, not
+//     drawn as shapes, and no library primitive can express that;
+//   * everything ELSE is LovyanGFX — panel driver, sprites, fonts, blitting.
+//
+// The eyes are CACHED. The SDF costs 40-100 ms per frame, but the eye image
+// only changes on a blink or an emotion change; a saccade is a *translation*
+// of an unchanged image. Rendering once per (emotion, openness) and blitting
+// at a gaze offset took the spike from 13 fps to ~30, with identical pixels.
+// See spikes/lovyangfx-gc9a01/README.md for the measurements.
 #include "sdkconfig.h"
+
+#include "lgfx_buddy.h"
+#include "logo_hacklab.h"
 
 #include "bus.h"
 #include "expressions.h"
@@ -15,17 +24,11 @@
 #include <cstdio>
 #include <cstring>
 #include <mutex>
-#include <string>
 
-#include "driver/gpio.h"
-#include "driver/spi_master.h"
 #include "esp_heap_caps.h"
-#include "esp_lcd_gc9a01.h"
-#include "esp_lcd_panel_io.h"
-#include "esp_lcd_panel_ops.h"
-#include "esp_lcd_panel_vendor.h"
 #include "esp_log.h"
 #include "esp_random.h"
+#include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
@@ -35,34 +38,54 @@ namespace buddy {
 namespace {
 
 constexpr int W = 240, H = 240;
-constexpr float S = 2.6f;                 // model(128×64) → panel scale
+constexpr float S = 2.6f;                    // model(128x64) -> panel scale
 constexpr int CX = 120, CY = 120, GAP = 42;  // eye centers at CX±GAP
 
-// RGB565 (panel configured BGR + inverted; see panel_init()). Colors are
-// EMO-inspired: a bright cyan eye on true black, with per-emotion mood tints.
-constexpr uint16_t rgb(uint8_t r, uint8_t g, uint8_t b) {
-  return static_cast<uint16_t>(((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3));
-}
-constexpr uint16_t C_BG = rgb(0, 0, 0);
+// How deep the angled upper lid cuts, as a fraction of eye height. This was
+// 0.5 for a long time, which removed half the eye and left wedges rather than
+// angry eyes — the reason angry/sad/suspicious looked broken since the PoC.
+constexpr float kBrowDepth = 0.24f;
 
-// Eye colors come from the shared model (same mood color as the LED ring).
-// The base is the model color; the glow is a dim version of it.
-inline uint16_t eye_base(int i) {
-  return rgb(kEmotions[i].r, kEmotions[i].g, kEmotions[i].b);
-}
-inline uint16_t eye_glow(int i) {
-  return rgb(kEmotions[i].r / 4, kEmotions[i].g / 4, kEmotions[i].b / 4);
-}
+// Openness levels a blink passes through. Cached, so a blink is three blits.
+constexpr int kLevels[] = {100, 45, 12};
+constexpr int kLevelCount = 3;
 
-esp_lcd_panel_handle_t s_panel = nullptr;
-uint16_t* s_fb = nullptr;                 // 240×240 RGB565 in PSRAM
+LGFX_Buddy lcd;
+LGFX_Sprite spr(&lcd);                 // the working frame
+LGFX_Sprite cache[kLevelCount] = {LGFX_Sprite(&lcd), LGFX_Sprite(&lcd), LGFX_Sprite(&lcd)};
+uint16_t* fb = nullptr;                // spr's raw buffer
+int cached_emotion = -1;
+
 volatile int s_emotion = 0;
 volatile bool s_dirty = true;
 
 inline float clampf(float v, float a, float b) { return v < a ? a : (v > b ? b : v); }
 
-// Alpha-blend fg over bg in RGB565.
-inline uint16_t blend(uint16_t bg, uint16_t fg, float a) {
+constexpr uint16_t rgb(int r, int g, int b) {
+  return static_cast<uint16_t>(((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3));
+}
+
+// LovyanGFX stores 16bpp sprites BIG-endian, because that is the order the SPI
+// bus consumes. Writing native little-endian into getBuffer() renders flat
+// colours as the wrong colour and gradients as horizontal rainbow stripes.
+// Verified on hardware with a three-way test card. Convert at the boundary.
+inline uint16_t to_store(uint16_t native) { return __builtin_bswap16(native); }
+inline uint16_t from_store(uint16_t stored) { return __builtin_bswap16(stored); }
+
+// Ordered dither. RGB565 throws away 3 bits of red/blue and 2 of green, which
+// bands a smooth ramp badly — that is why the gradient was removed the first
+// time. Nudging each pixel by a Bayer-patterned 1.5 quantisation steps before
+// truncation turns the bands into a stipple the eye reads as smooth.
+const uint8_t kBayer[16] = {0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5};
+inline uint16_t rgb_dither(int x, int y, float rf, float gf, float bf) {
+  const float t = (kBayer[((y & 3) << 2) | (x & 3)] - 7.5f) / 15.0f;
+  const int r = static_cast<int>(clampf(rf + t * 12.0f, 0.f, 255.f));
+  const int g = static_cast<int>(clampf(gf + t * 6.0f, 0.f, 255.f));
+  const int b = static_cast<int>(clampf(bf + t * 12.0f, 0.f, 255.f));
+  return rgb(r, g, b);
+}
+
+inline uint16_t blend565(uint16_t bg, uint16_t fg, float a) {
   const int br = (bg >> 11) & 0x1F, bgg = (bg >> 5) & 0x3F, bb = bg & 0x1F;
   const int fr = (fg >> 11) & 0x1F, fgg = (fg >> 5) & 0x3F, fbb = fg & 0x1F;
   const int r = br + static_cast<int>((fr - br) * a + 0.5f);
@@ -70,199 +93,312 @@ inline uint16_t blend(uint16_t bg, uint16_t fg, float a) {
   const int b = bb + static_cast<int>((fbb - bb) * a + 0.5f);
   return static_cast<uint16_t>((r << 11) | (g << 5) | b);
 }
-
-void put(int x, int y, uint16_t c) {
-  if (x >= 0 && x < W && y >= 0 && y < H) s_fb[y * W + x] = c;
-}
-void blend_at(int x, int y, uint16_t c, float a) {
+inline void blend_at(int x, int y, uint16_t c, float a) {
   if (x < 0 || x >= W || y < 0 || y >= H || a <= 0.f) return;
-  uint16_t& p = s_fb[y * W + x];
-  p = blend(p, c, a > 1.f ? 1.f : a);
-}
-void clear() {
-  for (int i = 0; i < W * H; i++) s_fb[i] = C_BG;
+  uint16_t& p = fb[y * W + x];
+  p = to_store(blend565(from_store(p), c, a > 1.f ? 1.f : a));
 }
 
-// Signed distance to a rounded rect centered at (cx,cy). Negative inside.
-inline float sd_round_rect(float px, float py, float cx, float cy,
-                           float hw, float hh, float r) {
-  const float qx = fabsf(px - cx) - (hw - r);
-  const float qy = fabsf(py - cy) - (hh - r);
-  const float ax = qx > 0 ? qx : 0, ay = qy > 0 ? qy : 0;
-  const float outside = sqrtf(ax * ax + ay * ay);
-  const float inside = fminf(fmaxf(qx, qy), 0.f);
-  return outside + inside - r;
-}
-
-// One anti-aliased eye: rounded lozenge with a soft glow halo, a slanted
-// upper lid (brow) and a raised lower lid (happy squint) — all as smooth
-// coverage. gaze_x/gaze_y shift where the eye looks.
-void draw_eye(int cxi, int side, int open_pct, int gaze_x, int gaze_y) {
-  const EyeStyle& e = kEmotions[s_emotion].eye;
-  const uint16_t base_col = eye_base(s_emotion);
-  const uint16_t glow_col = eye_glow(s_emotion);
-
+// ===== the eye =====
+void draw_eye(int cxi, int side, const Emotion& em, int open_pct, int gx, int gy) {
+  const EyeStyle& e = em.eye;
   const float eyeW = e.width * S;
-  float open = e.height * S * (e.openness / 100.f) * (open_pct / 100.f);
+  const float full = e.height * S * (e.openness / 100.f);  // fully-open height
+  float open = full * (open_pct / 100.f);
   if (open < 6.f) open = 6.f;
-  const float cx = cxi + gaze_x, cy = CY + gaze_y;
+  // A blink closes DOWNWARD — the lower lid stays put and the upper lid comes
+  // down to meet it. Shrinking about the centre reads as a squash, not a blink.
+  const float cx = cxi + gx;
+  const float cy = (CY + gy + full / 2) - open / 2;
   const float hw = eyeW / 2, hh = open / 2;
   float r = eyeW * 0.42f;
   if (r > hh) r = hh;
-
-  const float browAmt = e.brow != 0 ? open * 0.5f : 0.f;
+  const float browAmt = e.brow != 0 ? open * kBrowDepth : 0.f;
   const float top = cy - hh;
+  // The squint must shrink with the eye. As an absolute offset it sat above
+  // the shrunken eye mid-blink and removed all of it — happy did not blink,
+  // it vanished and reappeared.
+  const float lift_px = e.lift * S * (open / full);
+
   const int gm = 10;  // glow margin
   const int x0 = static_cast<int>(cx - hw) - gm, x1 = static_cast<int>(cx + hw) + gm;
   const int y0 = static_cast<int>(top) - gm, y1 = static_cast<int>(cy + hh) + gm;
+  const float span = open < 1.f ? 1.f : open;
+  const uint16_t glow_col = rgb(em.r / 4, em.g / 4, em.b / 4);
+  const float ihw = hw - r, ihh = hh - r;
 
   for (int y = y0; y <= y1; y++) {
+    const float qy = fabsf(y + 0.5f - cy) - ihh;
+    const float ay = qy > 0.f ? qy : 0.f;
+    const float ay2 = ay * ay;
     for (int x = x0; x <= x1; x++) {
-      const float d = sd_round_rect(x + 0.5f, y + 0.5f, cx, cy, hw, hh, r);
-      float ecov = clampf(0.5f - d, 0.f, 1.f);
-      const float gcov = clampf((7.f - d) / 7.f, 0.f, 1.f) * 0.5f;  // soft halo
+      // sqrt is only needed at the four rounded corners, where qx and qy are
+      // both positive; everywhere else it was computing sqrtf(0).
+      const float qx = fabsf(x + 0.5f - cx) - ihw;
+      float outside;
+      if (qx > 0.f) outside = (ay > 0.f) ? sqrtf(qx * qx + ay2) : qx;
+      else outside = ay;
+      const float d = outside + fminf(fmaxf(qx, qy), 0.f) - r;
+      if (d > 7.f) continue;
 
-      if (ecov > 0.f) {
-        // brow: remove pixels above a slanted line near the top
-        if (browAmt > 0.f) {
-          const float t = clampf((x + 0.5f - (cx - hw)) / eyeW, 0.f, 1.f);
-          const bool deep_right = (e.brow > 0) == (side == 0);
-          const float frac = deep_right ? t : 1.f - t;
-          const float cut_y = top + browAmt * frac;
-          ecov *= clampf((y + 0.5f) - cut_y + 0.5f, 0.f, 1.f);
-        }
-        // happy squint: raise the lower lid
-        if (e.lift > 0) {
-          const float bot_y = cy + hh - e.lift * S;
-          ecov *= clampf(bot_y - (y + 0.5f) + 0.5f, 0.f, 1.f);
-        }
+      // The lid cut applies to the GLOW as well as the eye body — a lid that
+      // covers the eye covers its halo. Cutting only the body left happy with
+      // a dark block where the squint should have shown black.
+      float cut = 1.f;
+      if (browAmt > 0.f) {
+        const float t = clampf((x + 0.5f - (cx - hw)) / eyeW, 0.f, 1.f);
+        const bool deep_right = (e.brow > 0) == (side == 0);
+        const float frac = deep_right ? t : 1.f - t;
+        cut *= clampf((y + 0.5f) - (top + browAmt * frac) + 0.5f, 0.f, 1.f);
       }
-      // Solid eye color (a vertical gradient bands badly in RGB565) + soft glow.
-      if (gcov > 0.f) blend_at(x, y, glow_col, gcov);
-      if (ecov > 0.f) blend_at(x, y, base_col, ecov);
+      if (e.lift > 0)
+        cut *= clampf((cy + hh - lift_px) - (y + 0.5f) + 0.5f, 0.f, 1.f);
+      if (cut <= 0.f) continue;
+
+      const float ecov = clampf(0.5f - d, 0.f, 1.f) * cut;
+      const float gcov = clampf((7.f - d) / 7.f, 0.f, 1.f) * 0.5f * cut;
+
+      uint16_t col = 0;
+      if (ecov > 0.f) {
+        const float t = clampf(((y + 0.5f) - top) / span, 0.f, 1.f);
+        const float k = 1.0f - 0.55f * t;  // never above 1.0: it would clip
+        col = rgb_dither(x, y, em.r * k, em.g * k, em.b * k);
+      }
+      if (ecov >= 0.999f) {
+        if (x >= 0 && x < W && y >= 0 && y < H) fb[y * W + x] = to_store(col);
+      } else {
+        if (gcov > 0.f) blend_at(x, y, glow_col, gcov);
+        if (ecov > 0.f) blend_at(x, y, col, ecov);
+      }
     }
   }
 }
 
-void push() { esp_lcd_panel_draw_bitmap(s_panel, 0, 0, W, H, s_fb); }
-
-void draw_eyes(int open_pct, int gaze_x, int gaze_y) {
-  clear();
-  draw_eye(CX - GAP, 0, open_pct, gaze_x, gaze_y);
-  draw_eye(CX + GAP, 1, open_pct, gaze_x, gaze_y);
-  push();
+void build_cache(int emo) {
+  if (cached_emotion == emo) return;
+  const int64_t t0 = esp_timer_get_time();
+  for (int i = 0; i < kLevelCount; i++) {
+    spr.fillScreen(TFT_BLACK);
+    draw_eye(CX - GAP, 0, kEmotions[emo], kLevels[i], 0, 0);
+    draw_eye(CX + GAP, 1, kEmotions[emo], kLevels[i], 0, 0);
+    memcpy(cache[i].getBuffer(), spr.getBuffer(), static_cast<size_t>(W) * H * 2);
+  }
+  cached_emotion = emo;
+  ESP_LOGD(TAG, "cache rebuilt for %s in %.0f ms", kEmotions[emo].name,
+           (esp_timer_get_time() - t0) / 1000.0);
 }
 
-// 5x7 uppercase bitmap font — bigger and far more legible than the 3x5 model
-// font. Order matches glyph_index(): A-Z, 0-9, space . , ! ? ' - :
-// Bit 0b10000 = leftmost column.
-constexpr uint8_t kFont57[][7] = {
-    {0b01110,0b10001,0b10001,0b11111,0b10001,0b10001,0b10001},  // A
-    {0b11110,0b10001,0b10001,0b11110,0b10001,0b10001,0b11110},  // B
-    {0b01110,0b10001,0b10000,0b10000,0b10000,0b10001,0b01110},  // C
-    {0b11110,0b10001,0b10001,0b10001,0b10001,0b10001,0b11110},  // D
-    {0b11111,0b10000,0b10000,0b11110,0b10000,0b10000,0b11111},  // E
-    {0b11111,0b10000,0b10000,0b11110,0b10000,0b10000,0b10000},  // F
-    {0b01110,0b10001,0b10000,0b10111,0b10001,0b10001,0b01110},  // G
-    {0b10001,0b10001,0b10001,0b11111,0b10001,0b10001,0b10001},  // H
-    {0b11111,0b00100,0b00100,0b00100,0b00100,0b00100,0b11111},  // I
-    {0b11111,0b00010,0b00010,0b00010,0b10010,0b10010,0b01100},  // J
-    {0b10001,0b10010,0b10100,0b11000,0b10100,0b10010,0b10001},  // K
-    {0b10000,0b10000,0b10000,0b10000,0b10000,0b10000,0b11111},  // L
-    {0b10001,0b11011,0b10101,0b10101,0b10001,0b10001,0b10001},  // M
-    {0b10001,0b11001,0b11001,0b10101,0b10011,0b10011,0b10001},  // N
-    {0b01110,0b10001,0b10001,0b10001,0b10001,0b10001,0b01110},  // O
-    {0b11110,0b10001,0b10001,0b11110,0b10000,0b10000,0b10000},  // P
-    {0b01110,0b10001,0b10001,0b10001,0b10101,0b10010,0b01101},  // Q
-    {0b11110,0b10001,0b10001,0b11110,0b10100,0b10010,0b10001},  // R
-    {0b01111,0b10000,0b10000,0b01110,0b00001,0b00001,0b11110},  // S
-    {0b11111,0b00100,0b00100,0b00100,0b00100,0b00100,0b00100},  // T
-    {0b10001,0b10001,0b10001,0b10001,0b10001,0b10001,0b01110},  // U
-    {0b10001,0b10001,0b10001,0b10001,0b10001,0b01010,0b00100},  // V
-    {0b10001,0b10001,0b10001,0b10101,0b10101,0b11011,0b10001},  // W
-    {0b10001,0b10001,0b01010,0b00100,0b01010,0b10001,0b10001},  // X
-    {0b10001,0b10001,0b01010,0b00100,0b00100,0b00100,0b00100},  // Y
-    {0b11111,0b00001,0b00010,0b00100,0b01000,0b10000,0b11111},  // Z
-    {0b01110,0b10001,0b10011,0b10101,0b11001,0b10001,0b01110},  // 0
-    {0b00100,0b01100,0b00100,0b00100,0b00100,0b00100,0b01110},  // 1
-    {0b01110,0b10001,0b00001,0b00010,0b00100,0b01000,0b11111},  // 2
-    {0b11111,0b00010,0b00100,0b00010,0b00001,0b10001,0b01110},  // 3
-    {0b00010,0b00110,0b01010,0b10010,0b11111,0b00010,0b00010},  // 4
-    {0b11111,0b10000,0b11110,0b00001,0b00001,0b10001,0b01110},  // 5
-    {0b01110,0b10001,0b10000,0b11110,0b10001,0b10001,0b01110},  // 6
-    {0b11111,0b00001,0b00010,0b00100,0b01000,0b01000,0b01000},  // 7
-    {0b01110,0b10001,0b10001,0b01110,0b10001,0b10001,0b01110},  // 8
-    {0b01110,0b10001,0b10001,0b01111,0b00001,0b10001,0b01110},  // 9
-    {0b00000,0b00000,0b00000,0b00000,0b00000,0b00000,0b00000},  // space
-    {0b00000,0b00000,0b00000,0b00000,0b00000,0b01100,0b01100},  // .
-    {0b00000,0b00000,0b00000,0b00000,0b01100,0b01100,0b01000},  // ,
-    {0b00100,0b00100,0b00100,0b00100,0b00100,0b00000,0b00100},  // !
-    {0b01110,0b10001,0b00001,0b00110,0b00100,0b00000,0b00100},  // ?
-    {0b00100,0b00100,0b01000,0b00000,0b00000,0b00000,0b00000},  // '
-    {0b00000,0b00000,0b00000,0b11111,0b00000,0b00000,0b00000},  // -
-    {0b00000,0b01100,0b01100,0b00000,0b01100,0b01100,0b00000},  // :
-};
-
-void draw_char(int x0, int y0, int sc, char ch, uint16_t c) {
-  const uint8_t* g = kFont57[glyph_index(ch)];
-  for (int r = 0; r < 7; r++)
-    for (int col = 0; col < 5; col++)
-      if (g[r] & (0b10000 >> col))
-        for (int yy = 0; yy < sc; yy++)
-          for (int xx = 0; xx < sc; xx++) put(x0 + col * sc + xx, y0 + r * sc + yy, c);
+void draw_eyes(int open_pct, int gx, int gy) {
+  // build_cache uses spr as scratch, so it must run BEFORE the clear —
+  // otherwise its last level survives under the transparent blit and shows as
+  // a stray bar below the eyes.
+  build_cache(s_emotion);
+  int li = 0;
+  for (int i = 1; i < kLevelCount; i++)
+    if (abs(kLevels[i] - open_pct) < abs(kLevels[li] - open_pct)) li = i;
+  spr.fillScreen(TFT_BLACK);
+  cache[li].pushSprite(&spr, gx, gy, TFT_BLACK);  // black = transparent
+  spr.pushSprite(0, 0);
 }
 
+// ===== speech =====
+// LovyanGFX fonts, replacing the hand-rolled 5x7 bitmap font. That font also
+// shipped a buffer overrun that rebooted the device on long replies; letting
+// the library measure and draw removes the whole class of bug.
 void draw_text(const char* text) {
-  clear();
-  constexpr int ML = 7, MC = 15;   // max lines, max chars/line (buffer is MC+1)
-  char lines[ML][MC + 1] = {};
-  int line = 0, col = 0;
-  // Greedy word wrap with strict bounds — a long reply is truncated to ML
-  // lines rather than overrunning the buffer (that was the reboot bug).
+  spr.fillScreen(TFT_BLACK);
+  spr.setFont(&fonts::Font2);
+  const Emotion& em = kEmotions[s_emotion];
+  spr.setTextColor(spr.color565(em.r, em.g, em.b));
+  spr.setTextDatum(middle_center);
+
+  constexpr int kMaxW = 196;  // chord of the round panel, with a margin
+  constexpr int kMaxLines = 6;
+  constexpr int kMaxCol = 48;
+  char lines[kMaxLines][kMaxCol + 1] = {};
+  int nlines = 0, col = 0;
+
+  // Greedy wrap, measured with the real font. Widths are added rather than
+  // formatted into a scratch buffer, so there is no length to get wrong —
+  // the previous hand-rolled version of this shipped a buffer overrun that
+  // rebooted the device on long replies.
+  const int space_w = spr.textWidth(" ");
   const char* p = text;
-  while (*p && line < ML) {
-    while (*p == ' ') p++;                     // skip spaces
-    const char* s = p;
-    while (*p && *p != ' ') p++;               // scan one word
-    int len = static_cast<int>(p - s);
+  while (*p && nlines < kMaxLines) {
+    while (*p == ' ') p++;
+    const char* start = p;
+    while (*p && *p != ' ') p++;
+    int len = static_cast<int>(p - start);
     if (len == 0) break;
-    if (len > MC) len = MC;                     // truncate an oversized word
-    if (col > 0 && col + 1 + len > MC) {        // doesn't fit → new line
-      if (++line >= ML) break;
+    if (len > kMaxCol) len = kMaxCol;
+    char word[kMaxCol + 1];
+    memcpy(word, start, len);
+    word[len] = '\0';
+
+    const int word_w = spr.textWidth(word);
+    if (col > 0 && spr.textWidth(lines[nlines]) + space_w + word_w > kMaxW) {
+      if (++nlines >= kMaxLines) break;
       col = 0;
     }
-    if (col > 0) lines[line][col++] = ' ';
-    for (int i = 0; i < len; i++) lines[line][col++] = s[i];
+    if (col > 0 && col + 1 + len <= kMaxCol) {
+      lines[nlines][col++] = ' ';
+      memcpy(lines[nlines] + col, word, len + 1);
+      col += len;
+    } else if (col == 0) {
+      memcpy(lines[nlines], word, len + 1);
+      col = len;
+    }
   }
-  const int used = (col > 0) ? line + 1 : line;
-  if (used == 0) { push(); return; }
-
-  const int sc = 2;             // 5x7 → 10x14 px glyphs (small, fits more)
-  const int cell = sc * 6;      // glyph width + 1-col gap
-  const int pitch = sc * 9;     // line height + gap
-  int y = CY - (used * pitch) / 2;
-  for (int l = 0; l < used; l++) {
-    const int n = static_cast<int>(strlen(lines[l]));
-    const int x = CX - (n * cell) / 2;
-    for (int i = 0; i < n; i++) draw_char(x + i * cell, y, sc, lines[l][i], eye_base(0));
+  const int used = (col > 0) ? nlines + 1 : nlines;
+  const int pitch = spr.fontHeight() + 2;
+  int y = CY - (used - 1) * pitch / 2;
+  for (int i = 0; i < used; i++) {
+    spr.drawString(lines[i], CX, y);
     y += pitch;
   }
-  push();
+  spr.pushSprite(0, 0);
 }
 
+// ===== boot splash =====
+// The buddy is not idle during boot: wifi_start can block for 15 s. Showing
+// the logo plus what it is actually doing turns that wait into a diagnosis.
+char s_status[32] = "starting";
+volatile bool s_boot_ready = false;
+std::mutex s_status_mu;
+
+void draw_logo(int ox, int oy) {
+  for (int y = 0; y < kLogoH; y++)
+    for (int x = 0; x < kLogoW; x++) {
+      const uint8_t a = kLogoA[y * kLogoW + x];
+      if (a) blend_at(ox + x, oy + y, kLogoRGB[y * kLogoW + x], a / 255.f);
+    }
+}
+
+inline uint16_t scale_rgb(uint16_t c, float k) {
+  int r = ((c >> 11) & 0x1F), g = ((c >> 5) & 0x3F), b = (c & 0x1F);
+  r = static_cast<int>(r * k);
+  g = static_cast<int>(g * k);
+  b = static_cast<int>(b * k);
+  if (r > 31) r = 31;
+  if (g > 63) g = 63;
+  if (b > 31) b = 31;
+  return static_cast<uint16_t>((r << 11) | (g << 5) | b);
+}
+
+// CRT / VHS damage, applied to the finished frame. amt 1 is barely a signal,
+// 0 is clean. Effects in the order a real bad signal applies them.
+void glitch_frame(float amt, int roll) {
+  if (amt <= 0.f) return;
+  static uint16_t row[W];
+
+  const float dim = 1.0f - 0.28f * amt;                 // scanlines
+  for (int y = 1; y < H; y += 2)
+    for (int x = 0; x < W; x++)
+      fb[y * W + x] = to_store(scale_rgb(from_store(fb[y * W + x]), dim));
+
+  const int bands = 2 + esp_random() % 5 + static_cast<int>(amt * 4);
+  for (int i = 0; i < bands; i++) {                     // sync loss: band tearing
+    const int y0 = esp_random() % H, hgt = 2 + esp_random() % 14;
+    const int dx = static_cast<int>((static_cast<int>(esp_random() % 41) - 20) * amt);
+    if (!dx) continue;
+    for (int y = y0; y < y0 + hgt && y < H; y++) {
+      memcpy(row, &fb[y * W], sizeof row);
+      for (int x = 0; x < W; x++) {
+        const int sx = x - dx;
+        fb[y * W + x] = (sx >= 0 && sx < W) ? row[sx] : 0;
+      }
+    }
+  }
+
+  for (int i = 0; i < 2; i++) {                         // colour carrier mistrack
+    const int y0 = esp_random() % H, hgt = 6 + esp_random() % 26;
+    const int dx = 1 + static_cast<int>(amt * 7);
+    for (int y = y0; y < y0 + hgt && y < H; y++) {
+      memcpy(row, &fb[y * W], sizeof row);
+      for (int x = 0; x < W; x++) {
+        const int xr = x - dx < 0 ? 0 : x - dx;
+        const int xb = x + dx >= W ? W - 1 : x + dx;
+        fb[y * W + x] = to_store((from_store(row[xr]) & 0xF800) |
+                                 (from_store(row[x]) & 0x07E0) |
+                                 (from_store(row[xb]) & 0x001F));
+      }
+    }
+  }
+
+  for (int y = roll; y < roll + 22 && y < H; y++) {     // vertical hold slipping
+    if (y < 0) continue;
+    for (int x = 0; x < W; x++)
+      fb[y * W + x] = to_store(scale_rgb(from_store(fb[y * W + x]), 1.0f + 0.9f * amt));
+  }
+
+  const int flecks = static_cast<int>(amt * 900);       // snow
+  for (int i = 0; i < flecks; i++) {
+    const uint32_t r = esp_random();
+    const int x = r % W, y = (r >> 9) % H;
+    const uint8_t v = (r >> 20) & 0x1F;
+    fb[y * W + x] = to_store(v > 20 ? 0xFFFF : rgb(v * 6, v * 6, v * 6));
+  }
+}
+
+void draw_splash(float amt, int roll, bool with_logo) {
+  spr.fillScreen(TFT_BLACK);
+  if (with_logo) draw_logo((W - kLogoW) / 2, (H - kLogoH) / 2 - 12);
+  {
+    std::lock_guard<std::mutex> lock(s_status_mu);
+    spr.setFont(&fonts::Font2);
+    spr.setTextDatum(top_center);
+    spr.setTextColor(spr.color565(120, 130, 145));
+    spr.drawString(s_status, CX, 200);
+  }
+  glitch_frame(amt, roll);
+  spr.pushSprite(0, 0);
+}
+
+void splash_boot() {
+  // Tune in: heavy damage decaying to a clean picture.
+  const int64_t t0 = esp_timer_get_time();
+  int roll = -30;
+  for (;;) {
+    const float t = (esp_timer_get_time() - t0) / 1600000.f;
+    if (t >= 1.f) break;
+    draw_splash(t < 0.22f ? 1.0f : clampf((1.f - t) / 0.78f, 0.f, 1.f), roll, t > 0.12f);
+    roll += 11;
+    if (roll > H) roll = -30;
+  }
+  // Then hold, updating the status line, until the rest of the system says go.
+  while (!s_boot_ready) {
+    draw_splash(0.f, 0, true);
+    vTaskDelay(pdMS_TO_TICKS(120));
+  }
+  // Glitch back out into the face, so the visual language is consistent.
+  const int64_t t1 = esp_timer_get_time();
+  while (esp_timer_get_time() - t1 < 420000) {
+    const float t = (esp_timer_get_time() - t1) / 420000.f;
+    spr.fillScreen(TFT_BLACK);
+    if (t < 0.5f) draw_logo((W - kLogoW) / 2, (H - kLogoH) / 2 - 12);
+    else draw_eye(CX - GAP, 0, kEmotions[s_emotion], 100, 0, 0),
+         draw_eye(CX + GAP, 1, kEmotions[s_emotion], 100, 0, 0);
+    glitch_frame(0.85f, static_cast<int>(t * H));
+    spr.pushSprite(0, 0);
+  }
+}
+
+// ===== speech / gaze state =====
 std::mutex s_say_mu;
 char s_say_text[128];
 volatile int64_t s_say_until = 0;
 volatile bool s_say_dirty = false;
 
-// Gaze override — face.look sets a target; while active the eyes follow it
-// instead of doing idle saccades. Any Sense or reflex can drive it: a tracked
-// sprite, a detected face, a pack script. The target expires so the buddy
-// always drifts back to its own idle behavior.
+// face.look sets a target; while active the eyes follow it instead of doing
+// idle saccades. Any Sense or reflex can drive it. The target expires so the
+// buddy always drifts back to being itself.
 volatile int s_look_tx = 0, s_look_ty = 0;
 volatile int64_t s_look_until = 0;
 
 void face_task(void*) {
+  splash_boot();
+  s_dirty = true;
+
   int gaze_x = 0, gaze_y = 0;
   bool was_saying = false;
   int64_t next_blink = 2000, next_saccade = 1500;
@@ -281,7 +417,7 @@ void face_task(void*) {
     if (was_saying) { was_saying = false; s_dirty = true; }
 
     const bool looking = now < s_look_until;
-    if (looking) {  // ease toward the look target
+    if (looking) {
       const int nx = gaze_x + (s_look_tx - gaze_x) / 2;
       const int ny = gaze_y + (s_look_ty - gaze_y) / 2;
       if (nx != gaze_x || ny != gaze_y || s_dirty) {
@@ -289,8 +425,7 @@ void face_task(void*) {
         draw_eyes(100, gaze_x, gaze_y);
       }
       if (now >= next_blink) {
-        draw_eyes(12, gaze_x, gaze_y);
-        vTaskDelay(pdMS_TO_TICKS(75));
+        for (int li : {1, 2, 1}) draw_eyes(kLevels[li], gaze_x, gaze_y);
         draw_eyes(100, gaze_x, gaze_y);
         const int period = kEmotions[s_emotion].blink_period_ms;
         next_blink = now + period / 2 + esp_random() % period;
@@ -299,11 +434,9 @@ void face_task(void*) {
       continue;
     }
 
-    // idle: random saccades + blinks (gaze_y drifts back to 0)
     if (s_dirty) { s_dirty = false; draw_eyes(100, gaze_x, gaze_y); }
     if (now >= next_blink) {
-      draw_eyes(12, gaze_x, gaze_y);
-      vTaskDelay(pdMS_TO_TICKS(75));
+      for (int li : {1, 2, 1}) draw_eyes(kLevels[li], gaze_x, gaze_y);
       draw_eyes(100, gaze_x, gaze_y);
       const int period = kEmotions[s_emotion].blink_period_ms;
       next_blink = now + period / 2 + esp_random() % period;
@@ -318,60 +451,27 @@ void face_task(void*) {
   }
 }
 
-void panel_init() {
-  spi_bus_config_t bus_cfg = {};
-  bus_cfg.sclk_io_num = static_cast<gpio_num_t>(CONFIG_BUDDY_GC9A01_SCLK);
-  bus_cfg.mosi_io_num = static_cast<gpio_num_t>(CONFIG_BUDDY_GC9A01_MOSI);
-  bus_cfg.miso_io_num = GPIO_NUM_NC;
-  bus_cfg.quadwp_io_num = GPIO_NUM_NC;
-  bus_cfg.quadhd_io_num = GPIO_NUM_NC;
-  bus_cfg.max_transfer_sz = W * H * 2 + 16;
-  ESP_ERROR_CHECK(spi_bus_initialize(SPI2_HOST, &bus_cfg, SPI_DMA_CH_AUTO));
-
-  esp_lcd_panel_io_handle_t io = nullptr;
-  esp_lcd_panel_io_spi_config_t io_cfg = {};
-  io_cfg.cs_gpio_num = static_cast<gpio_num_t>(CONFIG_BUDDY_GC9A01_CS);
-  io_cfg.dc_gpio_num = static_cast<gpio_num_t>(CONFIG_BUDDY_GC9A01_DC);
-  io_cfg.spi_mode = 0;
-  io_cfg.pclk_hz = 40 * 1000 * 1000;
-  io_cfg.trans_queue_depth = 10;
-  io_cfg.lcd_cmd_bits = 8;
-  io_cfg.lcd_param_bits = 8;
-  ESP_ERROR_CHECK(esp_lcd_new_panel_io_spi(
-      static_cast<esp_lcd_spi_bus_handle_t>(SPI2_HOST), &io_cfg, &io));
-
-  esp_lcd_panel_dev_config_t panel_cfg = {};
-  panel_cfg.reset_gpio_num = static_cast<gpio_num_t>(CONFIG_BUDDY_GC9A01_RST);
-  panel_cfg.rgb_ele_order = LCD_RGB_ELEMENT_ORDER_BGR;
-  panel_cfg.bits_per_pixel = 16;
-  ESP_ERROR_CHECK(esp_lcd_new_panel_gc9a01(io, &panel_cfg, &s_panel));
-
-  ESP_ERROR_CHECK(esp_lcd_panel_reset(s_panel));
-  ESP_ERROR_CHECK(esp_lcd_panel_init(s_panel));
-  ESP_ERROR_CHECK(esp_lcd_panel_invert_color(s_panel, true));  // GC9A01 wants this
-  // These modules come up horizontally mirrored (text reads backwards, brow
-  // slants flip). Correct X. If yours ends up upside down or still mirrored,
-  // adjust these two args — clone panels vary.
-  ESP_ERROR_CHECK(esp_lcd_panel_mirror(s_panel, true, false));
-  ESP_ERROR_CHECK(esp_lcd_panel_disp_on_off(s_panel, true));
-
-#if CONFIG_BUDDY_GC9A01_BL >= 0
-  gpio_set_direction(static_cast<gpio_num_t>(CONFIG_BUDDY_GC9A01_BL), GPIO_MODE_OUTPUT);
-  gpio_set_level(static_cast<gpio_num_t>(CONFIG_BUDDY_GC9A01_BL), 1);
-#endif
-}
-
 }  // namespace
 
 void face_start() {
-  panel_init();
-  s_fb = static_cast<uint16_t*>(
-      heap_caps_malloc(W * H * sizeof(uint16_t), MALLOC_CAP_SPIRAM | MALLOC_CAP_DMA));
-  if (!s_fb) s_fb = static_cast<uint16_t*>(heap_caps_malloc(W * H * sizeof(uint16_t), MALLOC_CAP_DMA));
-  if (!s_fb) { ESP_LOGE(TAG, "no memory for framebuffer"); return; }
+  lcd.setBrightness(0);  // dark until there is something to show
+  lcd.init();
+
+  spr.setColorDepth(16);
+  spr.setPsram(false);  // internal RAM is ~2x faster to draw into, and it fits
+  if (!spr.createSprite(W, H)) {
+    spr.setPsram(true);
+    if (!spr.createSprite(W, H)) { ESP_LOGE(TAG, "no memory for the frame"); return; }
+  }
+  fb = static_cast<uint16_t*>(spr.getBuffer());
+  for (int i = 0; i < kLevelCount; i++) {
+    cache[i].setColorDepth(16);
+    cache[i].setPsram(true);  // 3 x 115 KB, only ever blitted
+    if (!cache[i].createSprite(W, H)) ESP_LOGE(TAG, "no memory for eye cache %d", i);
+  }
 
   bus().subscribe("face.emotion", [](const Event& ev) {
-    int i = emotion_index(ev.payload.c_str());
+    const int i = emotion_index(ev.payload.c_str());
     if (i >= 0) { s_emotion = i; s_dirty = true; }
     else ESP_LOGW(TAG, "unknown emotion '%s'", ev.payload.c_str());
   });
@@ -389,15 +489,27 @@ void face_start() {
     sscanf(ev.payload.c_str(), "%d,%d", &x, &y);
     if (x < -100) x = -100; else if (x > 100) x = 100;
     if (y < -100) y = -100; else if (y > 100) y = 100;
-    s_look_tx = x * 30 / 100;   // max ±30 px horizontal
-    s_look_ty = y * 22 / 100;   // max ±22 px vertical
+    s_look_tx = x * 30 / 100;
+    s_look_ty = y * 22 / 100;
     s_look_until = esp_log_timestamp() + 1500;
   });
+  // The boot splash's status line is driven by whatever app_main is actually
+  // doing — a real step, not a timer.
+  bus().subscribe("boot.status", [](const Event& ev) {
+    std::lock_guard<std::mutex> lock(s_status_mu);
+    strncpy(s_status, ev.payload.c_str(), sizeof s_status - 1);
+    s_status[sizeof s_status - 1] = '\0';
+  });
+  bus().subscribe("boot.ready", [](const Event&) { s_boot_ready = true; });
 
-  draw_eyes(100, 0, 0);
-  // Full-frame render + esp_lcd draw want more than the OLED path did.
+  // First frame is pure noise, so the backlight can come straight up: the
+  // static IS the fade-in, and the uninitialised panel is never seen.
+  spr.fillScreen(TFT_BLACK);
+  glitch_frame(1.f, 40);
+  spr.pushSprite(0, 0);
+  lcd.setBrightness(160);
+
   xTaskCreatePinnedToCore(face_task, "face", 6144, nullptr, 4, nullptr, 1);
 }
 
 }  // namespace buddy
-

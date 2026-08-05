@@ -7,7 +7,7 @@ framework's first commit.
 
 | Part | Hardware | Driver |
 |---|---|---|
-| Face | GC9A01 1.28" round color 240×240 (SPI) | `round_face.cpp` |
+| Face | GC9A01 1.28" round color 240×240 (SPI) | `round_face.cpp` (LovyanGFX) |
 | Mood | WS2812 12-LED ring | `led_ring.cpp` |
 | Petting | capacitive touch, GPIO 1–14 | `touch_sense.cpp` |
 
@@ -15,15 +15,42 @@ Both the face and the ring render the same `face_model.h` — 8 emotions, each
 carrying eye geometry *and* a mood color, so the eyes and the halo always
 agree. Wiring: [../hardware/buddy-s3-display.md](../hardware/buddy-s3-display.md).
 
+### The graphics layer
+
+The eyes are drawn by **our own** signed-distance-field renderer, because the
+brow slant and the happy squint are carved out of the shape as *coverage* — no
+library primitive can express that. Everything else (panel driver, sprites,
+fonts, blitting) is **LovyanGFX**.
+
+The eyes are **cached**: the SDF costs 40–100 ms per frame, but the image only
+changes on a blink or an emotion change — a saccade is a *translation* of an
+unchanged image. Rendering once per (emotion, openness) into three PSRAM
+sprites and blitting at a gaze offset takes it from 13 fps to ~30, pixel for
+pixel identical. All of this was measured first in
+[../spikes/lovyangfx-gc9a01/](../spikes/lovyangfx-gc9a01/README.md), which also
+records the traps — chiefly that **LovyanGFX stores 16bpp sprites big-endian**,
+so writing native little-endian into `getBuffer()` renders gradients as
+horizontal rainbow stripes.
+
+### Boot
+
+`face_start()` runs first in `app_main`, so the splash is on screen while the
+slow work happens behind it. The backlight stays off through panel init, so the
+uninitialised panel is never seen — the boot reads as dark → static → logo.
+The HackLab logo tunes in like a bad TV signal over ~1.6 s, and the status line
+under it is driven by `boot.status` events published by `app_main` as it works.
+`boot.ready` glitches the splash out into the face. On a typical boot the line
+sits on "connecting wifi" for ~4 s, which is the honest bottleneck.
+
 The classic-ESP32 + SSD1306 PoC that this grew out of was removed once the S3
 became the only target; it lives on in git at `4d7b12e` if you ever need it.
 
 ## Status
 
 - **Verified**: `idf.py build` succeeds on **ESP-IDF v6.0.2**, Berry compiled
-  in. Written against v6 driver APIs (`esp_driver_touch_sens`, `esp_lcd` +
-  `espressif/esp_lcd_gc9a01`, `espressif/led_strip` 3.x, managed
-  `espressif/cjson`) — **v5.x is NOT supported**.
+  in. Written against v6 driver APIs (`esp_driver_touch_sens`, LovyanGFX,
+  `espressif/led_strip` 3.x, managed `espressif/cjson`) — **v5.x is NOT
+  supported**.
 - **Verified**: event bus passes its host tests (`host_test/`).
 - **Verified on hardware**: face, ring, touch, WiFi and the Claude brain all
   run on the S3. Gotchas we already hit are written up in the hardware doc.
@@ -36,7 +63,7 @@ became the only target; it lives on in git at `4d7b12e` if you ever need it.
 # 1. ESP-IDF v6.x installed (EIM installer puts the activation script at
 #    ~/.espressif/tools/activate_idf_v6.0.2.sh — source it, or use the
 #    ESP-IDF terminal profile).
-# 2. Berry submodule + its one-time codegen:
+# 2. Submodules: Berry (the reflex VM) and LovyanGFX (the graphics layer).
 git submodule update --init
 cd firmware/components/berry_host/berry
 mkdir -p generate && python3 tools/coc/coc -o generate src default -c default/berry_conf.h
