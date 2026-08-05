@@ -132,8 +132,8 @@ void draw_eye_sdf(int cxi, int side, const Emotion& em, int open_pct,
   const float span = open < 1.f ? 1.f : open;
   const uint16_t glow_col = rgb(em.r / 4, em.g / 4, em.b / 4);
   const uint16_t base_col = rgb(em.r, em.g, em.b);
-  const float ihw = hw - r, ihh = hh - r;
 
+  const float ihw = hw - r, ihh = hh - r;
   for (int y = y0; y <= y1; y++) {
     const float qy = fabsf(y + 0.5f - cy) - ihh;
     const float ay = qy > 0.f ? qy : 0.f;
@@ -389,9 +389,124 @@ void demo_intruder(int emo, Variant v, int seconds, float& ix, float& iy,
            kVariantName[v], frames / ((esp_timer_get_time() - t0) / 1e6));
 }
 
+
+// ===== CRT / VHS glitch splash =====
+// Draw the logo clean, then damage the framebuffer. Intensity 1 is barely a
+// signal, 0 is a clean logo — decaying it over ~1.6 s reads as the picture
+// "tuning in", which is a much better boot story than a static splash.
+//
+// Effects, in the order a real bad signal applies them:
+//   scanlines      every other row dimmed (the CRT raster itself)
+//   band tearing   random horizontal slices displaced sideways (sync loss)
+//   chroma split   R and B sampled at different x (mistracked colour carrier)
+//   rolling bar    a bright band drifting down (vertical hold slipping)
+//   snow           random speckle (noise floor)
+inline uint16_t scale_rgb(uint16_t c, float k) {
+  int r = ((c >> 11) & 0x1F), g = ((c >> 5) & 0x3F), b = (c & 0x1F);
+  r = static_cast<int>(r * k); g = static_cast<int>(g * k); b = static_cast<int>(b * k);
+  if (r > 31) r = 31;
+  if (g > 63) g = 63;
+  if (b > 31) b = 31;
+  return static_cast<uint16_t>((r << 11) | (g << 5) | b);
+}
+
+void glitch_frame(float amt, int roll) {
+  if (amt <= 0.f) return;
+  static uint16_t row[W];
+
+  // 1. scanlines — subtle, always on while there is any signal damage
+  const float dim = 1.0f - 0.28f * amt;
+  for (int y = 1; y < H; y += 2)
+    for (int x = 0; x < W; x++)
+      fb[y * W + x] = to_store(scale_rgb(from_store(fb[y * W + x]), dim));
+
+  // 2. band tearing — a few slices shoved sideways
+  const int bands = 2 + static_cast<int>(esp_random() % 5) + static_cast<int>(amt * 4);
+  for (int i = 0; i < bands; i++) {
+    const int y0 = esp_random() % H;
+    const int hgt = 2 + esp_random() % 14;
+    const int dx = (static_cast<int>(esp_random() % 41) - 20) * amt;
+    if (!dx) continue;
+    for (int y = y0; y < y0 + hgt && y < H; y++) {
+      memcpy(row, &fb[y * W], sizeof row);
+      for (int x = 0; x < W; x++) {
+        const int sx = x - dx;
+        fb[y * W + x] = (sx >= 0 && sx < W) ? row[sx] : 0;
+      }
+    }
+  }
+
+  // 3. chroma split on a couple of slices — the colour carrier mistracking
+  for (int i = 0; i < 2; i++) {
+    const int y0 = esp_random() % H;
+    const int hgt = 6 + esp_random() % 26;
+    const int dx = 1 + static_cast<int>(amt * 7);
+    for (int y = y0; y < y0 + hgt && y < H; y++) {
+      memcpy(row, &fb[y * W], sizeof row);
+      for (int x = 0; x < W; x++) {
+        const int xr = x - dx < 0 ? 0 : x - dx;
+        const int xb = x + dx >= W ? W - 1 : x + dx;
+        const uint16_t cr = from_store(row[xr]), cg = from_store(row[x]),
+                       cb = from_store(row[xb]);
+        fb[y * W + x] = to_store((cr & 0xF800) | (cg & 0x07E0) | (cb & 0x001F));
+      }
+    }
+  }
+
+  // 4. rolling bar — vertical hold slipping
+  for (int y = roll; y < roll + 22 && y < H; y++) {
+    if (y < 0) continue;
+    for (int x = 0; x < W; x++)
+      fb[y * W + x] = to_store(scale_rgb(from_store(fb[y * W + x]), 1.0f + 0.9f * amt));
+  }
+
+  // 5. snow
+  const int flecks = static_cast<int>(amt * 900);
+  for (int i = 0; i < flecks; i++) {
+    const uint32_t r = esp_random();
+    const int x = r % W, y = (r >> 9) % H;
+    const uint8_t v = (r >> 20) & 0x1F;
+    fb[y * W + x] = to_store(v > 20 ? 0xFFFF : rgb(v * 6, v * 6, v * 6));
+  }
+}
+
+void splash_status(const char* msg) {
+  spr.fillRect(0, 206, W, 20, TFT_BLACK);
+  spr.setTextDatum(top_center);
+  spr.setTextColor(spr.color565(120, 130, 145));
+  spr.setFont(&fonts::Font2);
+  spr.drawString(msg, 120, 206);
+}
+
+// Tune in: heavy noise, then the picture resolves.
+void splash_tune_in(int ms) {
+  const int64_t t0 = esp_timer_get_time();
+  int roll = -30, frames = 0;
+  for (;;) {
+    const float t = (esp_timer_get_time() - t0) / (ms * 1000.f);
+    if (t >= 1.f) break;
+    // hold full damage briefly, then decay
+    const float amt = t < 0.22f ? 1.0f : clampf((1.f - t) / 0.78f, 0.f, 1.f);
+    spr.fillScreen(TFT_BLACK);
+    if (t > 0.12f) draw_logo((W - kLogoW) / 2, (H - kLogoH) / 2 - 12);
+    glitch_frame(amt, roll);
+    spr.pushSprite(0, 0);
+    roll += 11;
+    frames++;
+    if (roll > H) roll = -30;
+  }
+  spr.fillScreen(TFT_BLACK);
+  draw_logo((W - kLogoW) / 2, (H - kLogoH) / 2 - 12);
+  spr.pushSprite(0, 0);
+  ESP_LOGI(TAG, "tune-in: %d frames in %d ms (%.1f fps)", frames,
+           static_cast<int>((esp_timer_get_time() - t0) / 1000),
+           frames / ((esp_timer_get_time() - t0) / 1e6));
+}
+
 extern "C" void app_main() {
+  lcd.setBrightness(0);   // dark first — never show an uninitialised panel
   lcd.init();
-  lcd.setBrightness(160);
+  const uint32_t t_panel = esp_log_timestamp();
 
   spr.setColorDepth(16);
   spr.setPsram(false);
@@ -403,23 +518,29 @@ extern "C" void app_main() {
       cache[g][i].setPsram(true);  // 6 x 115 KB — only ever blitted
       if (!cache[g][i].createSprite(W, H)) ESP_LOGE(TAG, "cache sprite %d/%d failed", g, i);
     }
+  // Splash as early as we can: the sprite exists, so draw and fade up.
+  spr.fillScreen(TFT_BLACK);
+  glitch_frame(1.f, 40);
+  spr.pushSprite(0, 0);
+  lcd.setBrightness(160);   // straight to full — the noise IS the fade-in
+  const uint32_t t_logo = esp_log_timestamp();
+  ESP_LOGI(TAG, "BOOT: panel ready at %u ms, logo on screen at %u ms after reset",
+           (unsigned)t_panel, (unsigned)t_logo);
+
+  // What a real boot would put here — the slow phases are the useful part.
+  splash_tune_in(1600);
+  const char* phases[] = {"mounting packs", "connecting wifi", "syncing time", "waking brain"};
+  for (const char* ph : phases) {
+    splash_status(ph);
+    spr.pushSprite(0, 0);
+    vTaskDelay(pdMS_TO_TICKS(700));
+  }
+  ESP_LOGI(TAG, "BOOT: splash held until %u ms", (unsigned)esp_log_timestamp());
+
   ESP_LOGI(TAG, "free internal=%u psram=%u",
            (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
            (unsigned)heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
 
-  // Blink progression: happy (which has the squint) and neutral (which does
-  // not), at each openness level, so the blink can be checked frame by frame
-  // instead of guessed at from a moving panel.
-  for (int e : {1, 0})
-    for (int i = 0; i < kLevelCount; i++) {
-      char label[40];
-      snprintf(label, sizeof label, "%d%d-%s-%03d", e == 1 ? 0 : 1, i,
-               kEmotions[e].name, kLevels[i]);
-      draw_face(kEmotions[e], e, V_GRAD, kLevels[i], 0, 0);
-      spr.pushSprite(0, 0);
-      dump_fb(label);
-    }
-  ESP_LOGI(TAG, "screenshots done");
 
   // The running demo: the logo floats continuously and the eyes follow it,
   // while we cycle the emotions and the three surviving techniques.
