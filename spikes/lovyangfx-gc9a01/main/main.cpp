@@ -383,18 +383,18 @@ extern "C" void app_main() {
            (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
            (unsigned)heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
 
-  // One still per variant with the logo in shot, for inspection.
-  {
-    float sx = 168, sy = 78;
+  // Contact sheet: every emotion in every surviving technique, clean — no
+  // logo, no gaze offset — so the sheet compares the eye rendering and
+  // nothing else. Ordered emotion-major so the decoder lays out one row per
+  // emotion, three techniques across.
+  for (int e = 0; e < kEmotionCount; e++)
     for (int v : {V_FLAT, V_GRAD, V_PRIM}) {
-      char label[32];
-      snprintf(label, sizeof label, "angry-%d", v);
-      draw_face(kEmotions[5], 5, static_cast<Variant>(v), 100, 9, 6);
-      draw_logo(static_cast<int>(sx) - IW / 2, static_cast<int>(sy) - IH / 2);
+      char label[40];
+      snprintf(label, sizeof label, "%02d%d-%s", e, v, kEmotions[e].name);
+      draw_face(kEmotions[e], e, static_cast<Variant>(v), 100, 0, 0);
       spr.pushSprite(0, 0);
       dump_fb(label);
     }
-  }
   ESP_LOGI(TAG, "screenshots done");
 
   // The running demo: the logo floats continuously and the eyes follow it,
