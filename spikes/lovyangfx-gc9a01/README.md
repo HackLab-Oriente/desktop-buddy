@@ -196,6 +196,35 @@ For contrast, LovyanGFX's own primitive draws in **1.8–3.3 ms**, 25–40× fas
 carved out of the shape as *coverage*, not drawn as shapes. That is the real
 trade to discuss: expressiveness vs. an order of magnitude of CPU.
 
+### The byte-order trap (cost us an afternoon — read this one)
+
+**LovyanGFX stores 16bpp sprites BIG-ENDIAN**, because that is the byte order
+the SPI bus consumes. `getBuffer()` hands you that raw buffer. Writing native
+little-endian `uint16_t` RGB565 into it — the obvious thing to do, and what
+`round_face.cpp` does with its own framebuffer — is wrong, and wrong in a way
+that is easy to misdiagnose:
+
+- a **flat** colour byte-swaps to a solid but *wrong* colour (red renders as
+  blue-purple), which reads like a palette bug;
+- a **gradient** byte-swaps to *horizontal rainbow stripes*, because the low
+  byte carrying blue becomes the red channel and cycles rapidly down the ramp.
+
+Proved with a test card that draws the same three colours three ways. Row 1
+(LovyanGFX API) and row 3 (raw, byte-swapped) were correct; row 2 (raw,
+little-endian) rendered R/G/B as Blue/Red/Green. Rows 1 and 3 were confirmed
+byte-identical on-device (`0x00F8` / `0xE007` / `0x1F00`), so direct buffer
+writes cost nothing in quality versus the library's API — which matters,
+because the SDF eye renderer needs per-pixel access and cannot use `fillRect`.
+
+Fix: convert only at the buffer boundary (`to_store` / `from_store`), and pass
+`spr.color565(r,g,b)` — never a raw 565 `uint16_t` — to any LovyanGFX call.
+
+**Methodology note.** The first round of framebuffer screenshots was decoded
+with the same little-endian assumption used to write them, so they agreed with
+themselves and showed nothing. Photographs of the actual panel are what caught
+this. A dump is only evidence once it has been checked against the glass at
+least once.
+
 ### Bring-up notes (cost us 20 minutes, will cost you the same)
 
 - The board arrived running firmware that presented a **TinyUSB CDC** port
@@ -208,6 +237,12 @@ trade to discuss: expressiveness vs. an order of magnitude of CPU.
 - This board's USB-C is wired to the native USB pins, so the console must be
   `CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y` — the default UART0 console goes
   nowhere visible.
+- The devkit has a **second** USB-C socket behind a CH343 bridge. It is better
+  for flashing (auto-reset always works) but **useless for framebuffer dumps**:
+  153 KB at 115200 with no flow control loses bytes, and one lost byte
+  misaligns the whole base64 stream into torn garbage. Use the native USB
+  socket for anything that moves bulk data. Every dump now carries a checksum
+  so corruption is detected rather than silently rendered.
 
 ## What we would NOT hand over
 

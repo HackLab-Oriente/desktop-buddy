@@ -27,6 +27,8 @@
 #include "freertos/task.h"
 
 #include <cmath>
+#include <cstdio>
+#include "esp_random.h"
 
 static const char* TAG = "eyes";
 static LGFX_Buddy lcd;
@@ -79,6 +81,14 @@ inline uint16_t rgb_dither(int x, int y, float rf, float gf, float bf) {
   return rgb(r, g, b);
 }
 
+// LovyanGFX stores 16bpp sprites BYTE-SWAPPED (big-endian), because that is
+// the order the SPI bus consumes — confirmed on hardware by the panel test
+// card (row 2 native-endian rendered R/G/B as Blue/Red/Green; row 3 swapped
+// was correct). Everything below computes in native RGB565 and converts only
+// at the buffer boundary.
+inline uint16_t to_store(uint16_t native) { return __builtin_bswap16(native); }
+inline uint16_t from_store(uint16_t stored) { return __builtin_bswap16(stored); }
+
 inline uint16_t blend565(uint16_t bg, uint16_t fg, float a) {
   const int br = (bg >> 11) & 0x1F, bgg = (bg >> 5) & 0x3F, bb = bg & 0x1F;
   const int fr = (fg >> 11) & 0x1F, fgg = (fg >> 5) & 0x3F, fbb = fg & 0x1F;
@@ -90,7 +100,7 @@ inline uint16_t blend565(uint16_t bg, uint16_t fg, float a) {
 inline void blend_at(int x, int y, uint16_t c, float a) {
   if (x < 0 || x >= W || y < 0 || y >= H || a <= 0.f) return;
   uint16_t& p = fb[y * W + x];
-  p = blend565(p, c, a > 1.f ? 1.f : a);
+  p = to_store(blend565(from_store(p), c, a > 1.f ? 1.f : a));
 }
 
 // Kept for reference — the shipped version. The inner loop below inlines this
@@ -110,18 +120,19 @@ inline float sd_round_rect(float px, float py, float cx, float cy,
 void dump_column(const char* tag) {
   const int x = CX - GAP;
   for (int y = 76; y <= 164; y += 6) {
-    const uint16_t p = fb[y * W + x];
+    const uint16_t p = from_store(fb[y * W + x]);
     ESP_LOGI(TAG, "%s y=%3d raw=0x%04X r5=%2d g6=%2d b5=%2d", tag, y, p,
              (p >> 11) & 0x1F, (p >> 5) & 0x3F, p & 0x1F);
   }
 }
 
-void draw_eye(int cxi, int side, const Emotion& em, int open_pct, Variant v) {
+void draw_eye(int cxi, int side, const Emotion& em, int open_pct, Variant v,
+              int gx, int gy) {
   const EyeStyle& e = em.eye;
   const float eyeW = e.width * S;
   float open = e.height * S * (e.openness / 100.f) * (open_pct / 100.f);
   if (open < 6.f) open = 6.f;
-  const float cx = cxi, cy = CY;
+  const float cx = cxi + gx, cy = CY + gy;
   const float hw = eyeW / 2, hh = open / 2;
   float r = eyeW * 0.42f;
   if (r > hh) r = hh;
@@ -131,7 +142,7 @@ void draw_eye(int cxi, int side, const Emotion& em, int open_pct, Variant v) {
   if (v == V_NATIVE) {
     spr.fillSmoothRoundRect(static_cast<int>(cx - hw), static_cast<int>(top),
                             static_cast<int>(eyeW), static_cast<int>(open),
-                            static_cast<int>(r), rgb(em.r, em.g, em.b));
+                            static_cast<int>(r), spr.color565(em.r, em.g, em.b));
     return;
   }
 
@@ -207,7 +218,7 @@ void draw_eye(int cxi, int side, const Emotion& em, int open_pct, Variant v) {
       // invisible and there is nothing to blend against, so skip the whole
       // read-modify-write. That is the majority of the eye's pixels.
       if (ecov >= 0.999f) {
-        if (x >= 0 && x < W && y >= 0 && y < H) fb[y * W + x] = col;
+        if (x >= 0 && x < W && y >= 0 && y < H) fb[y * W + x] = to_store(col);
       } else {
         if (gcov > 0.f) blend_at(x, y, glow_col, gcov);
         if (ecov > 0.f) blend_at(x, y, col, ecov);
@@ -223,17 +234,146 @@ void draw_eye(int cxi, int side, const Emotion& em, int open_pct, Variant v) {
   }
 }
 
-void draw_face(const Emotion& em, Variant v, int open_pct) {
+void draw_face(const Emotion& em, Variant v, int open_pct, int gx = 0, int gy = 0) {
   spr.fillScreen(TFT_BLACK);
-  draw_eye(CX - GAP, 0, em, open_pct, v);
-  draw_eye(CX + GAP, 1, em, open_pct, v);
+  draw_eye(CX - GAP, 0, em, open_pct, v, gx, gy);
+  draw_eye(CX + GAP, 1, em, open_pct, v, gx, gy);
   spr.setTextDatum(top_center);
   spr.setTextColor(TFT_WHITE);
   spr.setFont(&fonts::Font2);
   spr.drawString(kVariantName[v], 120, 188);
   spr.setFont(&fonts::Font0);
-  spr.setTextColor(rgb(em.r, em.g, em.b));
+  spr.setTextColor(spr.color565(em.r, em.g, em.b));
   spr.drawString(em.name, 120, 210);
+}
+
+// Ship the whole framebuffer up the serial line as base64 so it can be turned
+// back into a PNG on the laptop. Designing an eye by describing it over chat
+// does not work; this lets the render be looked at directly.
+void dump_fb(const char* label) {
+  static const char* b64 =
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+  const uint8_t* p = reinterpret_cast<const uint8_t*>(fb);
+  const size_t n = static_cast<size_t>(W) * H * 2;
+  printf("\n---FB-BEGIN %s %d %d---\n", label, W, H);
+  fflush(stdout);
+  char line[125];
+  int li = 0;
+  for (size_t i = 0; i < n; i += 3) {
+    const uint32_t b0 = p[i];
+    const uint32_t b1 = (i + 1 < n) ? p[i + 1] : 0;
+    const uint32_t b2 = (i + 2 < n) ? p[i + 2] : 0;
+    const uint32_t v = (b0 << 16) | (b1 << 8) | b2;
+    line[li++] = b64[(v >> 18) & 63];
+    line[li++] = b64[(v >> 12) & 63];
+    line[li++] = (i + 1 < n) ? b64[(v >> 6) & 63] : '=';
+    line[li++] = (i + 2 < n) ? b64[v & 63] : '=';
+    if (li >= 120) { line[li] = 0; printf("%s\n", line); li = 0; }
+  }
+  if (li) { line[li] = 0; printf("%s\n", line); }
+  uint32_t sum = 0;
+  for (size_t i = 0; i < n; i++) sum = sum * 31u + p[i];
+  printf("---FB-END %08X---\n", (unsigned)sum);
+  fflush(stdout);
+}
+
+// A few seconds of actual life: eased saccades plus blinks. A frozen pair of
+// eyes reads as a logo; this is the only way to judge whether they read as a
+// creature — and it shows the real frame rate under motion.
+void animate(const Emotion& em, Variant v, int ms) {
+  const int64_t t_end = esp_timer_get_time() + ms * 1000LL;
+  int gx = 0, gy = 0, tx = 0, ty = 0;
+  int64_t next_sacc = 0, next_blink = esp_timer_get_time() + 900000;
+  int frames = 0;
+  const int64_t t_start = esp_timer_get_time();
+
+  while (esp_timer_get_time() < t_end) {
+    const int64_t now = esp_timer_get_time();
+    if (now >= next_sacc) {
+      tx = static_cast<int>(esp_random() % 37) - 18;
+      ty = static_cast<int>(esp_random() % 25) - 12;
+      next_sacc = now + 500000 + (esp_random() % 1100000);
+    }
+    gx += (tx - gx) / 2;  // ease in, same shape as the firmware's face.look
+    gy += (ty - gy) / 2;
+
+    if (now >= next_blink) {
+      for (int op : {45, 12, 45}) {
+        draw_face(em, v, op, gx, gy);
+        spr.pushSprite(0, 0);
+        frames++;
+      }
+      const int period = em.blink_period_ms * 1000;
+      next_blink = now + period / 2 + (esp_random() % period);
+    }
+    draw_face(em, v, 100, gx, gy);
+    spr.pushSprite(0, 0);
+    frames++;
+  }
+  const double secs = (esp_timer_get_time() - t_start) / 1e6;
+  ESP_LOGI(TAG, "%-11s %-13s animated %5.1f fps (%d frames in %.1fs)",
+           em.name, kVariantName[v], frames / secs, frames, secs);
+}
+
+// Panel test card. Answers one question: is the display faulty, or are we
+// writing pixels in the wrong byte order?
+//
+// Three rows draw the SAME three colours by three different routes. Whichever
+// row reads correctly as red / green / blue tells us the convention — and if
+// ANY row is correct, the panel hardware is fine by definition.
+void fill_raw(int x0, int y0, int w, int h, uint16_t v) {
+  for (int y = y0; y < y0 + h; y++)
+    for (int x = x0; x < x0 + w; x++)
+      if (x >= 0 && x < W && y >= 0 && y < H) fb[y * W + x] = v;
+}
+
+void panel_test() {
+  const struct { const char* n; uint8_t r, g, b; } cols[3] = {
+      {"R", 255, 0, 0}, {"G", 0, 255, 0}, {"B", 0, 0, 255}};
+  const int xs[3] = {45, 97, 149};
+  const int SW = 46, SH = 30;
+
+  spr.fillScreen(TFT_BLACK);
+  spr.setTextDatum(top_center);
+  spr.setTextColor(TFT_WHITE);
+  spr.setFont(&fonts::Font0);
+
+  for (int i = 0; i < 3; i++) spr.drawString(cols[i].n, xs[i] + SW / 2, 30);
+
+  // Row 1: LovyanGFX's own API and its own colour type. If this row is right,
+  // the panel, the wiring and the SPI bus are all fine.
+  spr.drawString("1 LGFX color565", 120, 44);
+  for (int i = 0; i < 3; i++)
+    spr.fillRect(xs[i], 56, SW, SH, spr.color565(cols[i].r, cols[i].g, cols[i].b));
+
+  // Row 2: direct buffer write, native little-endian RGB565 — what the eye
+  // renderer does today.
+  spr.drawString("2 RAW little-end", 120, 104);
+  for (int i = 0; i < 3; i++)
+    fill_raw(xs[i], 116, SW, SH, rgb(cols[i].r, cols[i].g, cols[i].b));
+
+  // Row 3: direct buffer write, byte-swapped.
+  spr.drawString("3 RAW byte-swap", 120, 164);
+  for (int i = 0; i < 3; i++)
+    fill_raw(xs[i], 176, SW, SH, __builtin_bswap16(rgb(cols[i].r, cols[i].g, cols[i].b)));
+
+  spr.pushSprite(0, 0);
+
+  ESP_LOGI(TAG, "PANEL TEST CARD");
+  ESP_LOGI(TAG, "  row 1 = LovyanGFX API      row 2 = raw little-endian      row 3 = raw byte-swapped");
+  ESP_LOGI(TAG, "  Report which row(s) show red, green, blue in that order.");
+  ESP_LOGI(TAG, "  If row 1 is correct the panel is fine and this is purely a software convention bug.");
+
+  // Rows 1 and 3 should be byte-identical. If they are, any tone difference
+  // seen between them is the panel's vertical viewing angle (row 1 sits at
+  // y=56, row 3 at y=176), not the drawing path — which matters, because the
+  // eye renderer needs per-pixel buffer access and cannot use fillRect.
+  for (int i = 0; i < 3; i++) {
+    const uint16_t r1 = fb[(56 + SH / 2) * W + xs[i] + SW / 2];
+    const uint16_t r3 = fb[(176 + SH / 2) * W + xs[i] + SW / 2];
+    ESP_LOGI(TAG, "  %s row1=0x%04X row3=0x%04X -> %s", cols[i].n, r1, r3,
+             r1 == r3 ? "IDENTICAL bytes" : "GENUINELY DIFFERENT");
+  }
 }
 
 extern "C" void app_main() {
@@ -257,29 +397,33 @@ extern "C" void app_main() {
            internal ? "INTERNAL" : "PSRAM",
            (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
            (unsigned)heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
-  // Diagnostic pass: draw neutral flat (A) and gradient (B), and dump the same
-  // column from each. If B's numbers do not ramp, the gradient never reached
-  // the buffer; if the channels look wrong, we have a colour-order problem.
-  draw_face(kEmotions[0], V_SHIPPED, 100);
-  dump_column("A-flat  ");
-  draw_face(kEmotions[0], V_DITHER, 100);
-  dump_column("B-grad  ");
-  ESP_LOGI(TAG, "expected for neutral (0,190,255): r5=0 g6=~47 b5=~31 at the top,"
-                " falling to about g6=26 b5=17 at the bottom");
+  // Diagnose the byte order before anything else — every other rendering
+  // question downstream is meaningless until this is settled.
+  panel_test();
+  vTaskDelay(pdMS_TO_TICKS(8000));
 
-  ESP_LOGI(TAG, "%-11s %-13s %8s %8s", "emotion", "variant", "draw_ms", "push_ms");
+  // Screenshot pass: one still of each variant, sent up the wire as PNG-able
+  // base64 so the render can actually be looked at instead of described.
+  // "neutral" and "angry" — angry because it is the one with the brow slant,
+  // which is exactly what the library primitive cannot do.
+  const int shot_emotions[] = {0, 5};  // neutral, angry
+  for (int e : shot_emotions) {
+    for (int v = 0; v < V_COUNT; v++) {
+      char label[48];
+      snprintf(label, sizeof label, "%s-%c", kEmotions[e].name, 'A' + v);
+      draw_face(kEmotions[e], static_cast<Variant>(v), 100);
+      spr.pushSprite(0, 0);
+      dump_fb(label);
+    }
+  }
+  ESP_LOGI(TAG, "screenshots done");
 
+  // Then live: each variant animated with saccades and blinks, so the frame
+  // rate under motion is visible rather than inferred from a still.
   for (;;) {
     for (int i = 0; i < kEmotionCount; i++) {
       for (int v = 0; v < V_COUNT; v++) {
-        const int64_t t0 = esp_timer_get_time();
-        draw_face(kEmotions[i], static_cast<Variant>(v), 100);
-        const int64_t t1 = esp_timer_get_time();
-        spr.pushSprite(0, 0);
-        const int64_t t2 = esp_timer_get_time();
-        ESP_LOGI(TAG, "%-11s %-13s %8.2f %8.2f", kEmotions[i].name,
-                 kVariantName[v], (t1 - t0) / 1000.0, (t2 - t1) / 1000.0);
-        vTaskDelay(pdMS_TO_TICKS(2200));
+        animate(kEmotions[i], static_cast<Variant>(v), 5000);
       }
     }
   }

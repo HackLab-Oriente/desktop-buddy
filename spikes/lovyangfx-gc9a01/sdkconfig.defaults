@@ -6,6 +6,9 @@ CONFIG_SPIRAM_SPEED_80M=y
 CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
 CONFIG_FREERTOS_HZ=1000
 CONFIG_COMPILER_OPTIMIZATION_SIZE=y
-# This board's USB-C goes to the native USB pins, so the console must ride
-# USB-Serial-JTAG — UART0 output would go nowhere we can see.
+# Console on the chip's NATIVE USB (USB-Serial-JTAG), i.e. the socket that is
+# NOT the CH343 bridge. This matters for more than convenience: framebuffer
+# dumps are ~153 KB each, and over the bridge at 115200 they lose bytes, which
+# misaligns the base64 stream and renders as torn garbage. USB-CDC is orders of
+# magnitude faster and lossless — 10/10 dumps arrived intact on it.
 CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
