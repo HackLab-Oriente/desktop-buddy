@@ -255,3 +255,41 @@ The plan if this is adopted: keep the SDF eye math, render it into an
 Note also that LovyanGFX does **not** fix the eye-colouring problem. That's
 RGB565 depth banding; the panel is still 16-bit. Dithering or palette work
 stays ours either way.
+
+
+## Test 4 — you can have the shapes AND the frame rate
+
+The lab's verdict on test 2: keep A/B's expressiveness, keep E's fluidity, drop
+the catchlight. And a direct challenge to my claim that the library primitives
+could not do the brow slant — *"I can't believe we can't have those shapes
+(even using another technique)."*
+
+**That challenge was right and my claim was wrong.** Two approaches, both work:
+
+| variant | what it is | fps | look |
+|---|---|---|---|
+| A SHIPPED | today's renderer, flat colour | 15.4 | baseline |
+| B GRADIENT | dithered gradient + glow | 13.0 | the preferred look |
+| **C CACHED** | **B's exact pixels, SDF run only on emotion/blink change** | **32.1** | **identical to B** |
+| D PRIMITIVE | `fillSmoothRoundRect` + black triangle occlusion | 39.4 | flat, no glow, shapes correct |
+
+**C is the answer.** A saccade is a *translation* of an unchanged image, so it
+costs a blit rather than a re-render. Caching the three blink openness levels
+per emotion (3 x 115 KB in PSRAM) takes B from 13 fps to 32 — a 2.5x gain with
+pixel-identical output. Cost is a ~110 ms rebuild when the emotion changes,
+which is once per reaction and reads as a natural beat rather than a stutter.
+
+**D proves the shapes are not exclusive to the SDF.** Draw the whole eye with
+the library primitive, then paint a black triangle over the region the brow
+removes — subtraction instead of coverage multiplication. The angry slant comes
+out correctly. It loses the gradient and the glow, but the geometry is there,
+so "the primitive cannot express the brow" was simply false.
+
+Both C and D are near the physical ceiling: the 23.1 ms wire time caps the
+panel at ~43 fps at 40 MHz SPI, so 32 vs 39 fps is a much smaller perceptual
+gap than 13 vs 39. Raising the SPI clock lifts both.
+
+**Still unresolved and independent of technique:** `browAmt = open * 0.5` slices
+away half the eye height, and every variant reproduces the same wedge shapes.
+That is a geometry bug, not a rendering-technique problem, and it is the
+remaining reason angry/sad/suspicious look broken.
