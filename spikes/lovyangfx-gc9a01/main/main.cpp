@@ -15,6 +15,7 @@
 //                squint. Answers "can't we get those shapes another way?" —
 //                yes, by subtracting rather than by carving coverage.
 #include "lgfx_buddy.h"
+#include "logo_hacklab.h"
 
 #include "esp_heap_caps.h"
 #include "esp_log.h"
@@ -58,6 +59,10 @@ static const char* kVariantName[] = {"A SHIPPED", "B GRADIENT", "C CACHED", "D P
 
 // The three openness levels a blink passes through. Cached variants
 // pre-render these, so a blink costs three blits instead of three renders.
+// How deep the angled upper lid cuts, as a fraction of eye height. Was 0.5,
+// which removed half the eye and produced wedges instead of angry eyes.
+constexpr float kBrowDepth = 0.24f;
+
 static const int kLevels[] = {100, 45, 12};
 static const int kLevelCount = 3;
 
@@ -106,7 +111,7 @@ void draw_eye_sdf(int cxi, int side, const Emotion& em, int open_pct,
   const float hw = eyeW / 2, hh = open / 2;
   float r = eyeW * 0.42f;
   if (r > hh) r = hh;
-  const float browAmt = e.brow != 0 ? open * 0.5f : 0.f;
+  const float browAmt = e.brow != 0 ? open * kBrowDepth : 0.f;
   const float top = cy - hh;
 
   const int gm = 10;
@@ -179,7 +184,7 @@ void draw_eye_prim(int cxi, int side, const Emotion& em, int open_pct, int gx, i
                           spr.color565(em.r, em.g, em.b));
 
   if (e.brow != 0) {
-    const int browAmt = static_cast<int>(open * 0.5f);
+    const int browAmt = static_cast<int>(open * kBrowDepth);
     const bool deep_right = (e.brow > 0) == (side == 0);
     // Overshoot upward by a few px so the triangle also removes the eye's
     // anti-aliased top edge, not just its interior.
@@ -314,25 +319,23 @@ void animate(int emo, Variant v, int ms) {
 // The placeholder below is swapped for the real HackLab logo once we have the
 // asset — it becomes an RGB565 + 8-bit alpha array, composited with our own
 // blend so the edges stay soft instead of being hard-keyed.
-constexpr int IW = 56, IH = 56;
-static LGFX_Sprite intruder(&lcd);
+constexpr int IW = kLogoW, IH = kLogoH;
 
-void build_intruder() {
-  intruder.setColorDepth(16);
-  intruder.setPsram(true);
-  intruder.createSprite(IW, IH);
-  intruder.fillScreen(TFT_BLACK);  // black is the transparency key
-  intruder.fillSmoothCircle(IW / 2, IH / 2, 25, intruder.color565(250, 205, 60));
-  intruder.fillSmoothCircle(IW / 2, IH / 2, 19, intruder.color565(18, 18, 22));
-  intruder.setTextDatum(middle_center);
-  intruder.setTextColor(intruder.color565(250, 205, 60));
-  intruder.setFont(&fonts::Font2);
-  intruder.drawString("HL", IW / 2, IH / 2 + 1);
+// Composite the logo with per-pixel alpha through our own blend, so the
+// circle's edge stays soft. blend_at already handles the byte-order swap.
+void draw_logo(int ox, int oy) {
+  for (int y = 0; y < IH; y++) {
+    for (int x = 0; x < IW; x++) {
+      const uint8_t a = kLogoA[y * IW + x];
+      if (a) blend_at(ox + x, oy + y, kLogoRGB[y * IW + x], a / 255.f);
+    }
+  }
 }
 
-void demo_intruder(int seconds) {
-  float ix = 40, iy = 40, vx = 1.7f, vy = 1.1f;
-  int gx = 0, gy = 0, frames = 0, emo = 0, flinch = 0;
+void demo_intruder(int emo, Variant v, int seconds, float& ix, float& iy,
+                   float& vx, float& vy) {
+  int gx = 0, gy = 0, frames = 0, flinch = 0;
+  const int base_emo = emo;
   const int64_t t0 = esp_timer_get_time(), t_end = t0 + seconds * 1000000LL;
 
   while (esp_timer_get_time() < t_end) {
@@ -351,17 +354,15 @@ void demo_intruder(int seconds) {
     const float dl = fabsf(ix - (CX - GAP)) + fabsf(iy - CY);
     const float dr = fabsf(ix - (CX + GAP)) + fabsf(iy - CY);
     const bool close = (dl < 46 || dr < 46);
-    if (close && flinch == 0) { flinch = 12; emo = 4; }   // surprised
-    if (flinch > 0 && --flinch == 0) emo = 0;             // back to neutral
-
-    draw_face(kEmotions[emo], emo, V_CACHED, flinch > 6 ? 45 : 100, gx, gy);
-    intruder.pushSprite(&spr, static_cast<int>(ix) - IW / 2,
-                        static_cast<int>(iy) - IH / 2, TFT_BLACK);
+    if (close && flinch == 0) flinch = 12;   // flinch, then settle back
+    if (flinch > 0) --flinch;
+    draw_face(kEmotions[emo], emo, v, flinch > 6 ? 45 : 100, gx, gy);
+    draw_logo(static_cast<int>(ix) - IW / 2, static_cast<int>(iy) - IH / 2);
     spr.pushSprite(0, 0);
     frames++;
   }
-  ESP_LOGI(TAG, "intruder demo: %.1f fps (eyes tracking + sprite composited)",
-           frames / ((esp_timer_get_time() - t0) / 1e6));
+  ESP_LOGI(TAG, "%-11s %-12s %5.1f fps  (logo + tracking)", kEmotions[base_emo].name,
+           kVariantName[v], frames / ((esp_timer_get_time() - t0) / 1e6));
 }
 
 extern "C" void app_main() {
@@ -381,29 +382,26 @@ extern "C" void app_main() {
            (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
            (unsigned)heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
 
-  // Stills for inspection: neutral (plain) and angry (the brow slant, which is
-  // the shape D PRIMITIVE has to reproduce by subtraction).
-  for (int e : {0, 5}) {
-    for (int v = 0; v < V_COUNT; v++) {
-      char label[48];
-      snprintf(label, sizeof label, "%s-%c", kEmotions[e].name, 'A' + v);
-      draw_face(kEmotions[e], e, static_cast<Variant>(v), 100, 0, 0);
+  // One still per variant with the logo in shot, for inspection.
+  {
+    float sx = 168, sy = 78;
+    for (int v : {V_SHIPPED, V_CACHED, V_PRIM}) {
+      char label[32];
+      snprintf(label, sizeof label, "angry-%c", 'A' + v);
+      draw_face(kEmotions[5], 5, static_cast<Variant>(v), 100, 9, 6);
+      draw_logo(static_cast<int>(sx) - IW / 2, static_cast<int>(sy) - IH / 2);
       spr.pushSprite(0, 0);
       dump_fb(label);
     }
   }
   ESP_LOGI(TAG, "screenshots done");
 
-  build_intruder();
-  demo_intruder(6);
-  for (int e : {0, 5}) { (void)e; }
-  draw_face(kEmotions[0], 0, V_CACHED, 100, 8, 6);
-  intruder.pushSprite(&spr, 150, 60, TFT_BLACK);
-  spr.pushSprite(0, 0);
-  dump_fb("intruder");
-
-  ESP_LOGI(TAG, "--- animated frame rates ---");
+  // The running demo: the logo floats continuously and the eyes follow it,
+  // while we cycle the emotions and the three surviving techniques.
+  ESP_LOGI(TAG, "--- logo demo: emotions x {A SHIPPED, C CACHED, D PRIMITIVE} ---");
+  float ix = 40, iy = 40, vx = 1.7f, vy = 1.1f;
   for (;;)
     for (int i = 0; i < kEmotionCount; i++)
-      for (int v = 0; v < V_COUNT; v++) animate(i, static_cast<Variant>(v), 5000);
+      for (int v : {V_SHIPPED, V_CACHED, V_PRIM})
+        demo_intruder(i, static_cast<Variant>(v), 5, ix, iy, vx, vy);
 }
