@@ -102,6 +102,100 @@ The only two levers on frame rate are therefore:
 Both apply equally to our current renderer. Worth knowing before anyone spends
 a session "optimising the drawing code" — the drawing was never the problem.
 
+## Test 2 — the eye showcase, and a correction
+
+Five renderings of the same emotion, cycling on screen. **These are options for
+the group to pick from, not a proposal that one is better.**
+
+| | |
+|---|---|
+| A SHIPPED | exactly what `round_face.cpp` draws today: flat colour + glow |
+| B DITHERED | + vertical gradient, ordered-dithered so RGB565 stops banding |
+| C CATCHLIGHT | + a specular highlight — the biggest "alive" cue in character animation |
+| D DEPTH | + inner rim shading, so the eye reads as a lens not a decal |
+| E LGFX NATIVE | `fillSmoothRoundRect`; **cannot** do the brow slant or squint |
+
+Measured, ms per frame, sprite in **internal** RAM (it fits — 115 KB of ~380 KB):
+
+| emotion | A draw | B draw | C draw | D draw | E draw | push |
+|---|---|---|---|---|---|---|
+| sleepy | 30.6 | 35.2 | 37.9 | 39.5 | 1.8 | 23.1 |
+| happy | 62.9 | 69.6 | 73.6 | 76.0 | 2.5 | 23.1 |
+| neutral | 64.3 | 76.2 | 82.6 | 87.2 | 2.6 | 23.1 |
+| angry | 69.1 | 78.4 | — | — | — | 23.1 |
+| curious | 80.4 | 96.2 | 104.4 | — | — | 23.1 |
+| **surprised** | **102.4** | 123.8 | 134.7 | **142.7** | 3.3 | 23.1 |
+
+### Correction: we are CPU-bound, not wire-bound
+
+The earlier `fillScreen` benchmark said "wire-bound" — but `fillScreen` is a
+memset and a push, and never touches the eye maths. With the real renderer,
+**our SDF eye drawing costs 1.3×–4.4× the wire time.** A full face is 54 ms
+(sleepy) to 125 ms (surprised) → roughly **8–19 fps**, and the CPU is the
+bottleneck.
+
+This is almost certainly why the face has felt sluggish. It is not the panel,
+not the SPI clock, and not LovyanGFX — it is our per-pixel loop, which calls
+`sqrtf` on every pixel of the eye bounding box plus a 10 px glow margin.
+
+## Test 3 — optimising the renderer
+
+Five changes, all in the inner loop, none of them clever:
+
+1. **`-O2` for this component** (project is `-Os` globally — right for the
+   firmware, wrong for a per-pixel loop).
+2. **Skip the `sqrtf`** — `outside` is only non-zero at the four rounded
+   corners. Everywhere else we were computing `sqrtf(0)` or `sqrtf(v*v)`.
+3. **Hoist the per-row term** — `qy` depends only on `y`, and was being
+   recomputed for every pixel in the row. Plus an early `continue` for pixels
+   beyond the glow radius.
+4. **Hoist the per-eye colours** — `rgb(em.r/4, ...)` was recomputed per pixel.
+5. **Skip the read-modify-write where the eye is opaque** — that is most of the
+   eye's pixels, and there is nothing behind them to blend against.
+
+| emotion · variant | before | after | gain |
+|---|---|---|---|
+| neutral · A SHIPPED | 64.29 | **42.74** | −34% |
+| happy · A SHIPPED | 62.93 | **45.81** | −27% |
+| curious · A SHIPPED | 80.38 | **53.47** | −33% |
+| neutral · D DEPTH | 87.15 | **66.74** | −23% |
+
+A full neutral face is now **65.9 ms** (42.7 draw + 23.2 push) against 87.5 ms
+before — about **15 fps, up from 11**. Push is untouched at 23.1 ms, as
+expected; it is the wire.
+
+**The trade, now quantified:** even optimised, our SDF renderer is ~16× the
+cost of LovyanGFX's `fillSmoothRoundRect` (2.6 ms). What that buys is the brow
+slant and the happy squint, which the library primitive cannot express at all.
+That is the decision for the group, and it is no longer a matter of opinion.
+
+**Biggest remaining lever, not yet tried:** cache the rendered eye. The eye
+bitmap only changes on blink or emotion change — an idle saccade is a
+*translation* of an unchanged shape. Blitting a cached eye at a gaze offset
+would drop most frames to near zero draw cost, leaving only the 23 ms push.
+Fixed-point maths and dirty-rect pushes are the next two after that.
+
+### The gradient bug (why B looked flat on the panel)
+
+First attempt used `k = 1.18 - 0.62t`, brightening the top of the eye. But
+neutral's blue is already **255**, so scaling above 1.0 just clips: the top
+third of the eye was pinned at max blue, then fell away in ~6 px steps. Flat
+region followed by visible steps reads exactly as "no gradient, hard colour
+changes", which is what it looked like.
+
+Found by dumping the sprite buffer over serial rather than squinting at the
+panel — the numbers showed `b5=31,31,31,31,30,29,...` immediately.
+
+Fix: `k = 1.0 - 0.55t` (never exceeds 1.0), and dither amplitude raised from
+one quantisation step to 1.5, since one step barely breaks a band at this
+viewing distance. The column now ramps `g6 46→22, b5 30→14`, monotonic from
+the top pixel.
+
+For contrast, LovyanGFX's own primitive draws in **1.8–3.3 ms**, 25–40× faster
+— but it cannot express the brow slant or the happy squint, because those are
+carved out of the shape as *coverage*, not drawn as shapes. That is the real
+trade to discuss: expressiveness vs. an order of magnitude of CPU.
+
 ### Bring-up notes (cost us 20 minutes, will cost you the same)
 
 - The board arrived running firmware that presented a **TinyUSB CDC** port
