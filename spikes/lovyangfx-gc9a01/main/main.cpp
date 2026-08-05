@@ -307,6 +307,63 @@ void animate(int emo, Variant v, int ms) {
   ESP_LOGI(TAG, "%-11s %-12s %5.1f fps", em.name, kVariantName[v], frames / secs);
 }
 
+
+// ===== the "something is bothering the buddy" demo =====
+// A sprite wanders the screen; the eyes track it via the same gaze offset the
+// firmware's face.look uses; when it gets too close the buddy flinches.
+// The placeholder below is swapped for the real HackLab logo once we have the
+// asset — it becomes an RGB565 + 8-bit alpha array, composited with our own
+// blend so the edges stay soft instead of being hard-keyed.
+constexpr int IW = 56, IH = 56;
+static LGFX_Sprite intruder(&lcd);
+
+void build_intruder() {
+  intruder.setColorDepth(16);
+  intruder.setPsram(true);
+  intruder.createSprite(IW, IH);
+  intruder.fillScreen(TFT_BLACK);  // black is the transparency key
+  intruder.fillSmoothCircle(IW / 2, IH / 2, 25, intruder.color565(250, 205, 60));
+  intruder.fillSmoothCircle(IW / 2, IH / 2, 19, intruder.color565(18, 18, 22));
+  intruder.setTextDatum(middle_center);
+  intruder.setTextColor(intruder.color565(250, 205, 60));
+  intruder.setFont(&fonts::Font2);
+  intruder.drawString("HL", IW / 2, IH / 2 + 1);
+}
+
+void demo_intruder(int seconds) {
+  float ix = 40, iy = 40, vx = 1.7f, vy = 1.1f;
+  int gx = 0, gy = 0, frames = 0, emo = 0, flinch = 0;
+  const int64_t t0 = esp_timer_get_time(), t_end = t0 + seconds * 1000000LL;
+
+  while (esp_timer_get_time() < t_end) {
+    ix += vx; iy += vy;
+    if (ix < 26 || ix > W - 26) vx = -vx;
+    if (iy < 26 || iy > H - 26) vy = -vy;
+
+    // Eyes track it: same units as the firmware's face.look (-100..100 scaled).
+    const int tx = static_cast<int>((ix - CX) * 0.22f);
+    const int ty = static_cast<int>((iy - CY) * 0.16f);
+    gx += (tx - gx) / 3;
+    gy += (ty - gy) / 3;
+
+    // Too close to an eye -> flinch. This is the whole point: the buddy is
+    // not a screensaver, it reacts to something in its world.
+    const float dl = fabsf(ix - (CX - GAP)) + fabsf(iy - CY);
+    const float dr = fabsf(ix - (CX + GAP)) + fabsf(iy - CY);
+    const bool close = (dl < 46 || dr < 46);
+    if (close && flinch == 0) { flinch = 12; emo = 4; }   // surprised
+    if (flinch > 0 && --flinch == 0) emo = 0;             // back to neutral
+
+    draw_face(kEmotions[emo], emo, V_CACHED, flinch > 6 ? 45 : 100, gx, gy);
+    intruder.pushSprite(&spr, static_cast<int>(ix) - IW / 2,
+                        static_cast<int>(iy) - IH / 2, TFT_BLACK);
+    spr.pushSprite(0, 0);
+    frames++;
+  }
+  ESP_LOGI(TAG, "intruder demo: %.1f fps (eyes tracking + sprite composited)",
+           frames / ((esp_timer_get_time() - t0) / 1e6));
+}
+
 extern "C" void app_main() {
   lcd.init();
   lcd.setBrightness(160);
@@ -336,6 +393,14 @@ extern "C" void app_main() {
     }
   }
   ESP_LOGI(TAG, "screenshots done");
+
+  build_intruder();
+  demo_intruder(6);
+  for (int e : {0, 5}) { (void)e; }
+  draw_face(kEmotions[0], 0, V_CACHED, 100, 8, 6);
+  intruder.pushSprite(&spr, 150, 60, TFT_BLACK);
+  spr.pushSprite(0, 0);
+  dump_fb("intruder");
 
   ESP_LOGI(TAG, "--- animated frame rates ---");
   for (;;)
