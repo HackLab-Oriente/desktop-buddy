@@ -54,8 +54,12 @@ constexpr int W = 240, H = 240;
 constexpr float S = 2.6f;
 constexpr int CX = 120, CY = 120, GAP = 42;
 
-enum Variant { V_SHIPPED = 0, V_GRADIENT, V_CACHED, V_PRIM, V_COUNT };
-static const char* kVariantName[] = {"A SHIPPED", "B GRADIENT", "C CACHED", "D PRIMITIVE"};
+// All three are now cached or cheap, so they run at comparable speed and the
+// only thing that differs is the LOOK. That is the comparison the lab asked
+// for: with caching, the expensive renderer costs nothing at runtime, so the
+// choice between flat and gradient is purely aesthetic.
+enum Variant { V_FLAT = 0, V_GRAD, V_PRIM, V_COUNT };
+static const char* kVariantName[] = {"A FLAT cached", "C GRAD cached", "D PRIMITIVE"};
 
 // The three openness levels a blink passes through. Cached variants
 // pre-render these, so a blink costs three blits instead of three renders.
@@ -212,45 +216,41 @@ void draw_label(const Emotion& em, Variant v) {
   spr.drawString(em.name, 120, 210);
 }
 
-// ===== C CACHED: render the SDF once per (emotion, openness), then blit =====
-static LGFX_Sprite cache[kLevelCount] = {LGFX_Sprite(&lcd), LGFX_Sprite(&lcd),
-                                         LGFX_Sprite(&lcd)};
+// ===== the cache: SDF runs once per (emotion, shading, openness), then blit =====
+// Two sets — [0] flat, [1] gradient — so switching between the two cached
+// variants costs nothing. 6 x 115 KB in PSRAM.
+static LGFX_Sprite cache[2][kLevelCount] = {
+    {LGFX_Sprite(&lcd), LGFX_Sprite(&lcd), LGFX_Sprite(&lcd)},
+    {LGFX_Sprite(&lcd), LGFX_Sprite(&lcd), LGFX_Sprite(&lcd)}};
 static int cached_emotion = -1;
 
 void build_cache(int emo) {
   if (cached_emotion == emo) return;
   const int64_t t0 = esp_timer_get_time();
-  for (int i = 0; i < kLevelCount; i++) {
-    spr.fillScreen(TFT_BLACK);
-    draw_eye_sdf(CX - GAP, 0, kEmotions[emo], kLevels[i], true, 0, 0);
-    draw_eye_sdf(CX + GAP, 1, kEmotions[emo], kLevels[i], true, 0, 0);
-    // Copy the finished frame into the cache sprite.
-    memcpy(cache[i].getBuffer(), spr.getBuffer(), static_cast<size_t>(W) * H * 2);
+  for (int g = 0; g < 2; g++) {
+    for (int i = 0; i < kLevelCount; i++) {
+      spr.fillScreen(TFT_BLACK);
+      draw_eye_sdf(CX - GAP, 0, kEmotions[emo], kLevels[i], g == 1, 0, 0);
+      draw_eye_sdf(CX + GAP, 1, kEmotions[emo], kLevels[i], g == 1, 0, 0);
+      memcpy(cache[g][i].getBuffer(), spr.getBuffer(), static_cast<size_t>(W) * H * 2);
+    }
   }
   cached_emotion = emo;
-  ESP_LOGI(TAG, "cache rebuilt for %-11s in %.1f ms (one-off per emotion)",
+  ESP_LOGI(TAG, "cache rebuilt for %-11s in %.1f ms (both shadings, one-off per emotion)",
            kEmotions[emo].name, (esp_timer_get_time() - t0) / 1000.0);
 }
 
 void draw_face(const Emotion& em, int emo_idx, Variant v, int open_pct, int gx, int gy) {
-  if (v == V_CACHED) {
-    build_cache(emo_idx);
-    int li = 0;  // pick the nearest cached openness level
-    for (int i = 1; i < kLevelCount; i++)
-      if (abs(kLevels[i] - open_pct) < abs(kLevels[li] - open_pct)) li = i;
-    spr.fillScreen(TFT_BLACK);
-    cache[li].pushSprite(&spr, gx, gy, TFT_BLACK);  // black = transparent
-    draw_label(em, v);
-    return;
-  }
   spr.fillScreen(TFT_BLACK);
   if (v == V_PRIM) {
     draw_eye_prim(CX - GAP, 0, em, open_pct, gx, gy);
     draw_eye_prim(CX + GAP, 1, em, open_pct, gx, gy);
   } else {
-    const bool grad = (v == V_GRADIENT);
-    draw_eye_sdf(CX - GAP, 0, em, open_pct, grad, gx, gy);
-    draw_eye_sdf(CX + GAP, 1, em, open_pct, grad, gx, gy);
+    build_cache(emo_idx);
+    int li = 0;  // nearest cached openness level
+    for (int i = 1; i < kLevelCount; i++)
+      if (abs(kLevels[i] - open_pct) < abs(kLevels[li] - open_pct)) li = i;
+    cache[v == V_GRAD ? 1 : 0][li].pushSprite(&spr, gx, gy, TFT_BLACK);
   }
   draw_label(em, v);
 }
@@ -373,11 +373,12 @@ extern "C" void app_main() {
   spr.setPsram(false);
   if (!spr.createSprite(W, H)) { spr.setPsram(true); spr.createSprite(W, H); }
   fb = static_cast<uint16_t*>(spr.getBuffer());
-  for (int i = 0; i < kLevelCount; i++) {
-    cache[i].setColorDepth(16);
-    cache[i].setPsram(true);  // 3 x 115 KB — PSRAM, they are only ever blitted
-    if (!cache[i].createSprite(W, H)) ESP_LOGE(TAG, "cache sprite %d failed", i);
-  }
+  for (int g = 0; g < 2; g++)
+    for (int i = 0; i < kLevelCount; i++) {
+      cache[g][i].setColorDepth(16);
+      cache[g][i].setPsram(true);  // 6 x 115 KB — only ever blitted
+      if (!cache[g][i].createSprite(W, H)) ESP_LOGE(TAG, "cache sprite %d/%d failed", g, i);
+    }
   ESP_LOGI(TAG, "free internal=%u psram=%u",
            (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
            (unsigned)heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
@@ -385,9 +386,9 @@ extern "C" void app_main() {
   // One still per variant with the logo in shot, for inspection.
   {
     float sx = 168, sy = 78;
-    for (int v : {V_SHIPPED, V_CACHED, V_PRIM}) {
+    for (int v : {V_FLAT, V_GRAD, V_PRIM}) {
       char label[32];
-      snprintf(label, sizeof label, "angry-%c", 'A' + v);
+      snprintf(label, sizeof label, "angry-%d", v);
       draw_face(kEmotions[5], 5, static_cast<Variant>(v), 100, 9, 6);
       draw_logo(static_cast<int>(sx) - IW / 2, static_cast<int>(sy) - IH / 2);
       spr.pushSprite(0, 0);
@@ -398,10 +399,10 @@ extern "C" void app_main() {
 
   // The running demo: the logo floats continuously and the eyes follow it,
   // while we cycle the emotions and the three surviving techniques.
-  ESP_LOGI(TAG, "--- logo demo: emotions x {A SHIPPED, C CACHED, D PRIMITIVE} ---");
+  ESP_LOGI(TAG, "--- logo demo: emotions x {A FLAT cached, C GRAD cached, D PRIMITIVE} ---");
   float ix = 40, iy = 40, vx = 1.7f, vy = 1.1f;
   for (;;)
     for (int i = 0; i < kEmotionCount; i++)
-      for (int v : {V_SHIPPED, V_CACHED, V_PRIM})
+      for (int v : {V_FLAT, V_GRAD, V_PRIM})
         demo_intruder(i, static_cast<Variant>(v), 5, ix, iy, vx, vy);
 }
