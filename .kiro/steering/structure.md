@@ -1,7 +1,9 @@
 # Project Structure
 
-> Status note: pre-code. Only `docs/` exists today; the layout below is the
-> agreed plan from `README.md`. Sync this file when directories materialize.
+> Status: `firmware/`, `packs/`, `hardware/`, `docs/` and `spikes/` exist and
+> build. `webui/` and `hub/` are still planned only. The device currently has
+> no runtime configuration — WiFi and the API key are compiled in via Kconfig,
+> which is the single biggest blocker to handing a built board to anyone else.
 
 ## Organization Philosophy
 
@@ -52,12 +54,38 @@ person can rewrite it in an afternoon, it doesn't.
 
 ### Hardware
 **Location**: `hardware/`
-**Purpose**: Schematics, wiring, BOM, printable case files.
+**Purpose**: Schematics, wiring, BOM, printable case files. Each bring-up doc
+carries a "gotchas we already hit" section — the lab's institutional memory for
+hardware traps, and the first thing to read before wiring anything new.
+
+### Spikes
+**Location**: `spikes/<question>/`
+**Purpose**: Throwaway ESP-IDF projects that answer **one question with a
+number**, on separate hardware so the working buddy is never disassembled.
+
+The pattern that has earned its keep twice now:
+- a `README.md` whose top section is the *verdict and the measurements*, not
+  the method — so it can be read in thirty seconds;
+- a hard gate stated up front ("if it does not compile in an hour, stop");
+- external dependencies cloned, not vendored, and gitignored;
+- results promoted into `docs/` or `firmware/`, and the spike left behind as
+  the evidence.
+
+A spike is disposable by design. Deleting one when its answer is recorded
+elsewhere is success, not loss.
+
+### Submodules
+Third-party C/C++ that is not on the ESP Component Registry is a **git
+submodule** under `firmware/components/` (currently Berry and LovyanGFX).
+Registry components go in `idf_component.yml`. A fresh clone therefore needs
+`git submodule update --init`.
 
 ## Naming Conventions
 
 - **Events**: dot-namespaced lowercase — `touch.pet`, `timer.idle_5m`,
   `brain.reply`, `voice.thinking`. Namespace = the Sense that emits it.
+  Lifecycle events use the same scheme: `boot.status` carries a human-readable
+  step for the splash, `boot.ready` ends it.
 - **Actions**: `target.verb(args)` — `face.play(anim)`, `sound.chirp(mood)`.
 - **Packs**: kebab-case directory names.
 
@@ -72,5 +100,4 @@ person can rewrite it in an afternoon, it doesn't.
   the interface).
 
 ---
-_Source of truth: `README.md` (planned layout), `docs/architecture.md`.
-Updated: 2026-07-13_
+_Source of truth: `README.md`, `docs/architecture.md`. Updated: 2026-08-05_

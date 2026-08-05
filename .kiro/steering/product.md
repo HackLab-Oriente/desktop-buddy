@@ -41,12 +41,40 @@ device-only; no network → reflexes still run. **Never brick.**
 Wake word, on-device STT (technically impossible on S3), OAuth integrations,
 battery power, motors. These are v2+ or community territory.
 
+## How Decisions Get Made
+
+The director proposes starting points; **the group settles the creature**. This
+is a hard constraint on design, not a courtesy: the set of emotions, moods and
+actions is a collective decision, so prefer structures the group can change
+without a rewrite, and present options rather than a chosen aesthetic.
+
+It has a concrete consequence today: the emotion table lives in C++
+(`face_model.h`), which is the most dictatorial place it could be. Moving it
+into pack data is both the governance fix and the natural first payload for the
+configuration API.
+
 ## Open Decisions
 
 - Whether a minimal hub is built during the 4 workshop sessions (pending team
   discussion) — the architecture supports it either way.
-- Project/buddy name; final display shape vote (round GC9A01 is the default).
+- Project/buddy name.
+- The eye look: flat vs gradient shading. Caching made them cost the same, so
+  it is purely taste. Contact sheet in `spikes/lovyangfx-gc9a01/`.
+- Whether to invest in an optimised inference kernel — Step 0 put a locally
+  generated utterance model in the "usable but not fast" band (see below).
+
+## Explored, Not Yet Committed
+
+- **Local utterance generation.** Measured on hardware: a ~1.3 M parameter
+  model would run around 10 tok/s — enough for short in-character quips and
+  idle murmurs, not conversation. The argument for it is that the enemy of a
+  desk companion is *repetition*, not stupidity, and a local model is a
+  repetition-killer that costs nothing per utterance. See
+  `docs/local-model-bringup.md`.
+- **PWA / push notifications.** Blocked on a trusted HTTPS origin, which the
+  device cannot have on a LAN without tricks. The installable-app half works
+  today over plain HTTP. See `docs/ideas-exploration.html`.
 
 ---
 _Source of truth: `docs/architecture.md` (decided vs open items are marked),
-`docs/workshops.md` (scope per session). Updated: 2026-07-13_
+`docs/workshops.md` (scope per session). Updated: 2026-08-05_
