@@ -104,4 +104,26 @@ Same S3, incremental — each is one more Sense/Expression on the bus:
 - **Mic (INMP441) + amp (MAX98357A) + speaker** — the I2S audio path (chirps
   first, then the push-to-talk voice loop).
 - **Buttons** — extra digital Senses.
-- **RC522 / PN532** — re-enable NFC.
+
+## RC522 NFC reader (untested on the S3)
+
+Its own SPI3 bus, so it does not share with the display. These are the
+menuconfig defaults; the old classic-ESP32 values were actively dangerous on
+this chip because GPIO 19/20 are USB.
+
+| RC522 pin | ESP32-S3 | Notes |
+|---|---|---|
+| 3.3V | **3V3** | 5 V kills the module |
+| GND | GND | |
+| SCK | GPIO **39** | |
+| MISO | GPIO **40** | |
+| MOSI | GPIO **41** | |
+| SDA / CS | GPIO **42** | |
+| RST | GPIO **38** | |
+
+Enable in `menuconfig → Buddy Zero → Enable RC522 RFID reader`; the pins are
+configurable in the submenu. Chosen to avoid every S3 landmine: the display bus
+(7–12), USB (19/20), flash (26–32), octal PSRAM (33–37), the strapping pins
+(0/3/45/46), touch (4) and the LED ring (21).
+
+Boot check: tap a fob and watch for `nfc.tag` with a hex UID in the trace.

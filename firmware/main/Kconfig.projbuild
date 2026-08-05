@@ -52,8 +52,28 @@ config BUDDY_RC522_ENABLED
     bool "Enable RC522 RFID reader"
     default n
     help
-      Not yet wired for the S3 — the pin defaults in main.cpp are still the
-      classic-ESP32 PoC values and need replacing before this is switched on.
+      Untested on the S3. The pins below are S3-safe defaults on SPI3, chosen
+      to avoid the display bus, USB (19/20), flash (26-32), octal PSRAM
+      (33-37) and the strapping pins (0/3/45/46). Feed it 3V3, never 5V.
+
+menu "RC522 pins (SPI3)"
+    depends on BUDDY_RC522_ENABLED
+config BUDDY_RC522_SCK
+    int "SCK"
+    default 39
+config BUDDY_RC522_MISO
+    int "MISO"
+    default 40
+config BUDDY_RC522_MOSI
+    int "MOSI"
+    default 41
+config BUDDY_RC522_CS
+    int "SDA / CS"
+    default 42
+config BUDDY_RC522_RST
+    int "RST"
+    default 38
+endmenu
 
 config BUDDY_DEBUG
     bool "Verbose debug logging (event bus trace, brain HTTP, touch values)"

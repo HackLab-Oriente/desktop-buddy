@@ -105,7 +105,11 @@ extern "C" void app_main() {
   buddy::bus().publish("boot.status", "waking senses");
   buddy::touch_sense_start(CONFIG_BUDDY_PIN_TOUCH);
 #if CONFIG_BUDDY_RC522_ENABLED
-  buddy::rc522_start({.sck = 18, .miso = 19, .mosi = 23, .cs = 5, .rst = 27});
+  buddy::rc522_start({.sck = CONFIG_BUDDY_RC522_SCK,
+                      .miso = CONFIG_BUDDY_RC522_MISO,
+                      .mosi = CONFIG_BUDDY_RC522_MOSI,
+                      .cs = CONFIG_BUDDY_RC522_CS,
+                      .rst = CONFIG_BUDDY_RC522_RST});
 #endif
 
   // Network layer — optional by design ("never brick"). This is the slow part:
