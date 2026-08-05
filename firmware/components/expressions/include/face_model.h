@@ -1,9 +1,13 @@
 #pragma once
 // The parametric face model — renderer-agnostic. Emotions are data (eye
-// geometry + blink temperament); a renderer maps them to whatever panel it
-// drives. Shared by the SSD1306 OLED and GC9A01 round-color backends so both
-// speak the same emotional vocabulary. This is the "expression model" the
-// architecture doc describes; v1 will move this table into personality packs.
+// geometry + blink temperament); the renderer maps them to whatever panel it
+// drives, and the mood color is shared with the LED ring so the eyes and the
+// halo always agree. This is the "expression model" the architecture doc
+// describes.
+//
+// This table still living in C++ is a known wart: the set of emotions is a
+// group decision, and baking it into firmware makes it one person's call.
+// It belongs in personality-pack data. See docs/ideas-exploration.html.
 #include <cstdint>
 
 namespace buddy {
@@ -27,10 +31,5 @@ extern const int kEmotionCount;
 
 // Index into kEmotions by name, or -1 if unknown.
 int emotion_index(const char* name);
-
-// 3x5 uppercase bitmap font for the retro text mode. Bit 0b100 = leftmost
-// column. glyph_index maps a char to its row in kFont (space for unknown).
-extern const uint8_t kFont[][5];
-int glyph_index(char c);
 
 }  // namespace buddy
