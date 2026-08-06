@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Buddy model — parameter explorer</title>
+<style>
+  :root {
+    --bg: #f7f5f0; --card: #ffffff; --ink: #1e2126; --ink2: #5a6068;
+    --muted: #8a9098; --line: #e3e0d8; --accent: #2563a8; --accent-ink: #ffffff;
+    --good-bg: #e3efe5; --good-ink: #1e6b34; --bad-bg: #f7e5e2; --bad-ink: #9c3a2a;
+    --warn-bg: #f5eedd; --warn-ink: #8a6410;
+  }
+  [data-theme="dark"] {
+    --bg: #14161a; --card: #1e2126; --ink: #eceae4; --ink2: #b9bec6;
+    --muted: #7d838c; --line: #2e323a; --accent: #6aa7e0; --accent-ink: #10131a;
+    --good-bg: #1c3324; --good-ink: #7fd096; --bad-bg: #3a211c; --bad-ink: #eb9a85;
+    --warn-bg: #35301e; --warn-ink: #e0bd62;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font: 20px/1.45 -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    padding: 24px; max-width: 1400px; margin: 0 auto;
+  }
+  header { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; margin-bottom: 6px; }
+  h1 { font-size: 30px; letter-spacing: -0.02em; }
+  header .sub { color: var(--ink2); font-size: 18px; }
+  #theme { margin-left: auto; background: var(--card); color: var(--ink);
+    border: 1px solid var(--line); border-radius: 10px; padding: 6px 14px;
+    font-size: 16px; cursor: pointer; }
+
+  .presets { display: flex; gap: 10px; flex-wrap: wrap; margin: 14px 0 20px; }
+  .presets button {
+    background: var(--card); color: var(--ink); border: 1px solid var(--line);
+    border-radius: 12px; padding: 10px 18px; font-size: 19px; cursor: pointer;
+  }
+  .presets button.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .presets .note { align-self: center; color: var(--muted); font-size: 16px; }
+
+  .grid { display: grid; grid-template-columns: minmax(380px, 5fr) minmax(420px, 6fr); gap: 20px; }
+  @media (max-width: 980px) { .grid { grid-template-columns: 1fr; } }
+
+  .knob { background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    padding: 16px 18px; margin-bottom: 14px; }
+  .knob .row { display: flex; align-items: baseline; gap: 12px; }
+  .knob .name { font-weight: 700; font-size: 21px; }
+  .knob .flag { color: var(--muted); font: 15px ui-monospace, Menlo, monospace; }
+  .knob .val { margin-left: auto; font: 700 26px ui-monospace, Menlo, monospace; color: var(--accent); }
+  .knob input[type=range] { width: 100%; margin: 10px 0 6px; accent-color: var(--accent); height: 28px; }
+  .knob .opts { display: flex; gap: 8px; margin: 10px 0 6px; }
+  .knob .opts button { flex: 1; padding: 8px 0; font-size: 18px; border: 1px solid var(--line);
+    background: transparent; color: var(--ink); border-radius: 9px; cursor: pointer; }
+  .knob .opts button.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .knob .what { color: var(--ink2); font-size: 17px; }
+  .knob .up { color: var(--muted); font-size: 16px; margin-top: 4px; }
+  .knob .up b { color: var(--ink2); }
+
+  .tile { background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    padding: 18px 20px; margin-bottom: 14px; }
+  .tiles2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .tile .label { color: var(--ink2); font-size: 17px; }
+  .tile .big { font: 700 54px/1.1 ui-monospace, Menlo, monospace; letter-spacing: -0.02em; margin: 2px 0; }
+  .tile .unit { font-size: 24px; color: var(--ink2); font-weight: 400; }
+  .tile .foot { color: var(--muted); font-size: 15.5px; margin-top: 4px; }
+  .badge { display: inline-block; border-radius: 8px; padding: 3px 10px; font-size: 16px; font-weight: 600; }
+  .b-good { background: var(--good-bg); color: var(--good-ink); }
+  .b-bad  { background: var(--bad-bg);  color: var(--bad-ink); }
+  .b-warn { background: var(--warn-bg); color: var(--warn-ink); }
+
+  .anchor { border-left: 4px solid var(--accent); }
+  .anchor .label b { color: var(--ink); }
+  .cmd { background: var(--bg); border: 1px solid var(--line); border-radius: 10px;
+    font: 15px/1.6 ui-monospace, Menlo, monospace; padding: 12px 14px; margin-top: 8px;
+    overflow-x: auto; white-space: pre; color: var(--ink2); }
+  footer { color: var(--muted); font-size: 15px; margin-top: 18px; max-width: 900px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Buddy model — parameter explorer</h1>
+  <span class="sub">drag the knobs; watch what ships to the ESP32-S3</span>
+  <button id="theme">◐ theme</button>
+</header>
+
+<div class="presets" id="presets">
+  <span class="note">ladder presets:</span>
+</div>
+
+<div class="grid">
+  <section id="knobs"></section>
+
+  <section>
+    <div class="tiles2">
+      <div class="tile">
+        <div class="label">parameters (total)</div>
+        <div class="big" id="o-total">–</div>
+        <div class="foot" id="o-nonemb">–</div>
+      </div>
+      <div class="tile">
+        <div class="label">speed on the buddy <span class="badge b-warn">estimate</span></div>
+        <div class="big" id="o-speed">–<span class="unit"> tok/s</span></div>
+        <div class="foot" id="o-words">–</div>
+      </div>
+    </div>
+
+    <div class="tile">
+      <div class="label">a 15-word line takes</div>
+      <div class="big" id="o-line">–</div>
+      <div class="foot">tokens stream to the face as they generate — perceived wait is the <i>first</i> token, not the last</div>
+    </div>
+
+    <div class="tiles2">
+      <div class="tile">
+        <div class="label">int8 model size</div>
+        <div class="big" id="o-int8">–<span class="unit"> KB</span></div>
+        <div class="foot" id="o-fit">–</div>
+      </div>
+      <div class="tile">
+        <div class="label">KV cache (chat memory) RAM</div>
+        <div class="big" id="o-kv">–<span class="unit"> KB</span></div>
+        <div class="foot">2 · layers · seq_len · kv_dim · 4 bytes, in PSRAM</div>
+      </div>
+    </div>
+
+    <div class="tile">
+      <div class="label">training run (very rough)</div>
+      <div class="big" id="o-train">–</div>
+      <div class="foot">M-series Mac / free Colab GPU, to a val-loss plateau on TinyStories</div>
+    </div>
+
+    <div class="tile anchor">
+      <div class="label"><b>the measured anchor</b> — everything above scales from this</div>
+      <div class="foot" style="font-size:17px; margin-top:6px">
+        stories260K (260,672 params) on the real board, int8 kernel:
+        <b>88 tok/s</b> from PSRAM (the realistic in-firmware number) ·
+        <b>152 tok/s</b> from internal RAM (idle-chip benchmark).
+        Speed estimates here = 88 × (its 227,840 non-embedding params ÷ yours).
+      </div>
+      <div class="cmd" id="o-flags">–</div>
+    </div>
+  </section>
+</div>
+
+<footer>
+  Estimates are honest extrapolations from one measured point, not promises —
+  attention and the sampler scale a little slower than parameter count, so big
+  models tend to land slightly <i>better</i> than shown. What no slider can
+  predict is <b>quality</b>: that's decided by the corpus, and judged by ear.
+  Recipe &amp; deeper explanations: <b>training-workshop.md</b>.
+</footer>
+
+<script>
+"use strict";
+// ---- model arithmetic (mirrors llama2.c model.py) -------------------------
+const ANCHOR_TOKS = 88.0, ANCHOR_NONEMB = 227840;   // measured: int8, PSRAM
+
+const KNOBS = [
+  { id:"dim", flag:"--dim", name:"width", type:"range", min:32, max:160, step:16, val:64,
+    what:"How big the “thought” carried per word-piece is.",
+    up:"<b>Up:</b> more nuance and better word choice — but cost grows with dim², the most expensive knob here." },
+  { id:"layers", flag:"--n_layers", name:"depth", type:"range", min:2, max:8, step:1, val:5,
+    what:"How many times the thought is refined before predicting.",
+    up:"<b>Up:</b> better grammar and whole-sentence coherence; cost grows linearly." },
+  { id:"heads", flag:"--n_heads", name:"attention heads", type:"opts", opts:[4,8], val:8,
+    what:"How many things it can “look for” at once in the words so far.",
+    up:"<b>Up:</b> diminishing returns at this scale. Constraint: width ÷ heads (the per-head size) should stay 8–16." },
+  { id:"kv", flag:"--n_kv_heads", name:"shared lookups", type:"opts", opts:[2,4,8], val:4,
+    what:"Heads can share their lookup tables — a nearly-free memory saver.",
+    up:"<b>Down:</b> smaller KV cache on the buddy; stories260K uses half and loses nothing noticeable." },
+  { id:"vocab", flag:"--vocab_size", name:"vocabulary", type:"opts", opts:[512,1024], val:512,
+    what:"How many word-pieces exist; rare words get spelled from fragments.",
+    up:"<b>Up:</b> fewer pieces per sentence but a bigger embedding table. Workshop standard: 512, so all models share tooling." },
+  { id:"seq", flag:"--max_seq_len", name:"memory span", type:"opts", opts:[64,128,256,512], val:256,
+    what:"How far back it can see, in word-pieces.",
+    up:"<b>Down:</b> smaller KV cache. We generate 15-word one-liners — 256 is already generous." },
+];
+const PRESETS = {
+  "XS ~140K": {dim:48, layers:4, heads:4, kv:4, vocab:512, seq:256},
+  // stories260K's shape — but train.py's default hidden-layer rounding (192
+  // vs its 172) makes recipe-trained models ~7% bigger than the original.
+  "S ~280K": {dim:64, layers:5, heads:8, kv:4, vocab:512, seq:256},
+  "M ~300K": {dim:64, layers:6, heads:8, kv:4, vocab:512, seq:256},
+  "L ~520K": {dim:80, layers:6, heads:8, kv:8, vocab:512, seq:256},
+  "XL ≈ Config S": {dim:128, layers:6, heads:8, kv:4, vocab:1024, seq:256},
+};
+const S = Object.fromEntries(KNOBS.map(k => [k.id, k.val]));
+
+function hiddenDim(dim) {                     // llama2.c: 4*dim*2/3, rounded up to 32
+  const h = Math.floor(2 * 4 * dim / 3);
+  return Math.ceil(h / 32) * 32;
+}
+function model() {
+  const {dim, layers, heads, kv, vocab, seq} = S;
+  const kvDim = Math.floor(dim * kv / heads);
+  const hid = hiddenDim(dim);
+  const perLayer = 2*dim*dim + 2*dim*kvDim + 3*dim*hid + 2*dim;
+  const nonEmb = layers * perLayer + dim;
+  const total = nonEmb + vocab * dim;         // classifier is tied to the embedding
+  const toks = ANCHOR_TOKS * ANCHOR_NONEMB / nonEmb;
+  return { kvDim, hid, nonEmb, total, toks,
+    lineSec: 20 / toks,                        // ~20 word-pieces per 15-word line
+    int8KB: total * 1.08 / 1024,               // + per-row scales & fp32 norms
+    fp32MB: total * 4 / 1048576,
+    kvKB: 2 * layers * seq * kvDim * 4 / 1024 };
+}
+const fmt = n => n.toLocaleString("en-US");
+
+function render() {
+  const m = model();
+  document.getElementById("o-total").textContent = fmt(m.total);
+  document.getElementById("o-nonemb").textContent =
+    `${fmt(m.nonEmb)} non-embedding (these set the speed) · hidden ${m.hid} · head size ${S.dim / S.heads}`;
+  document.getElementById("o-speed").innerHTML =
+    `${m.toks >= 100 ? Math.round(m.toks) : m.toks.toFixed(0)}<span class="unit"> tok/s</span>`;
+  document.getElementById("o-words").textContent =
+    `≈ ${(m.toks / 1.4).toFixed(0)} words/s — int8 kernel, weights in PSRAM, alongside the real firmware`;
+  const feel = m.lineSec < 0.4 ? ["instant", "b-good"] : m.lineSec < 1.0 ? ["snappy", "b-good"]
+             : m.lineSec < 2.0 ? ["noticeable", "b-warn"] : ["sluggish", "b-bad"];
+  document.getElementById("o-line").innerHTML =
+    `${m.lineSec < 10 ? m.lineSec.toFixed(2) : m.lineSec.toFixed(1)}<span class="unit"> s</span> <span class="badge ${feel[1]}">${feel[0]}</span>`;
+  document.getElementById("o-int8").innerHTML = `${Math.round(m.int8KB)}<span class="unit"> KB</span>`;
+  const fit = document.getElementById("o-fit");
+  if (m.int8KB <= 350)
+    fit.innerHTML = `<span class="badge b-good">✓ fits internal RAM</span> on an idle chip (≈ +70% speed); count on PSRAM in real firmware`;
+  else
+    fit.innerHTML = `<span class="badge b-warn">PSRAM only</span> — bigger than the S3's free internal RAM; the speed shown already assumes this`;
+  document.getElementById("o-kv").innerHTML = `${Math.round(m.kvKB)}<span class="unit"> KB</span>`;
+  const mins = 20 + m.nonEmb / 1e6 * 90;
+  document.getElementById("o-train").innerHTML = mins < 55
+    ? `~${Math.round(mins / 10) * 10}<span class="unit"> min</span>`
+    : `~${(mins / 60).toFixed(1)}<span class="unit"> h</span>`;
+  const flashNote = m.fp32MB > 2 ? "   # fp32 file > 2 MB: flash the int8 blob only" : "";
+  document.getElementById("o-flags").textContent =
+    `python train.py --vocab_source=custom --vocab_size=${S.vocab} \\\n` +
+    `  --dim=${S.dim} --n_layers=${S.layers} --n_heads=${S.heads} --n_kv_heads=${S.kv} \\\n` +
+    `  --max_seq_len=${S.seq} --batch_size=32 [+ device flags for your machine]${flashNote}`;
+  // preset highlighting
+  document.querySelectorAll("#presets button").forEach(b => {
+    const p = PRESETS[b.textContent];
+    b.classList.toggle("on", p && Object.keys(p).every(k => S[k] === p[k]));
+  });
+  // keep kv options legal (must divide heads)
+  document.querySelectorAll('[data-knob="kv"] .opts button').forEach(b => {
+    const v = +b.dataset.v;
+    b.disabled = S.heads % v !== 0;
+    b.style.opacity = b.disabled ? 0.25 : 1;
+  });
+}
+
+// ---- build the UI ---------------------------------------------------------
+const knobsEl = document.getElementById("knobs");
+for (const k of KNOBS) {
+  const div = document.createElement("div");
+  div.className = "knob"; div.dataset.knob = k.id;
+  let control;
+  if (k.type === "range") {
+    control = `<input type="range" min="${k.min}" max="${k.max}" step="${k.step}" value="${k.val}"
+               aria-label="${k.name}">`;
+  } else {
+    control = `<div class="opts">` + k.opts.map(o =>
+      `<button data-v="${o}" class="${o === k.val ? "on" : ""}">${o}</button>`).join("") + `</div>`;
+  }
+  div.innerHTML = `
+    <div class="row"><span class="name">${k.name}</span>
+      <span class="flag">${k.flag}</span><span class="val" id="v-${k.id}">${k.val}</span></div>
+    ${control}
+    <div class="what">${k.what}</div>
+    <div class="up">${k.up}</div>`;
+  knobsEl.appendChild(div);
+  if (k.type === "range") {
+    div.querySelector("input").addEventListener("input", e => {
+      S[k.id] = +e.target.value;
+      if (k.id === "dim" && S.dim % S.heads !== 0) { S.heads = 4; syncUI(); }
+      if (k.id === "dim" && S.dim / S.heads > 20) { S.heads = 8; syncUI(); }
+      document.getElementById("v-" + k.id).textContent = S[k.id];
+      render();
+    });
+  } else {
+    div.querySelectorAll(".opts button").forEach(b => b.addEventListener("click", () => {
+      S[k.id] = +b.dataset.v;
+      if (k.id === "heads" && S.heads % S.kv !== 0) S.kv = S.heads;
+      syncUI(); render();
+    }));
+  }
+}
+function syncUI() {
+  for (const k of KNOBS) {
+    document.getElementById("v-" + k.id).textContent = S[k.id];
+    const el = document.querySelector(`[data-knob="${k.id}"]`);
+    if (k.type === "range") el.querySelector("input").value = S[k.id];
+    else el.querySelectorAll(".opts button").forEach(b =>
+      b.classList.toggle("on", +b.dataset.v === S[k.id]));
+  }
+}
+const presetsEl = document.getElementById("presets");
+for (const [name, p] of Object.entries(PRESETS)) {
+  const b = document.createElement("button");
+  b.textContent = name;
+  b.addEventListener("click", () => { Object.assign(S, p); syncUI(); render(); });
+  presetsEl.appendChild(b);
+}
+document.getElementById("theme").addEventListener("click", () => {
+  const r = document.documentElement;
+  r.dataset.theme = r.dataset.theme === "dark" ? "" : "dark";
+});
+if (matchMedia("(prefers-color-scheme: dark)").matches)
+  document.documentElement.dataset.theme = "dark";
+render();
+</script>
+</body>
+</html>

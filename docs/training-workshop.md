@@ -31,12 +31,19 @@ Two numbers matter while it runs:
 
 ## 2. What you need
 
-- A Mac (Apple-Silicon GPU is used automatically via PyTorch's `mps`
-  device) or free Google Colab. No paid cloud, no account keys.
-- Python 3.10+, ~3 GB of disk, one evening.
+- A Mac (Apple-Silicon GPU via PyTorch's `mps` device), a Linux box
+  (NVIDIA GPU ideal; plain CPU is fine for the XS/S sizes), or free Google
+  Colab. No paid cloud, no account keys.
+- **Python 3.10–3.12 — NOT 3.13/3.14.** PyTorch and the pinned build
+  tooling lag the newest Python; 3.14 fails before training even starts
+  (see troubleshooting, §8).
+- ~3 GB of disk, one evening.
 - The training code is the same repo our kernel came from —
   [karpathy/llama2.c](https://github.com/karpathy/llama2.c). It writes the
   exact `.bin` format the buddy already executes. Train → quantise → flash.
+- Companion for the session projector:
+  [param-explorer.html](param-explorer.html) — an interactive version of §4
+  and §5 (drag the knobs, watch size and buddy-speed move).
 
 ## 3. First model: known data before our data
 
@@ -47,11 +54,19 @@ the reference `stories260K` model.
 
 ```bash
 git clone https://github.com/karpathy/llama2.c.git && cd llama2.c
-pip install -r requirements.txt
+python3.12 -m venv .venv && source .venv/bin/activate
+pip install torch numpy sentencepiece requests tqdm
 python tinystories.py download                    # ~1.5 GB, once
 python tinystories.py train_vocab --vocab_size=512
 python tinystories.py pretokenize --vocab_size=512
 ```
+
+(Two deliberate deviations from the repo's own README: the venv is pinned
+to Python 3.12, and we install the packages **unpinned** instead of
+`pip install -r requirements.txt` — the repo pins `numpy==1.23.5`, which is
+old enough that it won't build on current setups. Recent versions of all
+five packages work fine. On a Mac, `brew install python@3.12` first if you
+don't have it; on Debian/Ubuntu, `sudo apt install python3.12-venv`.)
 
 (`train_vocab` builds the 512-piece vocabulary; `pretokenize` pre-chews the
 dataset into token ids. Both are one-time and take a few minutes.)
@@ -75,8 +90,14 @@ checkpoints to `out/`). Read its stories with:
 python sample.py --checkpoint=out/ckpt.pt
 ```
 
-The two Mac-specific flags are `--device=mps --compile=False` —
-`torch.compile` and Apple GPUs don't get along.
+The `--device/--dtype/--compile` trio depends on your machine — they change
+speed only, never what the model learns:
+
+| machine | flags |
+|---|---|
+| Mac (Apple Silicon) | `--device=mps --dtype=float32 --compile=False` (`torch.compile` and Apple GPUs don't get along) |
+| Linux + NVIDIA GPU, or Colab | `--device=cuda --dtype=bfloat16 --compile=True` |
+| any CPU-only box | `--device=cpu --dtype=float32 --compile=False` (fine for XS/S; painful above) |
 
 ## 4. The knobs, in plain language
 
@@ -137,13 +158,18 @@ the realistic in-firmware number, not the internal-RAM benchmark headline):
 | ladder | flags | ≈ params | buddy speed (int8, PSRAM) | 15-word line |
 |---|---|---|---|---|
 | XS | `--dim=48 --n_layers=4 --n_heads=4 --n_kv_heads=4` | ~140K | ~180 tok/s | instant |
-| S *(= stories260K's shape)* | `--dim=64 --n_layers=5 --n_heads=8 --n_kv_heads=4` | ~260K | **88 tok/s (measured)** | ~0.3 s |
+| S *(stories260K's shape)* | `--dim=64 --n_layers=5 --n_heads=8 --n_kv_heads=4` | ~280K | ~81 tok/s | ~0.3 s |
 | M | `--dim=64 --n_layers=6 --n_heads=8 --n_kv_heads=4` | ~305K | ~74 tok/s | ~0.35 s |
 | L | `--dim=80 --n_layers=6 --n_heads=8 --n_kv_heads=8` | ~520K | ~42 tok/s | ~0.55 s |
 | XL *(≈ "Config S")* | `--dim=128 --n_layers=6 --n_heads=8 --n_kv_heads=4` | ~1.3M | ~17 tok/s | ~1.3 s |
 
 Tokens stream to the face as they're generated, so perceived latency is the
 first token, not the full line — even XL feels responsive.
+
+(Why S says ~280K when stories260K is 260K: `train.py`'s default rounds the
+hidden layer up to 192 where the original used 172. Same shape, ~7% more
+parameters — the measured 88 tok/s belongs to the original; recipe-trained
+S lands at ~81.)
 
 ## 6. Putting a model on the buddy
 
@@ -217,7 +243,25 @@ a sampling script that prompts with each mood. **Two expectations to set:**
   dependency as moving `kEmotions` out of C++ into pack data: the moods are
   shared vocabulary between the face, the packs, and now the model.
 
-## 8. Where this fits
+## 8. Troubleshooting
+
+- **`pip install` explodes with `AttributeError: module 'pkgutil' has no
+  attribute 'ImpImporter'`** — you're on Python 3.13/3.14. The repo's
+  pinned `numpy==1.23.5` has no prebuilt wheel there, so pip tries to
+  compile it from source using build tooling that calls an API removed in
+  Python 3.12. Fix: recreate the venv with `python3.12 -m venv .venv` and
+  install unpinned as in §3. (Delete the old `.venv` first.)
+- **`torch` not found for your Python** — same cause, same fix: PyTorch
+  wheels trail the newest Python by months.
+- **Flashing from Linux:** the board shows up as `/dev/ttyACM0` (native
+  USB socket) or `/dev/ttyUSB0` (the CH343 socket) instead of macOS's
+  `/dev/cu.usbmodem*`. If esptool can't open it, add yourself to the
+  serial group and re-login: `sudo usermod -aG dialout $USER` (group is
+  `uucp` on Arch). Everything else — offsets, commands — is identical.
+- **Training looks frozen at 0 it/s on `mps`** — the very first step
+  compiles GPU kernels; give it a minute before judging.
+
+## 9. Where this fits
 
 - Kernel/speed work: done — `spikes/tinylm-s3/README.md` (Step 0 and 0.5).
 - This session: can a small model *sound right*? Decided by listening.
