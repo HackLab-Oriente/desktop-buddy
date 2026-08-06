@@ -121,6 +121,15 @@ Real inconsistencies, listed so nobody rediscovers them:
    names in `face_model.cpp`, while `led.mood` accepts only
    `calm|excited|thinking|off`. Two overlapping vocabularies for one concept —
    whatever the group settles on for expressions has to reconcile them.
+6. **`brain.error` has no subscriber.** The cloud brain publishes it on
+   failure and nothing reacts, so a failed request is silent: the buddy just
+   never answers. That is the one gap here that contradicts a stated
+   principle ("never brick") — it should at minimum drive a face.
+7. **`time.synced` has no subscriber.** Harmless today, but it means nothing
+   is waiting on the clock; anything time-based will need it.
+
+An interactive view of this file — searchable, with the real publisher and
+subscriber call sites — is [event-registry.html](event-registry.html).
 
 ## Adding an event — checklist
 

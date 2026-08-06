@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Buddy — registro de eventos del bus</title>
+<style>
+  :root{--bg:#f7f5f0;--card:#fff;--ink:#1e2126;--ink2:#5a6068;--muted:#8a9098;
+    --line:#e3e0d8;--accent:#2563a8;--soft:#eef1f6;
+    --good-bg:#e3efe5;--good-ink:#1e6b34;--bad-bg:#f7e5e2;--bad-ink:#9c3a2a;
+    --warn-bg:#f5eedd;--warn-ink:#8a6410}
+  [data-theme="dark"]{--bg:#14161a;--card:#1e2126;--ink:#eceae4;--ink2:#b9bec6;
+    --muted:#7d838c;--line:#2e323a;--accent:#6aa7e0;--soft:#232830;
+    --good-bg:#1c3324;--good-ink:#7fd096;--bad-bg:#3a211c;--bad-ink:#eb9a85;
+    --warn-bg:#35301e;--warn-ink:#e0bd62}
+  *{box-sizing:border-box;margin:0}
+  body{background:var(--bg);color:var(--ink);padding:24px;max-width:1200px;margin:0 auto;
+    font:18px/1.5 -apple-system,"Segoe UI",Roboto,sans-serif}
+  header{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+  h1{font-size:29px;letter-spacing:-.02em}
+  .sub{color:var(--ink2);font-size:17px}
+  .btns{margin-left:auto;display:flex;gap:8px}
+  .btns button{background:var(--card);color:var(--ink);border:1px solid var(--line);
+    border-radius:10px;padding:6px 14px;font-size:15px;cursor:pointer}
+  .lede{color:var(--ink2);font-size:17.5px;margin:8px 0 18px;max-width:860px}
+
+  .stats{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px}
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:10px 16px;min-width:104px}
+  .stat .n{font:700 27px ui-monospace,Menlo,monospace;letter-spacing:-.02em}
+  .stat .l{color:var(--muted);font-size:14px}
+  .stat.warn .n{color:var(--warn-ink)}
+
+  .controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+  input[type=search]{flex:1;min-width:220px;background:var(--card);color:var(--ink);
+    border:1px solid var(--line);border-radius:11px;padding:10px 14px;font-size:16px}
+  input[type=search]:focus{outline:2px solid var(--accent);outline-offset:-1px}
+  .chip{background:var(--card);border:1px solid var(--line);border-radius:9px;
+    padding:7px 13px;font-size:15px;color:var(--ink2);cursor:pointer}
+  .chip.on{background:var(--accent);border-color:var(--accent);color:#fff}
+
+  .ev{background:var(--card);border:1px solid var(--line);border-radius:13px;
+    margin-bottom:9px;overflow:hidden}
+  .ev summary{padding:13px 16px;cursor:pointer;display:flex;gap:12px;
+    align-items:center;flex-wrap:wrap;list-style:none}
+  .ev summary::-webkit-details-marker{display:none}
+  .ev summary:hover{background:var(--soft)}
+  .ev .nm{font:700 18px ui-monospace,Menlo,monospace;color:var(--accent)}
+  .ev .pl{color:var(--ink2);font:14.5px ui-monospace,Menlo,monospace}
+  .ev .own{margin-left:auto;color:var(--muted);font-size:14px;white-space:nowrap}
+  .ev[open] summary{border-bottom:1px solid var(--line)}
+  .body{padding:14px 16px}
+  .desc{color:var(--ink2);font-size:16.5px;margin-bottom:12px}
+  .wire{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;
+    font:14.5px/1.7 ui-monospace,Menlo,monospace}
+  .wire .lbl{color:var(--muted);white-space:nowrap}
+  .wire .loc{color:var(--ink2);word-break:break-all}
+  .none{color:var(--bad-ink)}
+  .badge{display:inline-block;border-radius:7px;padding:2px 9px;font-size:13.5px;
+    font-weight:600;font-family:-apple-system,sans-serif}
+  .b-bad{background:var(--bad-bg);color:var(--bad-ink)}
+  .b-warn{background:var(--warn-bg);color:var(--warn-ink)}
+  .b-good{background:var(--good-bg);color:var(--good-ink)}
+  h2{font-size:22px;margin:28px 0 8px;padding-top:16px;border-top:1px solid var(--line)}
+  .rule{background:var(--soft);border:1px solid var(--line);border-radius:13px;
+    padding:16px 20px;margin-top:14px}
+  .rule p{color:var(--ink2);font-size:17px;margin-bottom:9px}
+  .rule p:last-child{margin-bottom:0}
+  ul.gaps{margin:6px 0 0 20px;color:var(--ink2);font-size:16.5px}
+  ul.gaps li{margin-bottom:7px}
+  ul.gaps b{color:var(--ink)}
+  code{font:14.5px ui-monospace,Menlo,monospace;background:var(--bg);
+    border:1px solid var(--line);border-radius:5px;padding:1px 5px}
+  .empty{color:var(--muted);padding:20px;text-align:center}
+  [data-lang]{display:none}
+  html[lang="es"] [data-lang="es"],html[lang="en"] [data-lang="en"]{display:revert}
+</style>
+</head>
+<body>
+<header>
+  <h1><span data-lang="es">Registro de eventos del bus</span><span data-lang="en">Bus event registry</span></h1>
+  <span class="sub"><span data-lang="es">el contrato entre equipos</span><span data-lang="en">the contract between teams</span></span>
+  <div class="btns"><button id="lang">EN</button><button id="theme">◐</button></div>
+</header>
+<p class="lede">
+  <span data-lang="es">Dentro del buddy nadie llama a nadie: todo son eventos con nombre. Esta lista es lo que permite que los equipos trabajen en paralelo. Generada leyendo el código — cada sitio que publica o escucha está enlazado abajo.</span>
+  <span data-lang="en">Nothing inside the buddy calls anything directly — it is all named events. This list is what lets the teams work in parallel. Generated by reading the source: every publish and subscribe site is listed below.</span>
+</p>
+
+<div class="stats" id="stats"></div>
+<div class="controls">
+  <input type="search" id="q" placeholder="Buscar: touch, brain, face…">
+  <span id="chips"></span>
+</div>
+<div id="list"></div>
+
+<h2><span data-lang="es">Quién define eventos nuevos</span><span data-lang="en">Who defines new events</span></h2>
+<div class="rule">
+  <p><span data-lang="es"><b>Cada equipo es dueño de su prefijo.</b> Crear un evento dentro de tu espacio no pide permiso: un PR que cambia el código <i>y este registro</i> a la vez. Cambiar o borrar el de otro equipo necesita a su responsable.</span>
+     <span data-lang="en"><b>Each team owns its prefix.</b> Adding an event inside your namespace needs no permission — one PR changing the code <i>and this registry</i> together. Changing or removing another team's event needs their leader.</span></p>
+  <p><span data-lang="es"><b>Firmware es dueño del contrato</b>, no de todos los eventos: las convenciones, el formato del payload y este archivo.</span>
+     <span data-lang="en"><b>Firmware owns the contract</b>, not every event: the conventions, the payload format, and this file.</span></p>
+  <p><span data-lang="es">El motivo: si firmware nombra todo, los demás equipos se bloquean esperando a una persona. Si cada uno inventa libremente, la misma idea aparece tres veces con tres nombres.</span>
+     <span data-lang="en">The reason: if Firmware names everything, the other tracks block on one person. If everyone invents freely, the same idea shows up three times under three names.</span></p>
+</div>
+
+<h2><span data-lang="es">Reglas al escribir un handler</span><span data-lang="en">Rules when writing a handler</span></h2>
+<div class="rule">
+  <p><span data-lang="es"><b>No bloquees nunca.</b> La entrega es en cola y en un solo hilo (<code>pump()</code>): un handler lento retrasa a todos los demás. A cambio, los handlers nunca corren a la vez y no necesitan locks.</span>
+     <span data-lang="en"><b>Never block.</b> Delivery is queued and single-threaded (<code>pump()</code>): one slow handler delays every other subscriber. In exchange, handlers never run concurrently and need no locking.</span></p>
+  <p><span data-lang="es"><b>El payload es un solo string.</b> Texto plano siempre que se pueda; nunca bytes: pasa una ruta o un id. Si necesitas un segundo campo, consúltalo antes con el dueño del contrato.</span>
+     <span data-lang="en"><b>The payload is one string.</b> Plain text where possible; never bytes — pass a path or an id. If you need a second field, check with the contract owner first.</span></p>
+  <p><span data-lang="es"><b>Los nombres son para siempre.</b> Añadir es barato; renombrar rompe todos los packs que ya existen.</span>
+     <span data-lang="en"><b>Names are forever.</b> Adding is cheap; renaming breaks every pack already in the wild.</span></p>
+</div>
+
+<h2><span data-lang="es">Agujeros conocidos</span><span data-lang="en">Known gaps</span></h2>
+<ul class="gaps" id="gaps"></ul>
+
+<script>
+// Wiring extracted from the source tree; descriptions written by hand.
+const EV = [
+ {n:"touch.down", pl:'"pad0"', own:"Electrónica / Electronics", ns:"touch",
+  es:"El dedo toca el sensor. Se emite en el contacto, antes de saber si será caricia o toque.",
+  en:"A finger contacts the pad. Emitted on touch-down, before it is known whether this becomes a pet or a poke.",
+  pub:["firmware/components/senses/touch_sense.cpp:70"], sub:["packs/zero/reflexes/main.be:12"]},
+ {n:"touch.poke", pl:'"pad0"', own:"Electrónica / Electronics", ns:"touch",
+  es:"Soltado en menos de 400 ms. Un toque rápido.",
+  en:"Released in under 400 ms — a quick jab.",
+  pub:["firmware/components/senses/touch_sense.cpp:72"],
+  sub:["firmware/main/main.cpp:40","packs/zero/reflexes/main.be:23"]},
+ {n:"touch.pet", pl:'"pad0"', own:"Electrónica / Electronics", ns:"touch",
+  es:"Soltado tras 400 ms o más. Una caricia. El umbral es lo único que separa los dos eventos.",
+  en:"Released after 400 ms or more — a pet. That threshold is the only thing separating the two events.",
+  pub:["firmware/components/senses/touch_sense.cpp:72"],
+  sub:["firmware/main/main.cpp:35","packs/zero/reflexes/main.be:16"]},
+ {n:"nfc.tag", pl:"UID hex · 04A2B3C4", own:"Electrónica / Electronics", ns:"nfc",
+  es:"Se ha presentado una tarjeta. El payload es el UID; darle significado es cosa del pack.",
+  en:"A tag was presented. The payload is the UID; giving it meaning is the pack's job.",
+  pub:["firmware/components/senses/rc522.cpp:96"],
+  sub:["firmware/main/main.cpp:43","packs/zero/reflexes/main.be:36"]},
+ {n:"time.synced", pl:"—", own:"Firmware", ns:"time",
+  es:"El reloj se ha puesto en hora por SNTP tras conectar.",
+  en:"The clock was set over SNTP after connecting.",
+  pub:["firmware/components/webui/webui.cpp:113"], sub:[]},
+ {n:"brain.ask", pl:"texto del prompt / prompt text", own:"Firmware", ns:"brain",
+  es:"Alguien quiere una respuesta. Normalmente lo publica un reflejo del pack.",
+  en:"Something wants a reply. Normally published by a pack reflex.",
+  pub:["firmware/main/main.cpp:38","firmware/main/main.cpp:45"],
+  sub:["firmware/components/brain/brain_cloud.cpp:148"]},
+ {n:"brain.reply", pl:'JSON {"utterance","emotion"}', own:"Firmware", ns:"brain",
+  es:"El modelo contestó. Se parsea en main.cpp y se reparte en face.emotion + face.say, así que los packs suelen escuchar esos dos y no este.",
+  en:"The model answered. Parsed centrally in main.cpp and fanned out to face.emotion + face.say, so packs usually listen to those instead.",
+  pub:["firmware/components/brain/brain_cloud.cpp:130"], sub:["firmware/main/main.cpp:80"]},
+ {n:"brain.error", pl:'"no_reply"', own:"Firmware", ns:"brain",
+  es:"La petición falló. Nadie lo escucha: hoy el fallo es silencioso.",
+  en:"The request failed. Nobody listens: today the failure is silent.",
+  pub:["firmware/components/brain/brain_cloud.cpp:133"], sub:[]},
+ {n:"face.emotion", pl:"happy · sad · angry…", own:"Personalidad + Firmware", ns:"face",
+  es:"Petición a la cara. El anillo LED también lo escucha para copiar el color del ánimo.",
+  en:"A request to the face. The LED ring listens too, to mirror the mood colour.",
+  pub:["firmware/main/main.cpp:36","firmware/main/main.cpp:41","firmware/main/main.cpp:44",
+       "firmware/main/main.cpp:95","firmware/main/main.cpp:133"],
+  sub:["firmware/components/expressions/round_face.cpp:473",
+       "firmware/components/expressions/led_ring.cpp:98"]},
+ {n:"face.say", pl:"texto / text", own:"Personalidad + Firmware", ns:"face",
+  es:"Palabras en la pantalla. Sin TTS: eso es otra capa.",
+  en:"Words on screen. No TTS — that is a separate layer.",
+  pub:["firmware/main/main.cpp:98"], sub:["firmware/components/expressions/round_face.cpp:478"]},
+ {n:"face.look", pl:"objetivo de mirada / gaze target", own:"Personalidad + Firmware", ns:"face",
+  es:"Mover la mirada. Nadie lo publica: sobra del experimento del logo flotante.",
+  en:"Move the gaze. Nothing publishes it — left over from the floating-logo experiment.",
+  pub:[], sub:["firmware/components/expressions/round_face.cpp:487"]},
+ {n:"led.mood", pl:"calm · excited · thinking · off", own:"Personalidad + Firmware", ns:"led",
+  es:"Estilo de animación del anillo, no su color: el color sale de face.emotion.",
+  en:"The ring's animation style, not its colour — colour comes from face.emotion.",
+  pub:["firmware/main/main.cpp:37","firmware/main/main.cpp:100","firmware/main/main.cpp:134",
+       "firmware/components/brain/brain_cloud.cpp:120"],
+  sub:["firmware/components/expressions/led_ring.cpp:103"]},
+ {n:"boot.status", pl:"texto corto / short text", own:"Firmware", ns:"boot",
+  es:"Un paso del arranque. Es la línea que se ve bajo el logo, y es real: cada paso lo publica quien lo hace.",
+  en:"One boot step. This is the line under the logo, and it is real — each step is published by the code doing it.",
+  pub:["firmware/main/main.cpp:71","firmware/main/main.cpp:75","firmware/main/main.cpp:105",
+       "firmware/main/main.cpp:117","firmware/main/main.cpp:119","firmware/main/main.cpp:130"],
+  sub:["firmware/components/expressions/round_face.cpp:498"]},
+ {n:"boot.ready", pl:"—", own:"Firmware", ns:"boot",
+  es:"Arranque terminado. La cara sale del splash con el glitch y empieza a ser criatura.",
+  en:"Boot finished. The face glitches out of the splash and becomes a creature.",
+  pub:["firmware/main/main.cpp:136"], sub:["firmware/components/expressions/round_face.cpp:503"]},
+ {n:"system.reload", pl:"—", own:"Firmware", ns:"system",
+  es:"Recargar la VM de Berry. Es la recarga en caliente: se sube un reflejo desde la web y se aplica sin reiniciar.",
+  en:"Reload the Berry VM. This is the hot reload: upload a reflex from the web UI and it applies without a reboot.",
+  pub:["firmware/components/webui/webui.cpp:77"],
+  sub:["firmware/components/berry_host/berry_host.cpp:129"]},
+];
+const GAPS = [
+ {es:"<b>face.look</b> está suscrito pero nadie lo publica — sobra del experimento del logo. O se conecta a la mirada o se borra el suscriptor.",
+  en:"<b>face.look</b> is subscribed but never published — left over from the logo experiment. Either wire it to gaze or delete the subscriber."},
+ {es:"<b>brain.error</b> no lo escucha nadie: si falla la nube, el buddy simplemente no contesta. Es el único agujero que contradice el principio de «no se rompe nunca» — debería mover la cara como mínimo.",
+  en:"<b>brain.error</b> has no subscriber: if the cloud fails, the buddy just never answers. It is the one gap that contradicts the \\u201cnever brick\\u201d principle — it should at least drive a face."},
+ {es:"<b>La documentación describe eventos que no existen</b>: architecture.md menciona timer.idle_5m, sense.light.dark y webhook.*; pack-format.md promete sound.done y storage.sd.gone. Ninguno está implementado.",
+  en:"<b>The docs describe events that do not exist</b>: architecture.md mentions timer.idle_5m, sense.light.dark and webhook.*; pack-format.md promises sound.done and storage.sd.gone. None are implemented."},
+ {es:"<b>El bucle de voz necesita eventos que nadie ha definido</b> — como mínimo voice.listening y voice.thinking, para tapar la espera de 1,5–3 s. Primer encargo del equipo de voz.",
+  en:"<b>The voice loop needs events nobody has defined</b> — at minimum voice.listening and voice.thinking, to cover the 1.5–3 s wait. First job for the Voice team."},
+ {es:"<b>El payload no tiene esquema.</b> brain.reply ya mete JSON dentro del string. Aguanta hoy; molestará cuando la web consuma eventos.",
+  en:"<b>Payloads have no schema.</b> brain.reply already smuggles JSON inside the string. Fine today; it will hurt once the web UI consumes events."},
+ {es:"<b>Hay dos vocabularios para una misma idea</b>: face.emotion acepta las 8 emociones y led.mood solo calm|excited|thinking|off. Lo que decida el grupo sobre expresiones tiene que reconciliarlos.",
+  en:"<b>Two vocabularies for one idea</b>: face.emotion takes the 8 emotions while led.mood takes only calm|excited|thinking|off. Whatever the group settles on for expressions has to reconcile them."},
+ {es:"<b>time.synced</b> no lo escucha nadie. Inofensivo, pero cualquier cosa basada en la hora lo necesitará.",
+  en:"<b>time.synced</b> has no subscriber. Harmless, but anything time-based will need it."},
+];
+
+const T = () => document.documentElement.lang;
+const NSS = [...new Set(EV.map(e => e.ns))];
+let active = null, query = "";
+
+document.getElementById("chips").innerHTML =
+  NSS.map(n => `<button class="chip" data-ns="${n}">${n}.*</button>`).join("");
+
+function render() {
+  const l = T();
+  const shown = EV.filter(e =>
+    (!active || e.ns === active) &&
+    (!query || (e.n + " " + e[l] + " " + e.own).toLowerCase().includes(query)));
+  document.getElementById("list").innerHTML = shown.length ? shown.map(e => {
+    const noPub = e.pub.length === 0, noSub = e.sub.length === 0;
+    const flags =
+      (noPub ? `<span class="badge b-bad">${l === "es" ? "nadie lo publica" : "no publisher"}</span> ` : "") +
+      (noSub ? `<span class="badge b-warn">${l === "es" ? "nadie lo escucha" : "no subscriber"}</span>` : "");
+    const loc = a => a.length
+      ? a.map(x => `<div class="loc">${x}</div>`).join("")
+      : `<div class="loc none">${l === "es" ? "— nadie —" : "— none —"}</div>`;
+    return `<details class="ev"><summary>
+        <span class="nm">${e.n}</span>
+        <span class="pl">${e.pl}</span>
+        ${flags}
+        <span class="own">${e.own}</span>
+      </summary>
+      <div class="body">
+        <div class="desc">${e[l]}</div>
+        <div class="wire">
+          <span class="lbl">${l === "es" ? "publica →" : "publishes →"}</span><div>${loc(e.pub)}</div>
+          <span class="lbl">${l === "es" ? "escucha ←" : "listens ←"}</span><div>${loc(e.sub)}</div>
+        </div>
+      </div></details>`;
+  }).join("") : `<div class="empty">${l === "es" ? "Nada coincide." : "Nothing matches."}</div>`;
+
+  const noPub = EV.filter(e => !e.pub.length).length, noSub = EV.filter(e => !e.sub.length).length;
+  document.getElementById("stats").innerHTML = `
+    <div class="stat"><div class="n">${EV.length}</div><div class="l">${l === "es" ? "eventos" : "events"}</div></div>
+    <div class="stat"><div class="n">${NSS.length}</div><div class="l">${l === "es" ? "espacios" : "namespaces"}</div></div>
+    <div class="stat warn"><div class="n">${noPub}</div><div class="l">${l === "es" ? "sin emisor" : "no publisher"}</div></div>
+    <div class="stat warn"><div class="n">${noSub}</div><div class="l">${l === "es" ? "sin oyente" : "no subscriber"}</div></div>
+    <div class="stat warn"><div class="n">${GAPS.length}</div><div class="l">${l === "es" ? "agujeros" : "known gaps"}</div></div>`;
+  document.getElementById("gaps").innerHTML = GAPS.map(g => `<li>${g[l]}</li>`).join("");
+  document.getElementById("q").placeholder = l === "es" ? "Buscar: touch, brain, face…" : "Search: touch, brain, face…";
+}
+
+document.getElementById("q").addEventListener("input", e => { query = e.target.value.toLowerCase().trim(); render(); });
+document.getElementById("chips").addEventListener("click", e => {
+  const b = e.target.closest(".chip"); if (!b) return;
+  active = active === b.dataset.ns ? null : b.dataset.ns;
+  document.querySelectorAll(".chip").forEach(c => c.classList.toggle("on", c.dataset.ns === active));
+  render();
+});
+document.getElementById("lang").addEventListener("click", () => {
+  const h = document.documentElement;
+  h.lang = h.lang === "es" ? "en" : "es";
+  document.getElementById("lang").textContent = h.lang === "es" ? "EN" : "ES";
+  render();
+});
+document.getElementById("theme").addEventListener("click", () => {
+  const r = document.documentElement;
+  r.dataset.theme = r.dataset.theme === "dark" ? "" : "dark";
+});
+if (matchMedia("(prefers-color-scheme: dark)").matches)
+  document.documentElement.dataset.theme = "dark";
+render();
+</script>
+</body>
+</html>
