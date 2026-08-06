@@ -25,6 +25,7 @@
 #include "esp_heap_caps.h"
 #include "esp_log.h"
 #include "esp_partition.h"
+#include "expf_fast.h"
 #include "prof.h"
 #include "run_api.h"
 
@@ -272,7 +273,7 @@ float* forward_q8(QTransformer* t, int token, int pos) {
 
         for (int i = 0; i < hid; i++) {
             float val = t->hb[i];
-            val *= 1.0f / (1.0f + expf(-val));
+            val *= 1.0f / (1.0f + expf_fast(-val));
             t->hb[i] = val * t->hb2[i];
         }
         PROF_MARK(PROF_SWIGLU);

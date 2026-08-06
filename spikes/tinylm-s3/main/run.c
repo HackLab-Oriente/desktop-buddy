@@ -16,6 +16,7 @@
 #include "esp_heap_caps.h"
 #include "esp_log.h"
 #include "dsps_dotprod.h"
+#include "expf_fast.h"
 #endif
 // ----------------------------------------------------------------------------
 // Transformer model
@@ -246,7 +247,7 @@ void softmax(float* x, int size) {
     // exp and sum
     float sum = 0.0f;
     for (int i = 0; i < size; i++) {
-        x[i] = expf(x[i] - max_val);
+        x[i] = expf_fast(x[i] - max_val);
         sum += x[i];
     }
     // normalize
@@ -388,7 +389,7 @@ float* forward(Transformer* transformer, int token, int pos) {
         for (int i = 0; i < hidden_dim; i++) {
             float val = s->hb[i];
             // silu(x)=x*σ(x), where σ(x) is the logistic sigmoid
-            val *= (1.0f / (1.0f + expf(-val)));
+            val *= (1.0f / (1.0f + expf_fast(-val)));
             // elementwise multiply with w3(x)
             val *= s->hb2[i];
             s->hb[i] = val;
