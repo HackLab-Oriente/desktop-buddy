@@ -32,6 +32,9 @@
 
   .two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
   .three{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  /* grid items default to min-width:auto, so a <pre> code block widens its
+     track instead of scrolling inside it — that overflowed the whole page */
+  .two>*,.three>*{min-width:0}
   @media(max-width:1080px){.two,.three{grid-template-columns:1fr}}
 
   .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 20px}
@@ -104,6 +107,8 @@
     font:14.5px/1.65 ui-monospace,Menlo,monospace;padding:12px 14px;margin-top:6px;
     color:var(--ink2);white-space:pre;overflow-x:auto}
   .code b{color:var(--accent);font-weight:700}
+  .tsub{color:var(--muted);font-size:15px}
+  tr.warn td{background:var(--warn-bg)}
   .code i{color:var(--muted);font-style:normal}
   .moodgrid.mini{grid-template-columns:repeat(2,1fr);gap:12px;margin-top:10px}
   .moodgrid.mini .mood{border-style:dashed;opacity:.92}
@@ -333,127 +338,94 @@
   </ol>
 </div>
 
-<h3 class="sec">Y luego, ¿cuántos?</h3>
-<p class="lede2">Una vez decidido <i>qué</i> son, queda <b>cuántos</b>. Ojo: si sale la opción B o C, el número baja solo — los registros abstractos son pocos por diseño. Estas tres opciones valen sobre todo si el grupo se queda con emociones con nombre.</p>
-
-<div class="three">
-  <div class="card setc">
-    <div class="tag2">Bajar</div>
-    <h3>Mínimo — 6 estados</h3>
-    <div class="chips">
-      <span class="chip">neutral</span><span class="chip">feliz</span><span class="chip">sorprendido</span>
-      <span class="chip">con sueño</span><span class="chip need">pensando</span><span class="chip need">escuchando</span>
-    </div>
-    <div class="lbl">A favor</div>
-    <ul class="pro">
-      <li><b>~100 frases por estado</b> con el mismo esfuerzo: mucha más variedad donde se nota.</li>
-      <li>Cada cara se distingue de lejos.</li>
-      <li>Es el mejor set para entrenar el modelo (más ejemplos por etiqueta).</li>
-    </ul>
-    <div class="lbl">En contra</div>
-    <ul class="con">
-      <li>Se pierden enfadado, triste, curioso y receloso — menos matices de carácter.</li>
-    </ul>
-  </div>
-
-  <div class="card setc reco">
-    <div class="tag2">Quedarse <span class="badge b-acc">lo de hoy</span></div>
-    <h3>Las 8 + las 2 que faltan = 10</h3>
-    <div class="chips">
-      <span class="chip">neutral</span><span class="chip">feliz</span><span class="chip">curioso</span>
-      <span class="chip">con sueño</span><span class="chip">sorprendido</span><span class="chip">enfadado</span>
-      <span class="chip">triste</span><span class="chip">receloso</span>
-      <span class="chip need">pensando</span><span class="chip need">escuchando</span>
-    </div>
-    <div class="lbl">A favor</div>
-    <ul class="pro">
-      <li>Ya está implementado y probado en la placa: 8 de 10 funcionan hoy.</li>
-      <li>Carácter rico: hay sitio para el sarcasmo, el enfado y la duda.</li>
-    </ul>
-    <div class="lbl">En contra</div>
-    <ul class="con">
-      <li><b>~60 frases por estado.</b> Suficiente, pero hay que escribirlas de verdad.</li>
-      <li>Cuatro estados son "ojos entornados con ceja": de lejos se parecen.</li>
-    </ul>
-  </div>
-
-  <div class="card setc">
-    <div class="tag2">Subir</div>
-    <h3>Ampliado — 13 estados</h3>
-    <div class="chips">
-      <span class="chip dim">las 10 anteriores</span>
-      <span class="chip add">emocionado</span><span class="chip add">confundido</span><span class="chip add">orgulloso</span>
-    </div>
-    <div class="lbl">A favor</div>
-    <ul class="pro">
-      <li>El buddy más expresivo de los tres.</li>
-      <li>"Confundido" es útil de verdad: es la cara para cuando no entiende lo que le dices.</li>
-    </ul>
-    <div class="lbl">En contra</div>
-    <ul class="con">
-      <li><b>~46 frases por estado</b> y tres caras nuevas por diseñar.</li>
-      <li>Riesgo real: muchos estados con pocas frases se repiten antes y el modelo aprende peor.</li>
-    </ul>
-  </div>
-</div>
-
-<div class="ask">
-  <h3 style="font-size:21px">Guía para decidir en 5 minutos</h3>
-  <ol style="margin:8px 0 0 22px;font-size:18px;color:var(--ink2)">
-    <li><b>Primero el presupuesto, no la lista.</b> ¿Cuántas frases vamos a escribir de verdad entre todos? Sé pesimista: la mitad de lo que se promete en una reunión.</li>
-    <li><b>Divide.</b> frases ÷ estados = frases por estado. <b>Si sale menos de 30, hay demasiados estados.</b></li>
-    <li><b>Cada estado se gana su sitio si cumple las tres:</b> se te ocurren 3 momentos distintos en que aparece · puedes escribirle 30 frases sin repetirte · lo distingues de sus vecinos a un brazo de distancia.</li>
-    <li><b>En caso de duda, fuera.</b> Empezar con pocos y añadir después es barato. Empezar con muchos y quedarnos con 10 frases por estado no se arregla luego.</li>
-  </ol>
-  <p class="note" style="margin-top:12px"><b>Nota aparte:</b> el anillo LED hoy solo entiende <code>calm</code>, <code>excited</code> y <code>thinking</code> — no coincide con la lista de la cara. Sea cual sea el set, hay que alinearlos.</p>
-</div>
-
-<h3 class="sec">Cómo se usa por dentro (y por qué no te quita libertad)</h3>
-<p class="lede2">El miedo razonable es "si fijamos la lista, todos los buddies serán iguales". No: lo único compartido es el <b>nombre</b> del estado. Es el vocabulario, no el discurso.</p>
+<h3 class="sec">Cómo funcionaría de verdad: A y C a la vez</h3>
+<p class="lede2">Supongamos el desenlace más probable: el grupo quiere <b>emociones con nombre</b> (opción A), porque son las que se entienden y se disfrutan; y el modelo se entrena con <b>registros</b> (opción C), porque son pocos y estables. No hay que elegir — así encajan.</p>
 
 <div class="two">
-  <div class="card">
-    <div class="lbl" style="margin-top:0">1 · Lo que pasa al acariciarlo</div>
-    <div class="code">tocas el sensor
-  └─ <b>touch.pet</b>                    <i>← evento del bus</i>
+  <div class="card" style="border-left:4px solid var(--bad-ink)">
+    <div class="lbl" style="margin-top:0">Capa modelo · 6 registros · se congela al entrenar</div>
+    <div class="code">bright · flat · sharp · soft · hushed · urgent
+<i>(+10 huecos reservados, vacíos, para el futuro)</i>
 
-un reflejo (editable, sin recompilar) decide:
-  ├─ <b>face.emotion</b> "happy"         <i>← los ojos</i>
-  ├─ <b>led.mood</b>     "excited"       <i>← el anillo</i>
-  └─ frase del banco con prefijo <b>happy:</b>
-       "¡Ooh, un amigo! Hoy es el mejor día."</div>
-    <p class="note" style="margin-top:10px">La palabra <code>happy</code> aparece en tres sitios. <b>Eso</b> es lo que estamos fijando hoy — nada más.</p>
+<i># el corpus se etiqueta por REGISTRO, nunca por emoción.</i>
+<i># Por eso no hay que reescribirlo cuando alguien</i>
+<i># inventa una expresión nueva.</i>
+<b>bright:</b> ¡Ooh, un amigo! Hoy es el mejor día.
+<b>sharp:</b>  Ah. Un humano. Qué ilusión.
+<b>soft:</b>   No pasa nada. Aquí sigo.</div>
   </div>
 
+  <div class="card" style="border-left:4px solid var(--good-ink)">
+    <div class="lbl" style="margin-top:0">Capa pack · expresiones con nombre · editable siempre</div>
+    <div class="code"><i># packs/base/expressions.json</i>
+{
+ "<b>feliz</b>":    { "registro":"bright", "color":"#28eb78",
+               "ojos":{"w":26,"h":30,"lift":14}, "parpadeo":3000 },
+ "<b>triste</b>":   { "registro":"soft",   "color":"#3268ff",
+               "ojos":{"w":24,"h":26,"open":75,"ceja":-1} },
+ "<b>enfadado</b>": { "registro":"sharp",  "color":"#ff3219",
+               "ojos":{"w":28,"h":28,"ceja":1} }
+}</div>
+  </div>
+</div>
+
+<div class="card" style="margin-top:16px">
+  <div class="lbl" style="margin-top:0">Una caricia, paso a paso</div>
+  <div class="code">1  el sensor dispara               <b>touch.pet</b>
+2  un reflejo del pack decide      <b>face.emotion "feliz"</b>
+3  el framework busca "feliz" en expressions.json
+       registro  <b>bright</b>              ─→ al modelo (o al banco)
+       color     #28eb78              ─→ ojos + anillo LED
+       ojos      w26 h30 lift14       ─→ la cara que ya viste arriba
+4  el modelo genera en registro <b>bright</b>
+       "¡Ooh, otra vez tú! Me alegro un montón."
+5  salen a la vez  <b>face.say</b> + <b>led.mood</b> + la cara feliz</div>
+  <p class="note" style="margin-top:10px">Fíjate en el paso 4: <b>el modelo nunca oye la palabra <code>feliz</code></b>. Solo conoce <code>bright</code>. El nombre, el color y la forma del ojo son un archivo de texto que cualquiera edita.</p>
+</div>
+
+<h3 class="sec">Qué puede cambiar cada uno</h3>
+<div class="wrap"><table>
+  <tr><th>Quiero…</th><th>Qué toco</th><th>¿Reentrenar?</th><th>¿Recompilar?</th></tr>
+  <tr><td><b>Otras palabras</b><br><span class="tsub">que hable como yo</span></td><td>mi banco de frases</td><td>No</td><td>No</td></tr>
+  <tr><td><b>Otro aspecto</b><br><span class="tsub">mi "feliz" en rosa y parpadeo lento</span></td><td><code>color</code> y <code>parpadeo</code></td><td>No</td><td>No</td></tr>
+  <tr><td><b>Otro carácter</b><br><span class="tsub">que mi "feliz" suene sarcástico</span></td><td><code>registro</code>: bright → sharp</td><td>No</td><td>No</td></tr>
+  <tr><td><b>Una expresión que no existe</b><br><span class="tsub">"travieso", "orgulloso", lo que sea</span></td><td>una entrada nueva apuntando a un registro que ya existe</td><td>No</td><td>No</td></tr>
+  <tr class="warn"><td><b>Una forma de hablar nueva</b><br><span class="tsub">un registro que no está entre los 6</span></td><td>el corpus + entrenar de nuevo</td><td><b>Sí</b></td><td>No</td></tr>
+</table></div>
+<p class="note">La última fila es la única cara, y es exactamente por lo que se reservan 16 huecos en vez de 6: para que quepan registros nuevos más adelante sin cirugía en el vocabulario.</p>
+
+<div class="two" style="margin-top:16px">
   <div class="card">
-    <div class="lbl" style="margin-top:0">2 · Dos buddies, el mismo estado</div>
-    <div class="code"><i># pack de Dani — lines.txt</i>
-<b>happy:</b> ¡Ooh, un amigo! Hoy es el mejor día.
-<b>happy:</b> Otra vez tú. Me encanta.
+    <div class="lbl" style="margin-top:0">El pack de Marta · solo lo que cambia</div>
+    <div class="code"><i># packs/marta/expressions.json</i>
+{
+ "<b>feliz</b>":    { "registro":"<b>sharp</b>", "color":"#ff66cc", "parpadeo":4200 },
+ "<b>travieso</b>": { "registro":"<b>sharp</b>", "color":"#c060ff",
+               "ojos":{"w":26,"h":30,"open":55,"ceja":1} }
+}
 
-<i># pack de Marta — lines.txt</i>
-<b>happy:</b> Oh. Un humano. Supongo que vale.
-<b>happy:</b> No te emociones, solo me alegro un poco.
-
-<i># pack de Marta — emotions.json</i>
-{ "<b>happy</b>": { "color": "#ff66cc", "blink_ms": 4200 } }
-
-<i># pack de Marta — reflexes/main.be</i>
-<i># hasta puede cambiar QUÉ estado dispara una caricia</i>
+<i># packs/marta/reflexes/main.be</i>
+<i># puede cambiar hasta QUÉ expresión dispara una caricia</i>
 bus.on("touch.pet", def (e)
-  bus.publish("face.emotion", "<b>suspicious</b>")
+  bus.publish("face.emotion", "<b>travieso</b>")
 end)</div>
   </div>
+
+  <div class="ask" style="margin-top:0">
+    <h3 style="font-size:21px">Resultado</h3>
+    <p style="color:var(--ink2);font-size:18.5px;margin-top:8px">
+      El buddy de Marta se pone <b>travieso</b> cuando lo acarician, en morado, con los ojos entornados y soltando la frase con retintín. El de Dani es un cachorro verde que se derrite.
+    </p>
+    <p style="color:var(--ink2);font-size:18.5px;margin-top:10px">
+      <b>Mismo firmware. Mismo modelo. El mismo binario, byte a byte.</b> Lo único distinto son dos archivos de texto dentro de su pack.
+    </p>
+    <p style="color:var(--ink2);font-size:18.5px;margin-top:10px">
+      Y lo importante: <code>travieso</code> <b>no existía cuando entrenamos el modelo</b>, y funciona igual — porque apunta a <code>sharp</code>, que sí existía. Esa es toda la gracia de separar las dos capas.
+    </p>
+  </div>
 </div>
 
-<div class="ask">
-  <p style="font-size:18.5px;color:var(--ink2)">
-    <b>Resultado:</b> el buddy de Marta es sarcástico, rosa, parpadea distinto y desconfía cuando lo acarician. El de Dani es un cachorro. <b>Los dos usan exactamente la misma lista de estados.</b>
-  </p>
-  <p style="font-size:18.5px;color:var(--ink2);margin-top:10px">
-    Fijar el set es como acordar el alfabeto: no decide lo que escribe cada uno. Lo que <i>no</i> se puede es inventarse una letra nueva a mitad de camino — un estado que no esté en la lista no tiene ojos que dibujar, ni color en el anillo, ni etiqueta con la que entrenar.
-  </p>
-</div>
+<p class="note"><b>Pendiente relacionado:</b> el anillo LED hoy solo entiende <code>calm</code>, <code>excited</code> y <code>thinking</code>, que no coincide ni con la lista de la cara ni con los registros. Sea cual sea la decisión, hay que alinear los tres.</p>
 
 <!-- ============================ PART 3 ============================ -->
 <h2><span class="n">3</span><span data-lang="es">Equipos y líderes</span><span data-lang="en">Teams & leaders</span></h2>
