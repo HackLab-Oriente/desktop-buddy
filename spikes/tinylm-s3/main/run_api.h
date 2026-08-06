@@ -34,7 +34,9 @@ void softmax(float* x, int size);
 // int8 row-quantised model (runq8.c). weight_caps picks where the weights
 // live: MALLOC_CAP_SPIRAM or MALLOC_CAP_INTERNAL — everything else is
 // identical between the two, so placement is the only measured variable.
+// seq_len_cap (0 = keep the checkpoint's 512) shrinks the KV cache et al —
+// avenue 4 of the brief; the product needs ~64.
 typedef struct QTransformer QTransformer;
-QTransformer* build_transformer_q8(uint32_t weight_caps);
+QTransformer* build_transformer_q8(uint32_t weight_caps, int seq_len_cap);
 float* forward_q8(QTransformer* t, int token, int pos);
 void free_transformer_q8(QTransformer* t);

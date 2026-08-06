@@ -128,13 +128,21 @@ extern "C" void app_main() {
   run_pass("fp32, weights in PSRAM", fwd_fp32);
 
   // int8 row-quantised kernel — avenue 2 (PSRAM) and avenue 3 (internal RAM).
-  if (QTransformer* q8 = build_transformer_q8(MALLOC_CAP_SPIRAM)) {
+  if (QTransformer* q8 = build_transformer_q8(MALLOC_CAP_SPIRAM, 0)) {
     run_pass("int8 rowq8, weights in PSRAM",
              [&](int token, int pos) { return forward_q8(q8, token, pos); });
     free_transformer_q8(q8);
   }
-  if (QTransformer* q8 = build_transformer_q8(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT)) {
+  if (QTransformer* q8 = build_transformer_q8(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT, 0)) {
     run_pass("int8 rowq8, weights in INTERNAL RAM",
+             [&](int token, int pos) { return forward_q8(q8, token, pos); });
+    free_transformer_q8(q8);
+  }
+  // avenue 4: seq_len capped to 128 (the product wants ~64; 128 is the
+  // smallest cap that still fits this 120-token benchmark). KV cache shrinks
+  // 655 KB -> 164 KB — the question is whether it buys TIME, not just memory.
+  if (QTransformer* q8 = build_transformer_q8(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT, 128)) {
+    run_pass("int8 rowq8 internal, seq_len 128",
              [&](int token, int pos) { return forward_q8(q8, token, pos); });
     free_transformer_q8(q8);
   }

@@ -69,7 +69,7 @@ static const uint8_t* qtensor_init(QTensor* t, const uint8_t* p, int rows, int c
     return p;
 }
 
-QTransformer* build_transformer_q8(uint32_t weight_caps) {
+QTransformer* build_transformer_q8(uint32_t weight_caps, int seq_len_cap) {
     const esp_partition_t* part = esp_partition_find_first(
         ESP_PARTITION_TYPE_DATA, (esp_partition_subtype_t)0x40, "model");
     if (!part) { ESP_LOGE(TAG, "no 'model' partition"); return NULL; }
@@ -89,6 +89,7 @@ QTransformer* build_transformer_q8(uint32_t weight_caps) {
 
     QTransformer* t = calloc(1, sizeof *t);
     memcpy(&t->c, src + 4, sizeof(Config));
+    if (seq_len_cap > 0 && seq_len_cap < t->c.seq_len) t->c.seq_len = seq_len_cap;
     const Config* c = &t->c;
     t->kv_dim = c->dim * c->n_kv_heads / c->n_heads;
     t->head_size = c->dim / c->n_heads;
