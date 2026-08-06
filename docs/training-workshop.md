@@ -89,14 +89,16 @@ Three of those flags are **not** the repo's defaults, and each matters:
   at 8k and the rate never comes down, so the model never gets its
   low-rate polish phase — it ends up worse than a *shorter* run that
   finished properly. Set the budget you actually intend to spend.
-- **`--gradient_accumulation_steps=1` with `--batch_size=128`.** The
-  default (`4` × batch 32) does four forward/backward passes per step to
-  build the same effective batch of 128. That exists for models too big to
-  fit a real batch in memory; ours fits easily, and at this size the
-  per-pass overhead dominates the actual maths — so the default is ~2–4×
-  slower for identical learning.
+- **`--max_seq_len=128`.** This is the **biggest speed lever there is**,
+  because attention cost grows with the square of context length. Measured
+  on an M-series Mac at XS size: 251 ms/step at 256, **89 ms at 128, 43 ms
+  at 64.** 128 is plenty of context for short stories. See §5.5.
 - **`--always_save_checkpoint=True`** so Ctrl-C never loses more than the
   last eval interval.
+
+`--batch_size` and `--gradient_accumulation_steps`, by contrast, are
+nearly irrelevant here: every split of the same effective batch measured
+within 7% of the others. Don't spend time tuning them.
 
 It prints a loss line every few seconds. Let it run to the end, or until
 val loss flattens (ballpark 20–40 min on an M-series at this size). Read
@@ -192,6 +194,39 @@ first token, not the full line — even XL feels responsive.
 hidden layer up to 192 where the original used 172. Same shape, ~7% more
 parameters — the measured 88 tok/s belongs to the original; recipe-trained
 S lands at ~81.)
+
+## 5.5. Making runs fast (measure, don't guess)
+
+`bench_train_config.py` (in this folder — copy it into your llama2.c clone)
+times a real forward+backward at every `(device, batch, accumulation)`
+combination for a given model shape. It predicted 258 ms/step where live
+training then measured 260, so its numbers transfer.
+
+```bash
+cp path/to/desktop-buddy/docs/bench_train_config.py .
+python bench_train_config.py                          # XS size, seq 256
+python bench_train_config.py --max_seq_len=64         # what round 2 will use
+python bench_train_config.py --dim=64 --n_layers=5    # a different ladder rung
+```
+
+Measured on an M-series Mac, XS size, effective batch 128:
+
+| what you change | effect |
+|---|---|
+| `--max_seq_len` 256 → 128 → 64 | 251 → 89 → **43 ms/step** (attention is quadratic in context) |
+| batch/accumulation split | **under 7% across every split** — not worth tuning |
+| `mps` → `cpu` | ~1.4× slower at this size (closer than you'd expect; worth testing on your machine) |
+
+**For round 2 this is the headline:** our utterances are ~20–30 word-pieces,
+so `--max_seq_len=64` is not a compromise, it is the correct setting — and it
+makes a full run ~6× faster. That's the difference between one experiment
+per evening and one per coffee break.
+
+Two habits worth borrowing from the rest of this project: **a single
+printed step time is noise** (thermal drift and data-loader jitter easily
+swing it 30%), so compare benchmark runs rather than individual log lines;
+and `mfu` in the training log is computed against an A100's peak FLOPS, so
+it is meaningless on anything else — ignore it.
 
 ## 6. Putting a model on the buddy
 
