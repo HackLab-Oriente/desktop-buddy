@@ -77,6 +77,20 @@
   .ask li{margin-bottom:7px}
   .ask li b{color:var(--ink)}
   .note{color:var(--muted);font-size:16px;margin-top:10px;max-width:1000px}
+
+  .moodgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+  @media(max-width:1080px){.moodgrid{grid-template-columns:repeat(2,1fr)}}
+  .mood{background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:12px 14px 14px;text-align:center}
+  .mood svg{width:100%;height:auto;max-width:170px;display:block;margin:0 auto 8px}
+  .mood .nm{font-size:19px;font-weight:700;display:flex;align-items:center;
+    justify-content:center;gap:7px}
+  .mood .sw{width:12px;height:12px;border-radius:50%;flex:none}
+  .mood .desc{color:var(--ink2);font-size:15.5px;margin-top:3px;line-height:1.35}
+  .mood .meta{color:var(--muted);font:13.5px ui-monospace,Menlo,monospace;margin-top:5px}
+  .moodgrid.mini{grid-template-columns:repeat(2,1fr);gap:12px;margin-top:10px}
+  .moodgrid.mini .mood{border-style:dashed;opacity:.92}
+  .moodgrid.mini svg{max-width:120px}
   [data-lang]{display:none}
   html[lang="es"] [data-lang="es"],html[lang="en"] [data-lang="en"]{display:revert}
 </style>
@@ -85,7 +99,7 @@
 
 <header>
   <h1><span data-lang="es">Buddy — frases locales y equipos</span><span data-lang="en">Buddy — local lines & teams</span></h1>
-  <span class="sub"><span data-lang="es">dos decisiones para hoy</span><span data-lang="en">two decisions for today</span></span>
+  <span class="sub"><span data-lang="es">tres decisiones para hoy</span><span data-lang="en">three decisions for today</span></span>
   <div class="btns"><button id="lang">EN</button><button id="theme">◐</button></div>
 </header>
 
@@ -112,7 +126,6 @@
     <ul class="con">
       <li><span data-lang="es">Se repite. Con 200 frases, en una semana ya las conoces todas.</span><span data-lang="en">It repeats. With 200 lines you'll know them all within a week.</span></li>
       <li><span data-lang="es">Crece solo si alguien escribe más.</span><span data-lang="en">It only grows if someone writes more.</span></li>
-      <li><span data-lang="es">Nunca te va a sorprender.</span><span data-lang="en">It will never surprise you.</span></li>
     </ul>
   </div>
 
@@ -124,7 +137,6 @@
     <ul class="pro">
       <li><b data-lang="es">Nunca se repite</b><b data-lang="en">Never repeats</b> — <span data-lang="es">genera frases nuevas para siempre.</span><span data-lang="en">it generates new lines forever.</span></li>
       <li><b data-lang="es">Ya sabemos que corre</b><b data-lang="en">We know it runs</b> — <span data-lang="es">medido en la placa real, no estimado.</span><span data-lang="en">measured on the real board, not estimated.</span></li>
-      <li><b data-lang="es">Es de verdad nuestro</b><b data-lang="en">Genuinely ours</b> — <span data-lang="es">entrenar un modelo es algo que el lab puede presumir.</span><span data-lang="en">training a model is something the lab can show off.</span></li>
     </ul>
     <div class="lbl"><span data-lang="es">En contra</span><span data-lang="en">Against</span></div>
     <ul class="con">
@@ -142,7 +154,7 @@
     <div><div class="big">~0.3<span class="u"> s</span></div><div style="color:var(--ink2);font-size:16.5px"><span data-lang="es">para una frase de 15 palabras, dentro del firmware real</span><span data-lang="en">for a 15-word line, inside the real firmware</span></div></div>
     <div><div class="big">~10<span class="u"> min</span></div><div style="color:var(--ink2);font-size:16.5px"><span data-lang="es">por experimento de entrenamiento: caben varios en una tarde</span><span data-lang="en">per training experiment: several fit in one evening</span></div></div>
   </div>
-  <p class="note"><span data-lang="es">Traducción: <b>la velocidad ya no es el problema.</b> La pregunta que queda es si un modelo tan pequeño suena bien — y eso se decide escuchándolo, no discutiéndolo.</span><span data-lang="en">Translation: <b>speed is no longer the problem.</b> The remaining question is whether a model this small sounds good — and that is decided by listening, not by arguing.</span></p>
+  <p class="note"><span data-lang="es">Traducción: <b>la velocidad ya no es el problema.</b> La pregunta que queda es si un modelo tan pequeño suena bien — y eso se decide leyéndolo, no discutiéndolo.</span><span data-lang="en">Translation: <b>speed is no longer the problem.</b> The remaining question is whether a model this small sounds good — and that is decided by reding, not by arguing.</span></p>
 </div>
 
 <div class="ask">
@@ -160,7 +172,48 @@
 </div>
 
 <!-- ============================ PART 2 ============================ -->
-<h2><span class="n">2</span><span data-lang="es">Equipos y líderes</span><span data-lang="en">Teams & leaders</span></h2>
+<h2><span class="n">2</span><span data-lang="es">Las 8 emociones propuestas</span><span data-lang="en">The 8 proposed emotions</span></h2>
+<p class="lede">
+  <span data-lang="es">Esto es lo que el buddy hace <b>hoy</b> en la placa — dibujado con los valores reales del firmware, no un boceto. Son una <b>propuesta</b>: el grupo decide el set final.</span>
+  <span data-lang="en">This is what the buddy does <b>today</b> on the board — drawn from the real firmware values, not a sketch. They are a <b>proposal</b>: the group settles the final set.</span>
+</p>
+
+<div id="moods" class="moodgrid"></div>
+
+<div class="two" style="margin-top:16px">
+  <div class="card" style="border-left:4px solid var(--warn-ink)">
+    <h3><span data-lang="es">Faltan al menos dos</span><span data-lang="en">At least two are missing</span></h3>
+    <p><span data-lang="es">El bucle de voz las necesita sí o sí: cuando sueltas el botón hay <b>1,5–3 s</b> de espera, y la cara tiene que decir algo durante ese hueco. Sin esto, el buddy parece colgado.</span><span data-lang="en">The voice loop needs these regardless: releasing the button leaves a <b>1.5–3 s</b> gap, and the face has to say something during it. Without them the buddy looks frozen.</span></p>
+    <div class="moodgrid mini" id="moods-todo"></div>
+    <p class="note" style="margin-top:10px"><span data-lang="es">Sin diseñar todavía — buen primer encargo para el equipo de personalidad.</span><span data-lang="en">Not designed yet — a good first task for the personality team.</span></p>
+  </div>
+
+  <div class="ask" style="margin-top:0">
+    <h3 style="font-size:21px"><span data-lang="es">Por qué hay que cerrarlo pronto</span><span data-lang="en">Why this needs settling early</span></h3>
+    <p style="color:var(--ink2);font-size:17.5px;margin-top:8px">
+      <span data-lang="es">Los nombres de las emociones son <b>vocabulario compartido</b> por cinco sitios: los ojos, el anillo LED, los reflejos de los packs, los prefijos del banco de frases y —si entrenamos— las etiquetas del modelo.</span>
+      <span data-lang="en">The emotion names are <b>shared vocabulary</b> across five places: the eyes, the LED ring, pack reflexes, the line-bank prefixes and — if we train — the model's labels.</span>
+    </p>
+    <p style="color:var(--ink2);font-size:17.5px;margin-top:8px">
+      <span data-lang="es">Cambiar el set después de escribir las frases significa reescribirlas; después de entrenar, significa reentrenar. <b>Barato hoy, caro en la sesión 3.</b></span>
+      <span data-lang="en">Changing the set after the lines are written means rewriting them; after training, retraining. <b>Cheap today, expensive by session 3.</b></span>
+    </p>
+    <div class="lbl"><span data-lang="es">Lo que se decide</span><span data-lang="en">What we decide</span></div>
+    <ol style="margin:4px 0 0 22px;font-size:17.5px;color:var(--ink2)">
+      <li><span data-lang="es">¿Sobra alguna de las 8?</span><span data-lang="en">Do any of the 8 go?</span></li>
+      <li><span data-lang="es">¿Falta alguna además de pensando/escuchando?</span><span data-lang="en">Any missing beyond thinking/listening?</span></li>
+      <li><span data-lang="es">¿Los nombres y colores convencen?</span><span data-lang="en">Do the names and colors convince?</span></li>
+    </ol>
+  </div>
+</div>
+
+<p class="note">
+  <span data-lang="es"><b>Ojo con lo que NO decide esto:</b> cada quien podrá tener su propia personalidad — sus frases, su color, su ritmo — sin tocar este set. Lo que fijamos aquí es solo la <i>lista de estados</i> que el firmware entiende, no cómo los interpreta cada buddy.</span>
+  <span data-lang="en"><b>What this does NOT decide:</b> everyone can still have their own personality — their lines, their color, their timing — without touching this set. All we fix here is the <i>list of states</i> the firmware understands, not how each buddy performs them.</span>
+</p>
+
+<!-- ============================ PART 3 ============================ -->
+<h2><span class="n">3</span><span data-lang="es">Equipos y líderes</span><span data-lang="en">Teams & leaders</span></h2>
 <p class="lede">
   <span data-lang="es">Seis equipos. Cada uno necesita <b>una persona que lo lidere</b> — no que haga todo el trabajo, sino que sepa cómo va su parte (ver abajo qué implica). Nadie está casado con un solo equipo: se puede flotar.</span>
   <span data-lang="en">Six teams. Each needs <b>one person to lead it</b> — not to do all the work, but to know where their part stands (what that means, below). Nobody is married to one team: floating is fine.</span>
@@ -236,7 +289,7 @@
   </div>
 </div>
 
-<div class="two" style="margin-top:16px">
+<div style="margin-top:16px">
   <div class="ask" style="margin-top:0">
     <h3 style="font-size:21px"><span data-lang="es">Qué implica liderar (y qué no)</span><span data-lang="en">What leading means (and doesn't)</span></h3>
     <p style="color:var(--ink2);font-size:17.5px;margin-top:8px">
@@ -248,17 +301,6 @@
       <span data-lang="en"><b>No:</b> do all the work, be the biggest expert, or decide alone. What's proposed here is a starting point — the group amends it.</span>
     </p>
   </div>
-  <div class="ask" style="margin-top:0">
-    <h3 style="font-size:21px"><span data-lang="es">¿Y sub-equipos?</span><span data-lang="en">What about sub-teams?</span></h3>
-    <p style="color:var(--ink2);font-size:17.5px;margin-top:8px">
-      <span data-lang="es">Todavía no. Con seis equipos y cuatro sesiones, anidar más estructura fragmenta la atención y crea casillas sin dueño. Mejor: <b>un líder + tareas concretas que la gente reclama</b>.</span>
-      <span data-lang="en">Not yet. With six teams and four sessions, nesting more structure fragments attention and creates orphaned boxes. Better: <b>one leader + concrete tasks people claim</b>.</span>
-    </p>
-    <p style="color:var(--ink2);font-size:17.5px;margin-top:8px">
-      <span data-lang="es">Los sub-equipos aparecen solos cuando un equipo pasa de ~4 personas activas. El candidato más probable es Firmware.</span>
-      <span data-lang="en">Sub-teams emerge on their own once a team passes ~4 active people. Firmware is the likeliest candidate.</span>
-    </p>
-  </div>
 </div>
 
 <p class="note" style="margin-top:22px">
@@ -267,6 +309,85 @@
 </p>
 
 <script>
+// ---------------------------------------------------------------------------
+// The 8 faces, drawn from the REAL values in
+// firmware/components/expressions/face_model.cpp — {w,h,openness,lift,brow},
+// blink period, mood colour. Same geometry the device uses: 240x240 round
+// screen, eyes at CX +/- 42, brow carved as a wedge off the top, "lift" as the
+// lower lid rising (that is what makes happy a squint, not a shape change).
+const G = { CX:120, CY:120, GAP:42, S:2.6, BROW:0.24 };
+const MOODS = [
+  {n:"neutral",    w:26,h:30,o:100,lift:0, brow:0, c:[0,190,255],   blink:3800,
+   es:"neutral",    en:"neutral",    des:"En reposo, el estado por defecto.", den:"At rest — the default state."},
+  {n:"happy",      w:26,h:30,o:100,lift:14,brow:0, c:[40,235,120],  blink:3000,
+   es:"feliz",      en:"happy",      des:"Al acariciarlo. El párpado sube: sonríe con los ojos.", den:"When petted. The lower lid rises: it smiles with its eyes."},
+  {n:"curious",    w:30,h:34,o:100,lift:0, brow:0, c:[0,210,235],   blink:2600,
+   es:"curioso",    en:"curious",    des:"Al detectar una tarjeta NFC. Ojos más grandes.", den:"On detecting an NFC tag. Bigger eyes."},
+  {n:"sleepy",     w:26,h:30,o:35, lift:0, brow:0, c:[90,90,200],   blink:6000,
+   es:"con sueño",  en:"sleepy",     des:"Tras un rato sin interacción. Parpadeo lento.", den:"After a while with no interaction. Slow blink."},
+  {n:"surprised",  w:34,h:40,o:100,lift:0, brow:0, c:[150,240,255], blink:5000,
+   es:"sorprendido",en:"surprised",  des:"Al tocarlo de golpe. Los ojos casi se tocan.", den:"On a sudden poke. The eyes nearly touch."},
+  {n:"angry",      w:28,h:28,o:100,lift:0, brow:1, c:[255,50,25],   blink:3200,
+   es:"enfadado",   en:"angry",      des:"Cejas hacia dentro. El corte de la ceja es lo unico que cambia.", den:"Brows angled inward. The brow carve is the only change."},
+  {n:"sad",        w:24,h:26,o:75, lift:0, brow:-1,c:[50,110,255],  blink:5200,
+   es:"triste",     en:"sad",        des:"Cejas hacia fuera y ojos a medio abrir.", den:"Brows angled outward, eyes half open."},
+  {n:"suspicious", w:26,h:30,o:55, lift:0, brow:1, c:[255,180,20],  blink:2200,
+   es:"receloso",   en:"suspicious", des:"Entornado y con ceja. Parpadeo rapido.", den:"Narrowed with a brow. Fast blink."},
+];
+const TODO = [
+  {n:"thinking",  es:"pensando",   en:"thinking",
+   des:"Mientras espera al cerebro (1,5-3 s).", den:"While waiting on the brain (1.5-3 s)."},
+  {n:"listening", es:"escuchando", en:"listening",
+   des:"Mientras te graba, con el boton pulsado.", den:"While recording you, button held."},
+];
+
+function faceSVG(m, colour) {
+  const col = colour || `rgb(${m.c.join(",")})`;
+  let rects = "", cuts = "";
+  for (const side of [-1, 1]) {
+    const cx = G.CX + side * G.GAP;
+    const fullH = 2 * m.h;                     // eye height fully open
+    const visH  = fullH * m.o / 100;           // openness shrinks from the top
+    const bottom = G.CY + m.h - m.lift * G.S;  // lift raises the lower lid
+    const top    = G.CY + m.h - visH;
+    const h = bottom - top;
+    if (h <= 1) continue;
+    const w = 2 * m.w, x = cx - m.w;
+    const rx = Math.min(12, w / 2, h / 2);     // the rounded square we liked
+    rects += `<rect x="${x}" y="${top}" width="${w}" height="${h}" rx="${rx}" fill="${col}"/>`;
+    if (m.brow) {
+      const depth = G.BROW * fullH;
+      const inner = cx - side * m.w, outer = cx + side * m.w;
+      const deep = m.brow > 0 ? inner : outer;   // +1 angry: deep toward the nose
+      const shal = m.brow > 0 ? outer : inner;   // -1 sad:   deep toward the ears
+      cuts += `<polygon points="${shal},${top - 3} ${deep},${top - 3} ${deep},${top + depth}" fill="#07080a"/>`;
+    }
+  }
+  return `<svg viewBox="0 0 240 240" role="img" aria-label="${m.n}">
+    <defs><filter id="glow-${m.n}" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="8"/></filter></defs>
+    <circle cx="120" cy="120" r="118" fill="#07080a"/>
+    <g filter="url(#glow-${m.n})" opacity=".5">${rects}</g>
+    ${rects}${cuts}</svg>`;
+}
+const hex = c => "#" + c.map(v => v.toString(16).padStart(2, "0")).join("");
+
+document.getElementById("moods").innerHTML = MOODS.map(m => `
+  <div class="mood">
+    ${faceSVG(m)}
+    <div class="nm"><span class="sw" style="background:${hex(m.c)}"></span>
+      <span data-lang="es">${m.es}</span><span data-lang="en">${m.en}</span></div>
+    <div class="desc"><span data-lang="es">${m.des}</span><span data-lang="en">${m.den}</span></div>
+    <div class="meta">${m.n} · ${hex(m.c)} · ${(m.blink / 1000).toFixed(1)}s</div>
+  </div>`).join("");
+
+document.getElementById("moods-todo").innerHTML = TODO.map(m => `
+  <div class="mood">
+    ${faceSVG({...m, w:26, h:30, o:100, lift:0, brow:0}, "#4a5058")}
+    <div class="nm"><span data-lang="es">${m.es}</span><span data-lang="en">${m.en}</span></div>
+    <div class="desc"><span data-lang="es">${m.des}</span><span data-lang="en">${m.den}</span></div>
+  </div>`).join("");
+
 document.getElementById("lang").addEventListener("click", () => {
   const h = document.documentElement;
   h.lang = h.lang === "es" ? "en" : "es";
