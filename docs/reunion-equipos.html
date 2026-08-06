@@ -384,15 +384,38 @@
 </div>
 
 <h3 class="sec">Qué puede cambiar cada uno</h3>
+<p class="lede2">El coste depende de <b>de dónde salen las frases</b>. Cambiar la cara o el color es igual de gratis en los dos casos; cambiar <i>cómo habla</i> no.</p>
 <div class="wrap"><table>
-  <tr><th>Quiero…</th><th>Qué toco</th><th>¿Reentrenar?</th><th>¿Recompilar?</th></tr>
-  <tr><td><b>Otras palabras</b><br><span class="tsub">que hable como yo</span></td><td>mi banco de frases</td><td>No</td><td>No</td></tr>
-  <tr><td><b>Otro aspecto</b><br><span class="tsub">mi "feliz" en rosa y parpadeo lento</span></td><td><code>color</code> y <code>parpadeo</code></td><td>No</td><td>No</td></tr>
-  <tr><td><b>Otro carácter</b><br><span class="tsub">que mi "feliz" suene sarcástico</span></td><td><code>registro</code>: bright → sharp</td><td>No</td><td>No</td></tr>
-  <tr><td><b>Una expresión que no existe</b><br><span class="tsub">"travieso", "orgulloso", lo que sea</span></td><td>una entrada nueva apuntando a un registro que ya existe</td><td>No</td><td>No</td></tr>
-  <tr class="warn"><td><b>Una forma de hablar nueva</b><br><span class="tsub">un registro que no está entre los 6</span></td><td>el corpus + entrenar de nuevo</td><td><b>Sí</b></td><td>No</td></tr>
+  <tr><th>Quiero…</th><th>Qué toco</th><th>Si usa el banco</th><th>Si usa el modelo</th></tr>
+  <tr><td><b>Otras palabras</b><br><span class="tsub">que hable como yo</span></td>
+      <td>mis frases</td>
+      <td><span class="badge b-good">al momento</span><br><span class="tsub">editas el archivo y ya</span></td>
+      <td><span class="badge b-warn">ajuste corto</span><br><span class="tsub">minutos, sobre el modelo base — no se empieza de cero</span></td></tr>
+  <tr><td><b>Otro aspecto</b><br><span class="tsub">mi "feliz" en rosa y parpadeo lento</span></td>
+      <td><code>color</code> y <code>parpadeo</code></td>
+      <td><span class="badge b-good">al momento</span></td><td><span class="badge b-good">al momento</span></td></tr>
+  <tr><td><b>Otro carácter</b><br><span class="tsub">que mi "feliz" suene sarcástico</span></td>
+      <td><code>registro</code>: bright → sharp</td>
+      <td><span class="badge b-good">al momento</span></td><td><span class="badge b-good">al momento</span></td></tr>
+  <tr><td><b>Una expresión que no existe</b><br><span class="tsub">"travieso", "orgulloso", lo que sea</span></td>
+      <td>una entrada nueva apuntando a un registro que ya existe</td>
+      <td><span class="badge b-good">al momento</span></td><td><span class="badge b-good">al momento</span></td></tr>
+  <tr><td><b>Una forma de hablar nueva</b><br><span class="tsub">un registro que no está entre los 6</span></td>
+      <td>frases nuevas con ese prefijo</td>
+      <td><span class="badge b-good">al momento</span></td>
+      <td><span class="badge b-warn">ajuste corto</span></td></tr>
 </table></div>
-<p class="note">La última fila es la única que cuesta — y aun así es un <b>reentrenado corto (~20 min) sobre el modelo que ya existe</b>, no empezar de cero: al ir los registros como texto normal, el vocabulario no cambia y el firmware tampoco. Por eso conviene que los registros sean pocos y genéricos: se tocan una vez al año, mientras que las expresiones con nombre se tocan cada semana.</p>
+<p class="note"><b>Nada de esto recompila el firmware</b> — el binario es el mismo en todos los casos. Las dos casillas naranjas son el mismo trabajo: darle al modelo ejemplos nuevos y dejarlo aprender unos minutos.</p>
+
+<div class="ask">
+  <h3 style="font-size:21px">Lo que revela esa tabla</h3>
+  <p style="color:var(--ink2);font-size:18.5px;margin-top:8px">
+    <b>El banco es más personalizable que el modelo</b>, y conviene decirlo claro: con el banco, cambiar tu voz es editar un archivo; con el modelo, tu voz vive <i>dentro</i> de los pesos y hay que reentrenar un poco para moverla. Todo lo demás — cara, color, carácter, expresiones nuevas — es igual de libre en los dos.
+  </p>
+  <p style="color:var(--ink2);font-size:18.5px;margin-top:10px">
+    Por eso el <b>híbrido</b> es tan buena opción: tus frases van al banco y salen al instante, y el modelo aporta variedad infinita con la voz base del grupo. Cada uno cubre justo el punto flojo del otro.
+  </p>
+</div>
 
 <div class="two" style="margin-top:16px">
   <div class="card">
