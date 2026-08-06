@@ -467,6 +467,7 @@ end)</div>
 <p class="lede2">Pulsa un gesto y sigue el recorrido. Es exactamente la lógica del <code>main.be</code> de arriba — incluido que se enfada al tercer toque, porque los reflejos tienen memoria.</p>
 
 <div class="triggers" id="triggers"></div>
+<p class="note" style="margin:-4px 0 12px">* <code>timer.idle_5m</code> todavía no existe en el firmware — los otros tres sí. Está en el plan, y es un ejemplo de evento nuevo que alguien tendrá que definir.</p>
 <div class="demo">
   <div>
     <div class="demoface" id="demoface"></div>
@@ -764,7 +765,7 @@ const TRIGGERS = [
   {label:"Acariciar",       ev:"touch.pet"},
   {label:"Dar un toque",    ev:"touch.poke"},
   {label:"Enseñar tarjeta", ev:"nfc.tag", payload:"game:catan"},
-  {label:"Dejarlo solo",    ev:"timer.idle"},
+  {label:"Dejarlo solo *",  ev:"timer.idle_5m"},
 ];
 let pokes = 0, seq = 0;
 
