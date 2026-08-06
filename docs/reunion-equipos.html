@@ -224,12 +224,121 @@
   </div>
 </div>
 
-<h3 class="sec">Tres sets posibles — subir, quedarse o bajar</h3>
-<p class="lede2">Lo que se vota no es cada emoción por separado, sino <b>cuántas</b>. Es un solo número y lo cambia todo, porque el esfuerzo de escribir frases se reparte entre ellas.</p>
+<h3 class="sec">Antes que nada: ¿qué <i>es</i> un estado? Cuatro formas de nombrarlo</h3>
+<p class="lede2">Hoy la lista son <b>emociones</b> (feliz, triste, enfadado). No tiene por qué serlo. Esta es la decisión de fondo, y hay que tomarla antes que cualquier otra — porque cambia cómo se escriben las frases, cómo se diseñan las caras y qué se congela dentro del modelo.</p>
+
+<div class="two">
+  <div class="card setc">
+    <div class="tag2">Opción A · emociones <span class="badge b-acc">lo de hoy</span></div>
+    <div class="chips">
+      <span class="chip">feliz</span><span class="chip">triste</span><span class="chip">enfadado</span><span class="chip">curioso</span>
+    </div>
+    <div class="code" style="margin:10px 0">feliz: ¡Ooh, un amigo! Hoy es el mejor día.</div>
+    <div class="lbl">A favor</div>
+    <ul class="pro">
+      <li>Cualquiera entiende el set sin que se lo expliquen: escribir frases sale solo.</li>
+      <li>Engancha. A la gente le coge cariño a algo que parece sentir.</li>
+    </ul>
+    <div class="lbl">En contra</div>
+    <ul class="con">
+      <li>Antropomorfiza: un cacharro que dice "estoy triste" promete algo que no cumple.</li>
+      <li><b>El set no se cierra nunca.</b> Siempre falta una emoción y siempre se puede discutir cuál.</li>
+    </ul>
+  </div>
+
+  <div class="card setc">
+    <div class="tag2">Opción B · nivel de energía</div>
+    <div class="chips">
+      <span class="chip">up</span><span class="chip">settle</span><span class="chip">down</span><span class="chip dim">(+ spike?)</span>
+    </div>
+    <div class="code" style="margin:10px 0">up: ¡Ooh, un amigo! Hoy es el mejor día.</div>
+    <div class="lbl">A favor</div>
+    <ul class="pro">
+      <li><b>Tres o cuatro estados cubren casi todo.</b> Set pequeño y cerrado.</li>
+      <li>No hay discusión filosófica: la energía se ve, la tristeza se opina.</li>
+      <li>Honesto — no finge sentimientos que no tiene. Muy "criatura", poco "peluche".</li>
+    </ul>
+    <div class="lbl">En contra</div>
+    <ul class="con">
+      <li>Escribir "30 frases de <i>down</i>" cuesta más que "30 frases tristes".</li>
+      <li>Una sola dimensión: enfadado y triste caen los dos en <i>down</i> y suenan igual.</li>
+    </ul>
+  </div>
+
+  <div class="card setc">
+    <div class="tag2">Opción C · registro (cómo se dice)</div>
+    <div class="chips">
+      <span class="chip">bright</span><span class="chip">flat</span><span class="chip">sharp</span>
+      <span class="chip">soft</span><span class="chip">hushed</span><span class="chip">urgent</span>
+    </div>
+    <div class="code" style="margin:10px 0">sharp: Ah. Un humano. Qué ilusión.</div>
+    <div class="lbl">A favor</div>
+    <ul class="pro">
+      <li>Describe <b>cómo se dice</b>, no qué siente — que es justo lo que un modelo puede aprender.</li>
+      <li>Compositivo y estable: casi nunca hay que tocarlo.</li>
+      <li>Separa "cómo suena" de "qué cara pone": dos equipos trabajan en paralelo.</li>
+    </ul>
+    <div class="lbl">En contra</div>
+    <ul class="con">
+      <li>Vocabulario de doblaje: hay que explicarlo la primera vez.</li>
+      <li>No dice qué cara dibujar — hace falta otra capa encima igualmente.</li>
+    </ul>
+  </div>
+
+  <div class="card setc">
+    <div class="tag2">Opción D · estado de interacción</div>
+    <div class="chips">
+      <span class="chip">idle</span><span class="chip">listening</span><span class="chip">thinking</span>
+      <span class="chip">reacting</span><span class="chip">sleeping</span>
+    </div>
+    <div class="code" style="margin:10px 0">thinking: A ver, déjame pensar un momento…</div>
+    <div class="lbl">A favor</div>
+    <ul class="pro">
+      <li>Objetivo y verificable: el firmware ya razona así.</li>
+      <li>Incluye <i>pensando</i> y <i>escuchando</i> de forma natural, que hacen falta sí o sí.</li>
+    </ul>
+    <div class="lbl">En contra</div>
+    <ul class="con">
+      <li>No cubre el carácter: no hay hueco para el sarcasmo ni el enfado.</li>
+      <li>Frío — describe la máquina, no la criatura.</li>
+    </ul>
+  </div>
+</div>
+
+<div class="ask">
+  <h3 style="font-size:21px">La propuesta: no elegir una — separar en dos capas</h3>
+  <p style="color:var(--ink2);font-size:18.5px;margin-top:8px">
+    Las cuatro opciones compiten solo si tiene que haber <b>una sola lista</b>. Y no tiene por qué, porque hay dos cosas distintas que cambian a ritmos muy distintos:
+  </p>
+  <div class="two" style="margin-top:12px">
+    <div class="card" style="border-left:4px solid var(--bad-ink)">
+      <h3 style="font-size:19px">Capa modelo — <i>se congela</i></h3>
+      <p style="font-size:17px">Pocos registros abstractos (estilo B o C). Se quedan grabados dentro del modelo al entrenar: cambiarlos = reentrenar.</p>
+      <p style="font-size:17px"><b>Truco:</b> reservar ~16 huecos y entrenar solo 6. Así caben registros nuevos más adelante sin tocar el vocabulario.</p>
+    </div>
+    <div class="card" style="border-left:4px solid var(--good-ink)">
+      <h3 style="font-size:19px">Capa pack — <i>siempre editable</i></h3>
+      <p style="font-size:17px">Expresiones con nombre, ilimitadas, las define el grupo. Cada una apunta a un registro.</p>
+      <p style="font-size:17px">Quien quiera <code>travieso</code> lo declara: cara + color + registro <code>sharp</code>. <b>Sin reentrenar y sin recompilar.</b></p>
+    </div>
+  </div>
+  <p style="color:var(--ink2);font-size:18.5px;margin-top:14px">
+    <b>Por qué importa tanto:</b> si metemos <code>feliz</code>, <code>triste</code>, <code>enfadado</code> dentro del modelo, hemos clavado la lista de emociones en un <i>binario</i> — el sitio más dictatorial posible, peor incluso que tenerla en C++, que al menos alguien puede editar. Lo abstracto se congela; lo que el grupo discute se queda en datos.
+  </p>
+  <div class="lbl">El orden que implica</div>
+  <ol style="margin:4px 0 0 22px;font-size:18px;color:var(--ink2)">
+    <li><b>Primero</b> el grupo decide las expresiones con nombre — la parte divertida, sin restricciones técnicas.</li>
+    <li><b>Después</b> se diseña el set de registros para servirlas (pocos y abstractos).</li>
+    <li><b>Al final</b> el corpus, porque codifica las dos decisiones anteriores y es lo caro de rehacer.</li>
+  </ol>
+</div>
+
+<h3 class="sec">Y luego, ¿cuántos?</h3>
+<p class="lede2">Una vez decidido <i>qué</i> son, queda <b>cuántos</b>. Ojo: si sale la opción B o C, el número baja solo — los registros abstractos son pocos por diseño. Estas tres opciones valen sobre todo si el grupo se queda con emociones con nombre.</p>
 
 <div class="three">
   <div class="card setc">
-    <div class="tag2">Opción A · bajar</div>
+    <div class="tag2">Bajar</div>
     <h3>Mínimo — 6 estados</h3>
     <div class="chips">
       <span class="chip">neutral</span><span class="chip">feliz</span><span class="chip">sorprendido</span>
@@ -248,7 +357,7 @@
   </div>
 
   <div class="card setc reco">
-    <div class="tag2">Opción B · quedarse <span class="badge b-acc">propuesta</span></div>
+    <div class="tag2">Quedarse <span class="badge b-acc">lo de hoy</span></div>
     <h3>Las 8 + las 2 que faltan = 10</h3>
     <div class="chips">
       <span class="chip">neutral</span><span class="chip">feliz</span><span class="chip">curioso</span>
@@ -269,7 +378,7 @@
   </div>
 
   <div class="card setc">
-    <div class="tag2">Opción C · subir</div>
+    <div class="tag2">Subir</div>
     <h3>Ampliado — 13 estados</h3>
     <div class="chips">
       <span class="chip dim">las 10 anteriores</span>
