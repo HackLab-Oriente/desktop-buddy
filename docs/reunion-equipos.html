@@ -319,7 +319,7 @@
     <div class="card" style="border-left:4px solid var(--bad-ink)">
       <h3 style="font-size:19px">Capa modelo — <i>se congela</i></h3>
       <p style="font-size:17px">Pocos registros abstractos (estilo B o C). Se quedan grabados dentro del modelo al entrenar: cambiarlos = reentrenar.</p>
-      <p style="font-size:17px"><b>Truco:</b> reservar ~16 huecos y entrenar solo 6. Así caben registros nuevos más adelante sin tocar el vocabulario.</p>
+      <p style="font-size:17px">Los nombres van como <b>texto normal</b> (<code>bright:</code>), no como símbolos especiales. Así, añadir un registro nuevo más adelante es un reentrenado corto — no rehacer el vocabulario ni tocar el firmware.</p>
     </div>
     <div class="card" style="border-left:4px solid var(--good-ink)">
       <h3 style="font-size:19px">Capa pack — <i>siempre editable</i></h3>
@@ -345,7 +345,7 @@
   <div class="card" style="border-left:4px solid var(--bad-ink)">
     <div class="lbl" style="margin-top:0">Capa modelo · 6 registros · se congela al entrenar</div>
     <div class="code">bright · flat · sharp · soft · hushed · urgent
-<i>(+10 huecos reservados, vacíos, para el futuro)</i>
+<i>(seis basta para empezar; caben más luego)</i>
 
 <i># el corpus se etiqueta por REGISTRO, nunca por emoción.</i>
 <i># Por eso no hay que reescribirlo cuando alguien</i>
@@ -392,7 +392,7 @@
   <tr><td><b>Una expresión que no existe</b><br><span class="tsub">"travieso", "orgulloso", lo que sea</span></td><td>una entrada nueva apuntando a un registro que ya existe</td><td>No</td><td>No</td></tr>
   <tr class="warn"><td><b>Una forma de hablar nueva</b><br><span class="tsub">un registro que no está entre los 6</span></td><td>el corpus + entrenar de nuevo</td><td><b>Sí</b></td><td>No</td></tr>
 </table></div>
-<p class="note">La última fila es la única cara, y es exactamente por lo que se reservan 16 huecos en vez de 6: para que quepan registros nuevos más adelante sin cirugía en el vocabulario.</p>
+<p class="note">La última fila es la única que cuesta — y aun así es un <b>reentrenado corto (~20 min) sobre el modelo que ya existe</b>, no empezar de cero: al ir los registros como texto normal, el vocabulario no cambia y el firmware tampoco. Por eso conviene que los registros sean pocos y genéricos: se tocan una vez al año, mientras que las expresiones con nombre se tocan cada semana.</p>
 
 <div class="two" style="margin-top:16px">
   <div class="card">
