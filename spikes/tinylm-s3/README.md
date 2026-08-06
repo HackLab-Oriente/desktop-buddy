@@ -52,12 +52,115 @@ matmul — 227,840 of stories260K's 260,672 params are non-embedding):
 So this is **not** "the chip can't". An unvectorised fp32 port already puts
 Config S in the usable band.
 
+## Step 0.5: the kernel optimisation pass
+
+Brief: [`OPTIMIZATION-BRIEF.md`](OPTIMIZATION-BRIEF.md). Target was **≥3×**
+over the 31.4 tok/s fp32-PSRAM baseline. Landed:
+
+| variant | tok/s | ms/token | p50 / p99 | vs baseline | coherent? |
+|---|---|---|---|---|---|
+| fp32, mmap'd flash | 13.3 | 75.0 | 75.0 / 79.1 | 1.06× | yes |
+| fp32, PSRAM (reference) | 38.0 | 26.3 | 26.3 / 30.5 | 1.21× | yes, word-identical |
+| int8, weights in PSRAM | 87.8 | 11.4 | 11.3 / 15.6 | 2.80× | yes |
+| **int8, weights in internal RAM** | **152.4** | **6.56** | 6.58 / 10.41 | **4.85×** | yes |
+| int8 internal, seq_len 128 | 151.7 | 6.59 | 6.59 / 10.40 | 4.83× | yes, identical |
+
+Every pass runs the same 120-token generation with the same RNG seed, so the
+sample texts are directly comparable. p99 stayed flat throughout (~1.6× p50) —
+jitter is still not a problem. Weights: 277,536 B int8 (fits internal RAM
+with 89 KB to spare); PSRAM high-water unchanged except where noted.
+
+### Where the 4.85× came from (each commit carries its own before/after)
+
+1. **Profile first** (`prof.h`, cycle-accurate buckets, zero overhead): every
+   matmul ran at ~19.5 cycles/MAC *regardless of shape* — memory-latency-bound
+   on scalar 4-byte PSRAM reads, not compute-bound.
+2. **ESP-DSP SIMD matmul: +3.8% only** — and that *confirmed* the diagnosis:
+   wider loads don't fix cache-miss stalls. Kept for the alignment
+   infrastructure the int8 path needs.
+3. **int8 row quantisation (+ per-row scales): 31.4 → 56.8 tok/s.** 4× less
+   traffic, and `dsps_dp_s8_aes3` does 16 MACs per instruction. Not upstream
+   `runq.c`'s format: flat Q8_0 grouping degrades to group-size 4 on
+   stories260K (hidden 172 = 4×43); per-row scales with rows padded to 16 B
+   match the SIMD contract instead. Quality cost: invisible (samples stay
+   coherent stories; max per-weight error 0.007).
+4. **Same weights in internal RAM: 56.8 → 78.4.** Placement is the whole
+   diff — the outputs are byte-identical.
+5. **Fast `expf`: 78.4 → 114.0.** newlib's is ~420 cycles; softmax + SwiGLU +
+   the sampler call it thousands of times per token. A 15-cycle 2^x
+   construction (rel err < 2.5e-4) left the fp32 sample **word-identical**.
+6. **RoPE hoist + magic-constant rounding: 114 → 141.** The angles only
+   depend on `(pos, pair)` but were recomputed per layer; `lrintf` was a
+   libcall in the quantiser.
+7. **`-funroll-loops`: 141 → 152.** Unrolls the `head_size=8` attention
+   loops, the hot scalar code once matmul went to SIMD.
+
+Measured and rejected (so nobody re-tries them): hoisting `sqrtf` out of the
+score loop and softmax divide→reciprocal — zero change, `-ffast-math` already
+does both. `seq_len` 512→128: zero time, but **+504 KB of free PSRAM** (KV
+cache 655→164 KB); it's a memory lever, not a speed lever, because per-token
+KV traffic scales with the *position*, not the allocation.
+
+Not attempted: dual-core. The remaining profile caps it at ~1.6–1.8× more,
+but on the real device core 0 runs WiFi/TLS and core 1 runs the face, so the
+number could not inform the product decision. Next kernel levers if ever
+needed: int4 weights (halves PSRAM traffic, fits more of Config S internal),
+int8 KV cache (attention is now 64% of the token and is KV-traffic-bound).
+
+### Profile, before → after (per token, int8-internal at the end)
+
+```
+matmuls (all)        21.12 ms  69%  →  1.16 ms  19%
+attention             7.22 ms  23%  →  3.94 ms  64%
+SwiGLU                1.56 ms   5%  →  0.67 ms  11%
+RoPE                  0.61 ms   2%  →  0.05 ms   1%
+quantise x                 —        →  0.19 ms   3%
+rmsnorm+residuals     0.22 ms   1%  →  0.13 ms   2%
+TOTAL forward()      30.73 ms       →  6.14 ms
+```
+
+### Two hardware traps, documented in code but repeated here
+
+- **The 28-byte checkpoint header leaves every tensor at +12 mod 16.**
+  `dsps_dotprod_f32_aes3` checks alignment and *silently* falls back to a
+  scalar-load body — the "optimisation" measures as noise unless the blob is
+  landed 4 bytes into a 16-byte-aligned allocation.
+- **`dsps_dp_s8_aes3` over-reads 16 bytes past both operands** (pipelined
+  `ee.vld.128`). Every buffer it touches needs 16 B of slack, or the crash is
+  rare, allocation-order-dependent, and miserable to find.
+
+### Updated extrapolation, and the recommendation
+
+Config S (1,179,648 non-emb params) at int8 is ~1.2 MB — too big for internal
+RAM, so it runs from PSRAM. Scaling the measured int8-PSRAM pass per-param
+gives **59 ms/token = 17 tok/s** (conservative: attention and the sampler
+scale slower than params; the structure-aware estimate is ~40 ms ≈ 25 tok/s).
+A 15-word line (~20 tokens) is therefore **0.8–1.2 s end to end**, and a
+partial-internal placement (~380 KB of the hottest tensors) or int4 pushes it
+toward ~0.6–0.9 s. The brief's "needs ~2 s, too slow to feel alive" problem
+is gone.
+
+**Recommendation: the kernel is no longer the reason to say no.** Before this
+pass, the per-parameter efficiency gap to esp32-ai was 5.4×; it is now ~1.1×
+(34.7M vs 38.6M param·tok/s), with their remainder being int4. Two honest
+caveats for the group:
+- These numbers are stories260K's *speed* wearing Config S's parameter count.
+  Whether a 1.3M-param model can be *worth listening to* is a training
+  question this spike cannot answer — the line-bank alternative stays on the
+  table.
+- The int8-internal 152 tok/s headline does not transfer to Config S (it
+  doesn't fit internal); the transferable number is the PSRAM row.
+
 ## Running it
 
 ```bash
 # 1. weights (not vendored — 1 MB binary)
 curl -LO https://huggingface.co/karpathy/tinyllamas/resolve/main/stories260K/stories260K.bin
 esptool.py --chip esp32s3 -p PORT write-flash 0x710000 stories260K.bin
+
+# 1b. int8 blob for the quantised passes (needs only stdlib Python)
+python3 tools/quantize_rowq8.py stories260K.bin stories260K-rowq8.bin
+esptool.py --chip esp32s3 -p PORT write-flash 0x910000 stories260K-rowq8.bin
 
 # 2. the benchmark
 idf.py set-target esp32s3 && idf.py -p PORT flash monitor
