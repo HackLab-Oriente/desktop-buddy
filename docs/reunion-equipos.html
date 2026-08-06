@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Buddy — decisión de frases locales y equipos</title>
+<style>
+  :root {
+    --bg:#f7f5f0; --card:#fff; --ink:#1e2126; --ink2:#5a6068; --muted:#8a9098;
+    --line:#e3e0d8; --accent:#2563a8; --accent-ink:#fff;
+    --good-bg:#e3efe5; --good-ink:#1e6b34; --bad-bg:#f7e5e2; --bad-ink:#9c3a2a;
+    --warn-bg:#f5eedd; --warn-ink:#8a6410; --soft:#eef1f6;
+  }
+  [data-theme="dark"] {
+    --bg:#14161a; --card:#1e2126; --ink:#eceae4; --ink2:#b9bec6; --muted:#7d838c;
+    --line:#2e323a; --accent:#6aa7e0; --accent-ink:#10131a;
+    --good-bg:#1c3324; --good-ink:#7fd096; --bad-bg:#3a211c; --bad-ink:#eb9a85;
+    --warn-bg:#35301e; --warn-ink:#e0bd62; --soft:#232830;
+  }
+  *{box-sizing:border-box;margin:0}
+  body{background:var(--bg);color:var(--ink);padding:26px 24px 60px;max-width:1500px;margin:0 auto;
+    font:20px/1.5 -apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif}
+  header{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:4px}
+  h1{font-size:32px;letter-spacing:-.02em}
+  .sub{color:var(--ink2);font-size:18px}
+  .btns{margin-left:auto;display:flex;gap:8px}
+  .btns button{background:var(--card);color:var(--ink);border:1px solid var(--line);
+    border-radius:10px;padding:7px 15px;font-size:16px;cursor:pointer}
+  h2{font-size:27px;letter-spacing:-.01em;margin:34px 0 4px;padding-top:18px;border-top:1px solid var(--line)}
+  h2 .n{color:var(--accent);font:700 20px ui-monospace,Menlo,monospace;margin-right:10px}
+  .lede{color:var(--ink2);font-size:19px;margin-bottom:16px;max-width:1000px}
+
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .three{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  @media(max-width:1080px){.two,.three{grid-template-columns:1fr}}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 20px}
+  .card h3{font-size:22px;margin-bottom:2px}
+  .card .tag{color:var(--muted);font-size:15px;margin-bottom:10px}
+  .card p{color:var(--ink2);font-size:17.5px;margin-bottom:10px}
+  .card ul{margin:0 0 10px 20px;padding:0;color:var(--ink2);font-size:17px}
+  .card li{margin-bottom:5px}
+  .card li b{color:var(--ink)}
+  .pro li::marker{color:var(--good-ink)}
+  .con li::marker{color:var(--bad-ink)}
+  .lbl{font-size:14.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--muted);margin:12px 0 4px}
+
+  .badge{display:inline-block;border-radius:8px;padding:3px 10px;font-size:15px;font-weight:600}
+  .b-good{background:var(--good-bg);color:var(--good-ink)}
+  .b-bad{background:var(--bad-bg);color:var(--bad-ink)}
+  .b-warn{background:var(--warn-bg);color:var(--warn-ink)}
+  .b-acc{background:var(--soft);color:var(--accent)}
+
+  .big{font:700 40px/1.1 ui-monospace,Menlo,monospace;letter-spacing:-.02em}
+  .big .u{font-size:19px;color:var(--ink2);font-weight:400}
+  .measured{border-left:4px solid var(--accent)}
+
+  table{width:100%;border-collapse:collapse;font-size:17px;margin-top:6px}
+  th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--muted);font-size:14.5px;text-transform:uppercase;letter-spacing:.05em}
+  td b{color:var(--ink)}
+  .wrap{overflow-x:auto}
+
+  .team{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 20px;
+    display:flex;flex-direction:column}
+  .team h3{font-size:21px;display:flex;align-items:center;gap:9px}
+  .team .who{color:var(--muted);font-size:15.5px;margin:2px 0 10px}
+  .team ul{margin:0 0 4px 19px;padding:0;font-size:16.5px;color:var(--ink2)}
+  .team li{margin-bottom:4px}
+  .team .lead{margin-top:auto;padding-top:12px;border-top:1px dashed var(--line);
+    font-size:15.5px;color:var(--muted)}
+  .dot{width:11px;height:11px;border-radius:50%;flex:none}
+
+  .ask{background:var(--soft);border:1px solid var(--line);border-radius:14px;padding:18px 22px;margin-top:16px}
+  .ask ol{margin:8px 0 0 22px;font-size:18px;color:var(--ink2)}
+  .ask li{margin-bottom:7px}
+  .ask li b{color:var(--ink)}
+  .note{color:var(--muted);font-size:16px;margin-top:10px;max-width:1000px}
+  [data-lang]{display:none}
+  html[lang="es"] [data-lang="es"],html[lang="en"] [data-lang="en"]{display:revert}
+</style>
+</head>
+<body>
+
+<header>
+  <h1><span data-lang="es">Buddy — frases locales y equipos</span><span data-lang="en">Buddy — local lines & teams</span></h1>
+  <span class="sub"><span data-lang="es">dos decisiones para hoy</span><span data-lang="en">two decisions for today</span></span>
+  <div class="btns"><button id="lang">EN</button><button id="theme">◐</button></div>
+</header>
+
+<!-- ============================ PART 1 ============================ -->
+<h2><span class="n">1</span><span data-lang="es">¿Cómo habla el buddy sin internet?</span><span data-lang="en">How does the buddy talk without internet?</span></h2>
+<p class="lede">
+  <span data-lang="es">Con WiFi, el buddy usa un LLM en la nube y dice cosas inteligentes. Sin WiFi —o mientras espera la respuesta— tiene que decir <i>algo</i>. Hay dos formas de conseguirlo, y no son excluyentes.</span>
+  <span data-lang="en">With WiFi, the buddy uses a cloud LLM and says clever things. Without WiFi — or while waiting for the reply — it still has to say <i>something</i>. There are two ways to get that, and they are not mutually exclusive.</span>
+</p>
+
+<div class="two">
+  <div class="card">
+    <h3>A · <span data-lang="es">Banco de frases</span><span data-lang="en">Line bank</span></h3>
+    <div class="tag"><span data-lang="es">un archivo de texto con frases escritas por nosotros</span><span data-lang="en">a text file of lines we write ourselves</span></div>
+    <div style="font:15.5px/1.7 ui-monospace,Menlo,monospace;background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:11px 13px;margin-bottom:12px;color:var(--ink2)">happy: ¡Ooh, un amigo! Hoy es el mejor día.<br>sleepy: Cinco minutos más. Bueno, diez.</div>
+    <div class="lbl"><span data-lang="es">A favor</span><span data-lang="en">For</span></div>
+    <ul class="pro">
+      <li><b data-lang="es">Calidad garantizada</b><b data-lang="en">Guaranteed quality</b> — <span data-lang="es">nunca dice una tontería, porque cada frase la escribió una persona.</span><span data-lang="en">it never says nonsense, because a human wrote every line.</span></li>
+      <li><b data-lang="es">Instantáneo</b><b data-lang="en">Instant</b> — <span data-lang="es">0 ms. Es leer una línea de un archivo.</span><span data-lang="en">0 ms. It's reading a line from a file.</span></li>
+      <li><b data-lang="es">Personalizable sin código</b><b data-lang="en">Hackable with no code</b> — <span data-lang="es">cada quien edita su archivo y su buddy tiene su propia voz.</span><span data-lang="en">anyone edits their file and their buddy has its own voice.</span></li>
+      <li><b data-lang="es">Cualquiera participa</b><b data-lang="en">Everyone can join</b> — <span data-lang="es">escribir frases no requiere saber programar.</span><span data-lang="en">writing lines needs no programming.</span></li>
+    </ul>
+    <div class="lbl"><span data-lang="es">En contra</span><span data-lang="en">Against</span></div>
+    <ul class="con">
+      <li><span data-lang="es">Se repite. Con 200 frases, en una semana ya las conoces todas.</span><span data-lang="en">It repeats. With 200 lines you'll know them all within a week.</span></li>
+      <li><span data-lang="es">Crece solo si alguien escribe más.</span><span data-lang="en">It only grows if someone writes more.</span></li>
+      <li><span data-lang="es">Nunca te va a sorprender.</span><span data-lang="en">It will never surprise you.</span></li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3>B · <span data-lang="es">Modelo de IA propio</span><span data-lang="en">Our own AI model</span></h3>
+    <div class="tag"><span data-lang="es">una red neuronal diminuta, entrenada por nosotros, corriendo en el ESP32-S3</span><span data-lang="en">a tiny neural network, trained by us, running on the ESP32-S3</span></div>
+    <p><span data-lang="es">No responde preguntas ni sabe datos. Hace <b>una sola cosa</b>: dado un estado de ánimo, inventa una frase corta con nuestra voz.</span><span data-lang="en">It answers no questions and knows no facts. It does <b>one thing</b>: given a mood, it invents a short line in our voice.</span></p>
+    <div class="lbl"><span data-lang="es">A favor</span><span data-lang="en">For</span></div>
+    <ul class="pro">
+      <li><b data-lang="es">Nunca se repite</b><b data-lang="en">Never repeats</b> — <span data-lang="es">genera frases nuevas para siempre.</span><span data-lang="en">it generates new lines forever.</span></li>
+      <li><b data-lang="es">Ya sabemos que corre</b><b data-lang="en">We know it runs</b> — <span data-lang="es">medido en la placa real, no estimado.</span><span data-lang="en">measured on the real board, not estimated.</span></li>
+      <li><b data-lang="es">Es de verdad nuestro</b><b data-lang="en">Genuinely ours</b> — <span data-lang="es">entrenar un modelo es algo que el lab puede presumir.</span><span data-lang="en">training a model is something the lab can show off.</span></li>
+    </ul>
+    <div class="lbl"><span data-lang="es">En contra</span><span data-lang="en">Against</span></div>
+    <ul class="con">
+      <li><b data-lang="es">Calidad desconocida</b><b data-lang="en">Unknown quality</b> — <span data-lang="es">un modelo tan pequeño puede escribir cosas raras. No lo sabremos hasta escucharlo.</span><span data-lang="en">a model this small can write odd things. We won't know until we hear it.</span></li>
+      <li><span data-lang="es">Necesita las frases igual (ver abajo).</span><span data-lang="en">It needs the lines anyway (see below).</span></li>
+      <li><span data-lang="es">Más piezas móviles en el dispositivo.</span><span data-lang="en">More moving parts on the device.</span></li>
+    </ul>
+  </div>
+</div>
+
+<div class="card measured" style="margin-top:16px">
+  <div class="lbl" style="margin-top:0"><span data-lang="es">Lo que ya está medido en la placa</span><span data-lang="en">What is already measured on the board</span></div>
+  <div class="three" style="gap:22px;margin-top:6px">
+    <div><div class="big">4.85×<span class="u"> </span></div><div style="color:var(--ink2);font-size:16.5px"><span data-lang="es">más rápido tras optimizar el kernel (31 → 152 tokens/s)</span><span data-lang="en">faster after the kernel work (31 → 152 tokens/s)</span></div></div>
+    <div><div class="big">~0.3<span class="u"> s</span></div><div style="color:var(--ink2);font-size:16.5px"><span data-lang="es">para una frase de 15 palabras, dentro del firmware real</span><span data-lang="en">for a 15-word line, inside the real firmware</span></div></div>
+    <div><div class="big">~10<span class="u"> min</span></div><div style="color:var(--ink2);font-size:16.5px"><span data-lang="es">por experimento de entrenamiento: caben varios en una tarde</span><span data-lang="en">per training experiment: several fit in one evening</span></div></div>
+  </div>
+  <p class="note"><span data-lang="es">Traducción: <b>la velocidad ya no es el problema.</b> La pregunta que queda es si un modelo tan pequeño suena bien — y eso se decide escuchándolo, no discutiéndolo.</span><span data-lang="en">Translation: <b>speed is no longer the problem.</b> The remaining question is whether a model this small sounds good — and that is decided by listening, not by arguing.</span></p>
+</div>
+
+<div class="ask">
+  <h3 style="font-size:22px"><span data-lang="es">El punto clave: no es A <i>o</i> B</span><span data-lang="en">The key point: it isn't A <i>or</i> B</span></h3>
+  <p style="color:var(--ink2);font-size:18.5px;margin-top:8px">
+    <span data-lang="es"><b>El banco de frases ES el material de entrenamiento del modelo.</b> Son el mismo archivo en dos etapas: primero se usa tal cual (funciona ya, calidad garantizada), y después ese mismo archivo entrena el modelo. Escribir frases no es apostar por una opción — es el trabajo que hace falta para las dos.</span>
+    <span data-lang="en"><b>The line bank IS the model's training data.</b> Same file, two stages: first it ships as-is (works today, guaranteed quality), then that same file trains the model. Writing lines is not betting on one option — it's the work both need.</span>
+  </p>
+  <div class="lbl"><span data-lang="es">Lo que se decide hoy</span><span data-lang="en">What we decide today</span></div>
+  <ol>
+    <li><b data-lang="es">¿Quién escribe frases?</b><b data-lang="en">Who writes lines?</b> <span data-lang="es">Es lo único que bloquea a las dos opciones.</span><span data-lang="en">It's the only thing blocking both options.</span></li>
+    <li><b data-lang="es">¿Invertimos una tarde en probar el modelo?</b><b data-lang="en">Do we spend one evening trying the model?</b> <span data-lang="es">Sesión previa opcional, para quien tenga curiosidad.</span><span data-lang="en">Optional pre-session, for whoever is curious.</span></li>
+    <li><b data-lang="es">Y luego se decide escuchando</b><b data-lang="en">Then decide by listening</b> — <span data-lang="es">banco, modelo, o híbrido (banco como base + modelo para variedad). Los tres van detrás del mismo evento, así que cambiar de opinión después es configuración, no rearquitectura.</span><span data-lang="en">bank, model, or hybrid (bank as the floor + model for variety). All three sit behind the same event, so changing our minds later is config, not re-architecture.</span></li>
+  </ol>
+</div>
+
+<!-- ============================ PART 2 ============================ -->
+<h2><span class="n">2</span><span data-lang="es">Equipos y líderes</span><span data-lang="en">Teams & leaders</span></h2>
+<p class="lede">
+  <span data-lang="es">Seis equipos. Cada uno necesita <b>una persona que lo lidere</b> — no que haga todo el trabajo, sino que sepa cómo va su parte (ver abajo qué implica). Nadie está casado con un solo equipo: se puede flotar.</span>
+  <span data-lang="en">Six teams. Each needs <b>one person to lead it</b> — not to do all the work, but to know where their part stands (what that means, below). Nobody is married to one team: floating is fine.</span>
+</p>
+
+<div class="three">
+  <div class="team">
+    <h3><span class="dot" style="background:#2563a8"></span><span data-lang="es">Firmware y arquitectura</span><span data-lang="en">Firmware & architecture</span></h3>
+    <div class="who"><span data-lang="es">C/C++, ESP-IDF · el equipo más grande</span><span data-lang="en">C/C++, ESP-IDF · the biggest surface</span></div>
+    <ul>
+      <li><span data-lang="es"><b>API de configuración</b>: hoy la clave WiFi y la API key van compiladas — nadie puede llevarse una placa que funcione. Es el bloqueo #1.</span><span data-lang="en"><b>Config API</b>: WiFi password and API key are compiled in today — nobody can take home a working board. Blocker #1.</span></li>
+      <li><span data-lang="es">Formato de packs y recarga en caliente</span><span data-lang="en">Pack format + hot reload</span></li>
+      <li><span data-lang="es">Sacar las emociones del C++ a datos</span><span data-lang="en">Move emotions out of C++ into data</span></li>
+      <li><span data-lang="es">Reflejos en Berry; cerebro nube/local</span><span data-lang="en">Berry reflexes; cloud/local brain</span></li>
+    </ul>
+    <div class="lead"><span data-lang="es">Handshake: Web UI (la API la consumen ellos)</span><span data-lang="en">Handshake: Web UI (they consume the API)</span></div>
+  </div>
+
+  <div class="team">
+    <h3><span class="dot" style="background:#b4472f"></span><span data-lang="es">Voz</span><span data-lang="en">Voice</span></h3>
+    <div class="who"><span data-lang="es">1–2 personas comprometidas hasta la sesión 4</span><span data-lang="en">1–2 people committed through session 4</span></div>
+    <ul>
+      <li><span data-lang="es">Micro (INMP441) y amplificador (MAX98357A) por I2S — <b>sin probar todavía</b></span><span data-lang="en">Mic (INMP441) + amp (MAX98357A) over I2S — <b>untested so far</b></span></li>
+      <li><span data-lang="es">Bucle push-to-talk: tocar → grabar → texto → respuesta → voz</span><span data-lang="en">Push-to-talk loop: touch → record → text → reply → speech</span></li>
+      <li><span data-lang="es">Servicios de voz (STT/TTS) y sus cuentas</span><span data-lang="en">Speech services (STT/TTS) and their accounts</span></li>
+    </ul>
+    <div class="lead"><span class="badge b-bad"><span data-lang="es">lo más arriesgado de v1</span><span data-lang="en">riskiest v1 item</span></span> <span data-lang="es">— por eso es equipo propio y no un apéndice</span><span data-lang="en"> — hence its own team, not an appendix</span></div>
+  </div>
+
+  <div class="team">
+    <h3><span class="dot" style="background:#5b8c3a"></span><span data-lang="es">Web UI / PWA</span><span data-lang="en">Web UI / PWA</span></h3>
+    <div class="who"><span data-lang="es">JS/CSS · Vite + Tailwind · nada de C++</span><span data-lang="en">JS/CSS · Vite + Tailwind · zero C++</span></div>
+    <ul>
+      <li><span data-lang="es">Configurar el buddy desde el móvil: WiFi, claves, personalidad</span><span data-lang="en">Configure the buddy from a phone: WiFi, keys, personality</span></li>
+      <li><span data-lang="es">Consola de chat con el buddy</span><span data-lang="en">Chat console with the buddy</span></li>
+      <li><span data-lang="es">Editor del banco de frases y de emociones</span><span data-lang="en">Line-bank and emotion editor</span></li>
+      <li><span data-lang="es">PWA: instalable en el móvil</span><span data-lang="en">PWA: installable on a phone</span></li>
+    </ul>
+    <div class="lead"><span data-lang="es">Handshake: Firmware (define la API primero)</span><span data-lang="en">Handshake: Firmware (defines the API first)</span></div>
+  </div>
+
+  <div class="team">
+    <h3><span class="dot" style="background:#8a6410"></span><span data-lang="es">Electrónica</span><span data-lang="en">Electronics</span></h3>
+    <div class="who"><span data-lang="es">soldadura, protoboard, alimentación</span><span data-lang="en">soldering, protoboard, power</span></div>
+    <ul>
+      <li><span data-lang="es">Cableado y montaje definitivo de cada placa</span><span data-lang="en">Wiring and final assembly of each board</span></li>
+      <li><span data-lang="es">Alimentación: 5 V para el anillo LED y el altavoz</span><span data-lang="en">Power: 5 V for the LED ring and speaker</span></li>
+      <li><span data-lang="es">Probar lo que falta: RC522, tarjeta SD, sensores</span><span data-lang="en">Test what's pending: RC522, SD card, sensors</span></li>
+    </ul>
+    <div class="lead"><span data-lang="es">Handshake: CAD (medidas y sujeciones)</span><span data-lang="en">Handshake: CAD (dimensions and mounts)</span></div>
+  </div>
+
+  <div class="team">
+    <h3><span class="dot" style="background:#7a5aa8"></span><span data-lang="es">CAD y carcasa</span><span data-lang="en">CAD & case</span></h3>
+    <div class="who"><span data-lang="es">diseño 3D e impresión</span><span data-lang="en">3D design and printing</span></div>
+    <ul>
+      <li><span data-lang="es">Diseñar la carcasa alrededor de la pantalla redonda</span><span data-lang="en">Design the case around the round display</span></li>
+      <li><span data-lang="es">Rejilla del altavoz y hueco del micro</span><span data-lang="en">Speaker grille and mic opening</span></li>
+      <li><span data-lang="es">Imprimir prototipos y ajustar</span><span data-lang="en">Print prototypes and iterate</span></li>
+    </ul>
+    <div class="lead"><span class="badge b-warn"><span data-lang="es">empezar pronto</span><span data-lang="en">start early</span></span> <span data-lang="es">— imprimir lleva días, no horas</span><span data-lang="en"> — printing takes days, not hours</span></div>
+  </div>
+
+  <div class="team">
+    <h3><span class="dot" style="background:#b8763a"></span><span data-lang="es">Personalidad y contenido</span><span data-lang="en">Personality & content</span></h3>
+    <div class="who"><span data-lang="es">imagen · sonido · <b>palabras</b> — sin programar</span><span data-lang="en">image · sound · <b>words</b> — no coding</span></div>
+    <ul>
+      <li><span data-lang="es"><b>Banco de frases</b> por estado de ánimo — desbloquea la decisión de arriba</span><span data-lang="en"><b>The line bank</b> by mood — unblocks the decision above</span></li>
+      <li><span data-lang="es">Definir el set final de emociones (hoy hay 8 propuestas)</span><span data-lang="en">Settle the final emotion set (8 proposed today)</span></li>
+      <li><span data-lang="es">Caras, animaciones, sonidos y arranque</span><span data-lang="en">Faces, animations, sounds, boot experience</span></li>
+    </ul>
+    <div class="lead"><span class="badge b-good"><span data-lang="es">la puerta de entrada más fácil</span><span data-lang="en">easiest way in</span></span></div>
+  </div>
+</div>
+
+<div class="two" style="margin-top:16px">
+  <div class="ask" style="margin-top:0">
+    <h3 style="font-size:21px"><span data-lang="es">Qué implica liderar (y qué no)</span><span data-lang="en">What leading means (and doesn't)</span></h3>
+    <p style="color:var(--ink2);font-size:17.5px;margin-top:8px">
+      <span data-lang="es"><b>Sí:</b> saber cómo va tu parte, traer las decisiones al grupo, asegurarte de que cada tarea tiene dueño, y enseñar algo funcionando al cerrar cada sesión.</span>
+      <span data-lang="en"><b>Yes:</b> know where your track stands, bring decisions to the group, make sure each task has an owner, and show something working at each session close.</span>
+    </p>
+    <p style="color:var(--ink2);font-size:17.5px;margin-top:8px">
+      <span data-lang="es"><b>No:</b> hacer todo el trabajo, ser quien más sabe del tema, ni decidir en solitario. Lo que se propone aquí es un punto de partida — el grupo lo corrige.</span>
+      <span data-lang="en"><b>No:</b> do all the work, be the biggest expert, or decide alone. What's proposed here is a starting point — the group amends it.</span>
+    </p>
+  </div>
+  <div class="ask" style="margin-top:0">
+    <h3 style="font-size:21px"><span data-lang="es">¿Y sub-equipos?</span><span data-lang="en">What about sub-teams?</span></h3>
+    <p style="color:var(--ink2);font-size:17.5px;margin-top:8px">
+      <span data-lang="es">Todavía no. Con seis equipos y cuatro sesiones, anidar más estructura fragmenta la atención y crea casillas sin dueño. Mejor: <b>un líder + tareas concretas que la gente reclama</b>.</span>
+      <span data-lang="en">Not yet. With six teams and four sessions, nesting more structure fragments attention and creates orphaned boxes. Better: <b>one leader + concrete tasks people claim</b>.</span>
+    </p>
+    <p style="color:var(--ink2);font-size:17.5px;margin-top:8px">
+      <span data-lang="es">Los sub-equipos aparecen solos cuando un equipo pasa de ~4 personas activas. El candidato más probable es Firmware.</span>
+      <span data-lang="en">Sub-teams emerge on their own once a team passes ~4 active people. Firmware is the likeliest candidate.</span>
+    </p>
+  </div>
+</div>
+
+<p class="note" style="margin-top:22px">
+  <span data-lang="es">Números de rendimiento medidos en la placa real (spike <code>tinylm-s3</code>). Detalle técnico en <code>docs/training-workshop.md</code> y <code>docs/param-explorer.html</code>.</span>
+  <span data-lang="en">Performance numbers measured on the real board (spike <code>tinylm-s3</code>). Technical detail in <code>docs/training-workshop.md</code> and <code>docs/param-explorer.html</code>.</span>
+</p>
+
+<script>
+document.getElementById("lang").addEventListener("click", () => {
+  const h = document.documentElement;
+  h.lang = h.lang === "es" ? "en" : "es";
+  document.getElementById("lang").textContent = h.lang === "es" ? "EN" : "ES";
+});
+document.getElementById("theme").addEventListener("click", () => {
+  const r = document.documentElement;
+  r.dataset.theme = r.dataset.theme === "dark" ? "" : "dark";
+});
+if (matchMedia("(prefers-color-scheme: dark)").matches)
+  document.documentElement.dataset.theme = "dark";
+</script>
+</body>
+</html>
