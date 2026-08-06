@@ -15,6 +15,7 @@
     #include "esp_partition.h"
 #include "esp_heap_caps.h"
 #include "esp_log.h"
+#include "dsps_dotprod.h"
 #endif
 // ----------------------------------------------------------------------------
 // Transformer model
@@ -78,8 +79,10 @@ typedef struct {
 } Transformer;
 
 static void* heap_caps_calloc_psram(size_t n, size_t sz) {
-    void* p = heap_caps_calloc(n, sz, MALLOC_CAP_SPIRAM);
-    return p ? p : heap_caps_calloc(n, sz, MALLOC_CAP_DEFAULT);
+    // 16-byte aligned so ESP-DSP's S3 SIMD loads take their fast path; the
+    // aes3 dot product silently degrades to the scalar-load body otherwise.
+    void* p = heap_caps_aligned_calloc(16, n, sz, MALLOC_CAP_SPIRAM);
+    return p ? p : heap_caps_aligned_calloc(16, n, sz, MALLOC_CAP_DEFAULT);
 }
 
 void malloc_run_state(RunState* s, Config* p) {
@@ -265,15 +268,14 @@ void softmax(float* x, int size) {
 
 void matmul(float* xout, float* x, float* w, int n, int d) {
     // W (d,n) @ x (n,) -> xout (d,)
-    // by far the most amount of time is spent inside this little function
-    int i;
-    #pragma omp parallel for private(i)
-    for (i = 0; i < d; i++) {
-        float val = 0.0f;
-        for (int j = 0; j < n; j++) {
-            val += w[i * n + j] * x[j];
-        }
-        xout[i] = val;
+    // by far the most amount of time is spent inside this little function.
+    // ESP-DSP's S3 dot product: 128-bit loads (EE.LDF.128) + pipelined FPU
+    // MACs. It checks its own preconditions and quietly branches to the
+    // scalar-load ESP32 body when either operand is not 16-byte aligned or
+    // len%4 != 0 — which is why relocate_weights_to_psram() and
+    // malloc_run_state() go out of their way to align everything.
+    for (int i = 0; i < d; i++) {
+        dsps_dotprod_f32_aes3(w + i * n, x, xout + i, n);
     }
 }
 
@@ -954,11 +956,18 @@ void chat(Transformer *transformer, Tokenizer *tokenizer, Sampler *sampler,
 // separates "we are slow at maths" from "we are waiting on flash".
 #include "esp_heap_caps.h"
 void relocate_weights_to_psram(Transformer* t, size_t bytes) {
-    float* copy = (float*)heap_caps_malloc(bytes, MALLOC_CAP_SPIRAM);
-    if (!copy) { ESP_LOGE("tinylm", "no PSRAM for weight copy"); return; }
+    // Align the WEIGHTS, not the blob: the 28-byte checkpoint header would
+    // leave every tensor at +12 mod 16, and ESP-DSP's aes3 dot product
+    // silently takes its slow unaligned path there. Land the blob 4 bytes
+    // into a 16-byte-aligned allocation so the weights (header + 28) start on
+    // a 16-byte boundary; every tensor offset is a multiple of 16 bytes, so
+    // that aligns all of them at once.
+    uint8_t* alloc = (uint8_t*)heap_caps_aligned_alloc(16, bytes + 16, MALLOC_CAP_SPIRAM);
+    if (!alloc) { ESP_LOGE("tinylm", "no PSRAM for weight copy"); return; }
+    float* copy = (float*)(alloc + 4);
     memcpy(copy, t->data, bytes);
     t->data = copy;
     int shared = 1;
     memory_map_weights(&t->weights, &t->config, copy + sizeof(Config)/sizeof(float), shared);
-    ESP_LOGI("tinylm", "weights relocated to PSRAM (%u B)", (unsigned)bytes);
+    ESP_LOGI("tinylm", "weights relocated to PSRAM (%u B, tensors 16B-aligned)", (unsigned)bytes);
 }
