@@ -77,18 +77,39 @@ Then the training run — this shape is ~150K parameters:
 python train.py \
   --vocab_source=custom --vocab_size=512 \
   --dim=48 --n_layers=4 --n_heads=4 --n_kv_heads=4 \
-  --max_seq_len=256 --batch_size=32 \
+  --max_seq_len=256 --batch_size=128 --gradient_accumulation_steps=1 \
   --device=mps --dtype=float32 --compile=False \
-  --eval_interval=200 --always_save_checkpoint=True
+  --eval_interval=200 --max_iters=20000 --always_save_checkpoint=True
 ```
 
-It prints a loss line every few seconds. Let it run until val loss flattens
-(ballpark: 30–90 min on an M-series for this size; Ctrl-C is safe, it
-checkpoints to `out/`). Read its stories with:
+Three of those flags are **not** the repo's defaults, and each matters:
+
+- **`--max_iters=20000`.** The default is 100,000, and the learning rate
+  decays on a curve calibrated to whatever that number is. Stop a 100k run
+  at 8k and the rate never comes down, so the model never gets its
+  low-rate polish phase — it ends up worse than a *shorter* run that
+  finished properly. Set the budget you actually intend to spend.
+- **`--gradient_accumulation_steps=1` with `--batch_size=128`.** The
+  default (`4` × batch 32) does four forward/backward passes per step to
+  build the same effective batch of 128. That exists for models too big to
+  fit a real batch in memory; ours fits easily, and at this size the
+  per-pass overhead dominates the actual maths — so the default is ~2–4×
+  slower for identical learning.
+- **`--always_save_checkpoint=True`** so Ctrl-C never loses more than the
+  last eval interval.
+
+It prints a loss line every few seconds. Let it run to the end, or until
+val loss flattens (ballpark 20–40 min on an M-series at this size). Read
+its stories with:
 
 ```bash
-python sample.py --checkpoint=out/ckpt.pt
+python sample.py --checkpoint=out/ckpt.pt --num_samples=5 --seed=42
 ```
+
+**Pass `--num_samples` and `--seed` or you will be misled:** `sample.py`
+hard-codes `seed = 1337` and `num_samples = 1`, so re-running it gives
+byte-identical output every single time. That looks alarmingly like a
+stuck model and is just a fixed random seed.
 
 The `--device/--dtype/--compile` trio depends on your machine — they change
 speed only, never what the model learns:
@@ -129,9 +150,10 @@ the whole game.
 
 | flag | plain meaning | what to know |
 |---|---|---|
-| `--batch_size` | snippets digested per nudge | bigger = better GPU use, more RAM; it barely changes final quality. Lower it if you run out of memory |
+| `--batch_size` | snippets digested per nudge | bigger = better chip use, more RAM; it barely changes final quality. Lower it only if you run out of memory |
+| `--gradient_accumulation_steps` | split one nudge across N passes | a memory workaround for models that can't fit a real batch. **Set it to 1 at our sizes** — the default 4 quadruples the per-step overhead for identical learning |
 | `--learning_rate` | nudge size | too high: loss explodes or jitters. Too low: glacial. The default is tuned for this repo — leave it until you have a reason |
-| `--max_iters` | total nudges before stopping | with `--always_save_checkpoint` you can just Ctrl-C when val loss flattens instead |
+| `--max_iters` | total nudges before stopping | **also sets the learning-rate decay curve.** Don't plan to Ctrl-C early: a truncated run never gets its low-rate polish. Pick the real budget up front |
 | `--eval_interval` | how often val loss is measured | 200 keeps the feedback loop tight |
 | `--device` / `--dtype` / `--compile` | which chip does the math and how | mechanics only — zero effect on what the model learns. Mac: `mps/float32/False`. Colab GPU: `cuda/bfloat16/True` |
 
@@ -260,6 +282,18 @@ a sampling script that prompts with each mood. **Two expectations to set:**
   `uucp` on Arch). Everything else — offsets, commands — is identical.
 - **Training looks frozen at 0 it/s on `mps`** — the very first step
   compiles GPU kernels; give it a minute before judging.
+- **`sample.py` prints the exact same text every run** — not a stuck
+  model. Fixed `seed = 1337`; pass `--seed=N --num_samples=5`.
+- **Steps feel slow (200+ ms at XS size)** — check
+  `--gradient_accumulation_steps=1` and a real `--batch_size`. Also try
+  `--device=cpu`: at these sizes GPU dispatch overhead can exceed the
+  maths, and CPU sometimes wins. Ignore the `mfu` percentage entirely —
+  it's computed against an A100's peak FLOPS (`model.py`), so it is
+  meaningless on any other machine.
+- **Resuming**: `--init_from=resume` continues from `out/ckpt.pt` and
+  keeps the optimiser state. Changing `--max_iters` on resume re-fits the
+  decay curve to the new budget, which is the right way to rescue a run
+  started against the 100k default.
 
 ## 9. Where this fits
 
