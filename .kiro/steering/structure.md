@@ -71,6 +71,11 @@ The pattern that has earned its keep twice now:
 - results promoted into `docs/` or `firmware/`, and the spike left behind as
   the evidence.
 
+**Spikes live on their own branch** (`spike/<name>`), not on `main`. Only the
+*answer* is merged — the measurements and the decision, usually as a `docs/`
+update. The code that produced them stays on the branch, where it can be
+resurrected if someone doubts the number and ignored otherwise.
+
 A spike is disposable by design. Deleting one when its answer is recorded
 elsewhere is success, not loss.
 

@@ -1,1 +1,16 @@
+# ESP-IDF build output, anywhere in the tree. Repo-wide on purpose: relying on
+# each project to remember its own .gitignore is what let 1,556 build artifacts
+# into a commit once.
+build/
+sdkconfig
+sdkconfig.old
+managed_components/
+dependencies.lock
+
 firmware/.cache
+
+# Model weights and other large binaries are fetched, never vendored.
+*.bin
+!**/partitions*.bin
+
+.DS_Store
