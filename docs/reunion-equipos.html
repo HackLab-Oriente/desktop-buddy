@@ -88,6 +88,23 @@
   .mood .sw{width:12px;height:12px;border-radius:50%;flex:none}
   .mood .desc{color:var(--ink2);font-size:15.5px;margin-top:3px;line-height:1.35}
   .mood .meta{color:var(--muted);font:13.5px ui-monospace,Menlo,monospace;margin-top:5px}
+  h3.sec{font-size:23px;margin:30px 0 4px;letter-spacing:-.01em}
+  .lede2{color:var(--ink2);font-size:18.5px;margin-bottom:14px;max-width:1050px}
+  .tag2{color:var(--muted);font-size:14.5px;font-weight:700;letter-spacing:.06em;
+    text-transform:uppercase;margin-bottom:2px}
+  .setc{display:flex;flex-direction:column}
+  .setc.reco{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 4px}
+  .chip{background:var(--bg);border:1px solid var(--line);border-radius:7px;
+    padding:3px 9px;font-size:14.5px;color:var(--ink2)}
+  .chip.need{border-style:dashed;color:var(--warn-ink);border-color:var(--warn-ink)}
+  .chip.add{border-color:var(--good-ink);color:var(--good-ink)}
+  .chip.dim{color:var(--muted);font-style:italic}
+  .code{background:var(--bg);border:1px solid var(--line);border-radius:10px;
+    font:14.5px/1.65 ui-monospace,Menlo,monospace;padding:12px 14px;margin-top:6px;
+    color:var(--ink2);white-space:pre;overflow-x:auto}
+  .code b{color:var(--accent);font-weight:700}
+  .code i{color:var(--muted);font-style:normal}
   .moodgrid.mini{grid-template-columns:repeat(2,1fr);gap:12px;margin-top:10px}
   .moodgrid.mini .mood{border-style:dashed;opacity:.92}
   .moodgrid.mini svg{max-width:120px}
@@ -207,10 +224,127 @@
   </div>
 </div>
 
-<p class="note">
-  <span data-lang="es"><b>Ojo con lo que NO decide esto:</b> cada quien podrá tener su propia personalidad — sus frases, su color, su ritmo — sin tocar este set. Lo que fijamos aquí es solo la <i>lista de estados</i> que el firmware entiende, no cómo los interpreta cada buddy.</span>
-  <span data-lang="en"><b>What this does NOT decide:</b> everyone can still have their own personality — their lines, their color, their timing — without touching this set. All we fix here is the <i>list of states</i> the firmware understands, not how each buddy performs them.</span>
-</p>
+<h3 class="sec">Tres sets posibles — subir, quedarse o bajar</h3>
+<p class="lede2">Lo que se vota no es cada emoción por separado, sino <b>cuántas</b>. Es un solo número y lo cambia todo, porque el esfuerzo de escribir frases se reparte entre ellas.</p>
+
+<div class="three">
+  <div class="card setc">
+    <div class="tag2">Opción A · bajar</div>
+    <h3>Mínimo — 6 estados</h3>
+    <div class="chips">
+      <span class="chip">neutral</span><span class="chip">feliz</span><span class="chip">sorprendido</span>
+      <span class="chip">con sueño</span><span class="chip need">pensando</span><span class="chip need">escuchando</span>
+    </div>
+    <div class="lbl">A favor</div>
+    <ul class="pro">
+      <li><b>~100 frases por estado</b> con el mismo esfuerzo: mucha más variedad donde se nota.</li>
+      <li>Cada cara se distingue de lejos.</li>
+      <li>Es el mejor set para entrenar el modelo (más ejemplos por etiqueta).</li>
+    </ul>
+    <div class="lbl">En contra</div>
+    <ul class="con">
+      <li>Se pierden enfadado, triste, curioso y receloso — menos matices de carácter.</li>
+    </ul>
+  </div>
+
+  <div class="card setc reco">
+    <div class="tag2">Opción B · quedarse <span class="badge b-acc">propuesta</span></div>
+    <h3>Las 8 + las 2 que faltan = 10</h3>
+    <div class="chips">
+      <span class="chip">neutral</span><span class="chip">feliz</span><span class="chip">curioso</span>
+      <span class="chip">con sueño</span><span class="chip">sorprendido</span><span class="chip">enfadado</span>
+      <span class="chip">triste</span><span class="chip">receloso</span>
+      <span class="chip need">pensando</span><span class="chip need">escuchando</span>
+    </div>
+    <div class="lbl">A favor</div>
+    <ul class="pro">
+      <li>Ya está implementado y probado en la placa: 8 de 10 funcionan hoy.</li>
+      <li>Carácter rico: hay sitio para el sarcasmo, el enfado y la duda.</li>
+    </ul>
+    <div class="lbl">En contra</div>
+    <ul class="con">
+      <li><b>~60 frases por estado.</b> Suficiente, pero hay que escribirlas de verdad.</li>
+      <li>Cuatro estados son "ojos entornados con ceja": de lejos se parecen.</li>
+    </ul>
+  </div>
+
+  <div class="card setc">
+    <div class="tag2">Opción C · subir</div>
+    <h3>Ampliado — 13 estados</h3>
+    <div class="chips">
+      <span class="chip dim">las 10 anteriores</span>
+      <span class="chip add">emocionado</span><span class="chip add">confundido</span><span class="chip add">orgulloso</span>
+    </div>
+    <div class="lbl">A favor</div>
+    <ul class="pro">
+      <li>El buddy más expresivo de los tres.</li>
+      <li>"Confundido" es útil de verdad: es la cara para cuando no entiende lo que le dices.</li>
+    </ul>
+    <div class="lbl">En contra</div>
+    <ul class="con">
+      <li><b>~46 frases por estado</b> y tres caras nuevas por diseñar.</li>
+      <li>Riesgo real: muchos estados con pocas frases se repiten antes y el modelo aprende peor.</li>
+    </ul>
+  </div>
+</div>
+
+<div class="ask">
+  <h3 style="font-size:21px">Guía para decidir en 5 minutos</h3>
+  <ol style="margin:8px 0 0 22px;font-size:18px;color:var(--ink2)">
+    <li><b>Primero el presupuesto, no la lista.</b> ¿Cuántas frases vamos a escribir de verdad entre todos? Sé pesimista: la mitad de lo que se promete en una reunión.</li>
+    <li><b>Divide.</b> frases ÷ estados = frases por estado. <b>Si sale menos de 30, hay demasiados estados.</b></li>
+    <li><b>Cada estado se gana su sitio si cumple las tres:</b> se te ocurren 3 momentos distintos en que aparece · puedes escribirle 30 frases sin repetirte · lo distingues de sus vecinos a un brazo de distancia.</li>
+    <li><b>En caso de duda, fuera.</b> Empezar con pocos y añadir después es barato. Empezar con muchos y quedarnos con 10 frases por estado no se arregla luego.</li>
+  </ol>
+  <p class="note" style="margin-top:12px"><b>Nota aparte:</b> el anillo LED hoy solo entiende <code>calm</code>, <code>excited</code> y <code>thinking</code> — no coincide con la lista de la cara. Sea cual sea el set, hay que alinearlos.</p>
+</div>
+
+<h3 class="sec">Cómo se usa por dentro (y por qué no te quita libertad)</h3>
+<p class="lede2">El miedo razonable es "si fijamos la lista, todos los buddies serán iguales". No: lo único compartido es el <b>nombre</b> del estado. Es el vocabulario, no el discurso.</p>
+
+<div class="two">
+  <div class="card">
+    <div class="lbl" style="margin-top:0">1 · Lo que pasa al acariciarlo</div>
+    <div class="code">tocas el sensor
+  └─ <b>touch.pet</b>                    <i>← evento del bus</i>
+
+un reflejo (editable, sin recompilar) decide:
+  ├─ <b>face.emotion</b> "happy"         <i>← los ojos</i>
+  ├─ <b>led.mood</b>     "excited"       <i>← el anillo</i>
+  └─ frase del banco con prefijo <b>happy:</b>
+       "¡Ooh, un amigo! Hoy es el mejor día."</div>
+    <p class="note" style="margin-top:10px">La palabra <code>happy</code> aparece en tres sitios. <b>Eso</b> es lo que estamos fijando hoy — nada más.</p>
+  </div>
+
+  <div class="card">
+    <div class="lbl" style="margin-top:0">2 · Dos buddies, el mismo estado</div>
+    <div class="code"><i># pack de Dani — lines.txt</i>
+<b>happy:</b> ¡Ooh, un amigo! Hoy es el mejor día.
+<b>happy:</b> Otra vez tú. Me encanta.
+
+<i># pack de Marta — lines.txt</i>
+<b>happy:</b> Oh. Un humano. Supongo que vale.
+<b>happy:</b> No te emociones, solo me alegro un poco.
+
+<i># pack de Marta — emotions.json</i>
+{ "<b>happy</b>": { "color": "#ff66cc", "blink_ms": 4200 } }
+
+<i># pack de Marta — reflexes/main.be</i>
+<i># hasta puede cambiar QUÉ estado dispara una caricia</i>
+bus.on("touch.pet", def (e)
+  bus.publish("face.emotion", "<b>suspicious</b>")
+end)</div>
+  </div>
+</div>
+
+<div class="ask">
+  <p style="font-size:18.5px;color:var(--ink2)">
+    <b>Resultado:</b> el buddy de Marta es sarcástico, rosa, parpadea distinto y desconfía cuando lo acarician. El de Dani es un cachorro. <b>Los dos usan exactamente la misma lista de estados.</b>
+  </p>
+  <p style="font-size:18.5px;color:var(--ink2);margin-top:10px">
+    Fijar el set es como acordar el alfabeto: no decide lo que escribe cada uno. Lo que <i>no</i> se puede es inventarse una letra nueva a mitad de camino — un estado que no esté en la lista no tiene ojos que dibujar, ni color en el anillo, ni etiqueta con la que entrenar.
+  </p>
+</div>
 
 <!-- ============================ PART 3 ============================ -->
 <h2><span class="n">3</span><span data-lang="es">Equipos y líderes</span><span data-lang="en">Teams & leaders</span></h2>
@@ -341,34 +475,49 @@ const TODO = [
    des:"Mientras te graba, con el boton pulsado.", den:"While recording you, button held."},
 ];
 
-function faceSVG(m, colour) {
+// Mirrors draw_eye() in round_face.cpp line for line. Three details matter and
+// all three are easy to get wrong: width/height are scaled by S, the corner
+// radius is eyeW*0.42 (a very round square), and LIFT IS A CLIP FROM BELOW,
+// not a shorter eye — happy is a tall eye with its bottom sliced off, which is
+// what makes it read as a smile instead of a squashed pill.
+function faceSVG(m, colour, uid) {
   const col = colour || `rgb(${m.c.join(",")})`;
-  let rects = "", cuts = "";
-  for (const side of [-1, 1]) {
-    const cx = G.CX + side * G.GAP;
-    const fullH = 2 * m.h;                     // eye height fully open
-    const visH  = fullH * m.o / 100;           // openness shrinks from the top
-    const bottom = G.CY + m.h - m.lift * G.S;  // lift raises the lower lid
-    const top    = G.CY + m.h - visH;
-    const h = bottom - top;
-    if (h <= 1) continue;
-    const w = 2 * m.w, x = cx - m.w;
-    const rx = Math.min(12, w / 2, h / 2);     // the rounded square we liked
-    rects += `<rect x="${x}" y="${top}" width="${w}" height="${h}" rx="${rx}" fill="${col}"/>`;
-    if (m.brow) {
-      const depth = G.BROW * fullH;
-      const inner = cx - side * m.w, outer = cx + side * m.w;
-      const deep = m.brow > 0 ? inner : outer;   // +1 angry: deep toward the nose
-      const shal = m.brow > 0 ? outer : inner;   // -1 sad:   deep toward the ears
-      cuts += `<polygon points="${shal},${top - 3} ${deep},${top - 3} ${deep},${top + depth}" fill="#07080a"/>`;
-    }
+  const id = uid || m.n;
+  let defs = "", body = "";
+  for (const side of [0, 1]) {
+    const cx = G.CX + (side === 0 ? -G.GAP : G.GAP);
+    const eyeW = m.w * G.S;
+    const full = m.h * G.S * (m.o / 100);   // openness is baked into "fully open"
+    const open = full;                      // open_pct = 100: not mid-blink
+    const cy = G.CY + full / 2 - open / 2;
+    const hw = eyeW / 2, hh = open / 2;
+    const r = Math.min(eyeW * 0.42, hh);
+    const top = cy - hh;
+    const browAmt = m.brow ? open * G.BROW : 0;
+    const liftPx = m.lift * G.S * (open / full);
+
+    // Upper lid: slanted by the brow. deep_right mirrors the C++ condition
+    // (brow > 0) == (side == 0), so the deep end always faces the nose for
+    // angry (+1) and the ears for sad (-1).
+    const deepRight = (m.brow > 0) === (side === 0);
+    const browL = top + browAmt * (deepRight ? 0 : 1);
+    const browR = top + browAmt * (deepRight ? 1 : 0);
+    const lidY = cy + hh - liftPx;          // lower lid, raised by the squint
+    const L = cx - hw - 3, R = cx + hw + 3;
+
+    const cid = `clip-${id}-${side}`;
+    defs += `<clipPath id="${cid}"><polygon points="${L},${browL} ${R},${browR} ${R},${lidY} ${L},${lidY}"/></clipPath>`;
+    // The clip wraps the glow too: on the device the lid cut multiplies the
+    // halo as well as the body, or happy shows a dark block where the squint
+    // should be black.
+    body += `<g clip-path="url(#${cid})">
+      <g filter="url(#glow-${id})" opacity=".55"><rect x="${cx - hw}" y="${top}" width="${eyeW}" height="${open}" rx="${r}" fill="${col}"/></g>
+      <rect x="${cx - hw}" y="${top}" width="${eyeW}" height="${open}" rx="${r}" fill="${col}"/></g>`;
   }
   return `<svg viewBox="0 0 240 240" role="img" aria-label="${m.n}">
-    <defs><filter id="glow-${m.n}" x="-40%" y="-40%" width="180%" height="180%">
-      <feGaussianBlur stdDeviation="8"/></filter></defs>
-    <circle cx="120" cy="120" r="118" fill="#07080a"/>
-    <g filter="url(#glow-${m.n})" opacity=".5">${rects}</g>
-    ${rects}${cuts}</svg>`;
+    <defs><filter id="glow-${id}" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="8"/></filter>${defs}</defs>
+    <circle cx="120" cy="120" r="118" fill="#07080a"/>${body}</svg>`;
 }
 const hex = c => "#" + c.map(v => v.toString(16).padStart(2, "0")).join("");
 
@@ -383,7 +532,7 @@ document.getElementById("moods").innerHTML = MOODS.map(m => `
 
 document.getElementById("moods-todo").innerHTML = TODO.map(m => `
   <div class="mood">
-    ${faceSVG({...m, w:26, h:30, o:100, lift:0, brow:0}, "#4a5058")}
+    ${faceSVG({...m, w:26, h:30, o:100, lift:0, brow:0}, "#4a5058", "todo-" + m.n)}
     <div class="nm"><span data-lang="es">${m.es}</span><span data-lang="en">${m.en}</span></div>
     <div class="desc"><span data-lang="es">${m.des}</span><span data-lang="en">${m.den}</span></div>
   </div>`).join("");
