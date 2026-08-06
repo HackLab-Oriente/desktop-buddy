@@ -22,6 +22,7 @@
 #include <cstdio>
 #include <cstring>
 #include <cstdlib>
+#include <functional>
 #include <string>
 
 extern "C" {
@@ -64,59 +65,78 @@ extern "C" void app_main() {
   report_mem("after tokenizer");
 
   // --- generate, timing every token ----------------------------------------
-  for (int pass = 0; pass < 2; pass++) {
-  if (pass == 1) relocate_weights_to_psram(&t, 1056540);
-  ESP_LOGI(TAG, "=== pass %d: weights in %s ===", pass, pass ? "PSRAM" : "mmap'd FLASH");
-  prof_reset();
-  constexpr int kSteps = 120;
-  static int64_t dt[kSteps];
-  int token = 1;  // BOS
-  int pos = 0;
-  const int64_t t_start = esp_timer_get_time();
-  std::string out;
-  while (pos < kSteps) {
-    const int64_t a = esp_timer_get_time();
-    float* logits = forward(&t, token, pos);
-    const int next = sample(&sampler, logits);
-    dt[pos] = esp_timer_get_time() - a;
-    if (next == 1) break;  // BOS again = end
-    char* piece = decode(&tok, token, next);
-    if (piece && out.size() < 400) out += piece;
-    token = next;
-    pos++;
-  }
-  const int64_t total = esp_timer_get_time() - t_start;
-  const int n = pos;
+  // Each variant runs the same loop with the same RNG seed, so tok/s AND the
+  // sample text are directly comparable across passes (quantisation may still
+  // change the words — logits shift — but a broken kernel shows as garbage).
+  auto run_pass = [&](const char* name, const std::function<float*(int, int)>& fwd) {
+    ESP_LOGI(TAG, "=== pass: %s ===", name);
+    sampler.rng_state = 1234567;
+    prof_reset();
+    constexpr int kSteps = 120;
+    static int64_t dt[kSteps];
+    int token = 1;  // BOS
+    int pos = 0;
+    const int64_t t_start = esp_timer_get_time();
+    std::string out;
+    while (pos < kSteps) {
+      const int64_t a = esp_timer_get_time();
+      float* logits = fwd(token, pos);
+      const int next = sample(&sampler, logits);
+      dt[pos] = esp_timer_get_time() - a;
+      if (next == 1) break;  // BOS again = end
+      char* piece = decode(&tok, token, next);
+      if (piece && out.size() < 400) out += piece;
+      token = next;
+      pos++;
+    }
+    const int64_t total = esp_timer_get_time() - t_start;
+    const int n = pos;
 
-  qsort(dt, n, sizeof dt[0], cmp_i64);
-  ESP_LOGI(TAG, "--- RESULT -------------------------------------------");
-  ESP_LOGI(TAG, "generated %d tokens in %.0f ms", n, total / 1000.0);
-  ESP_LOGI(TAG, "throughput      %.1f tok/s   (%.2f ms/token mean)",
-           n * 1e6 / total, total / 1000.0 / n);
-  ESP_LOGI(TAG, "per-token p50   %.2f ms", dt[n / 2] / 1000.0);
-  ESP_LOGI(TAG, "per-token p99   %.2f ms", dt[(n * 99) / 100] / 1000.0);
-  ESP_LOGI(TAG, "per-token min   %.2f ms   max %.2f ms", dt[0] / 1000.0, dt[n - 1] / 1000.0);
-  report_mem("after generation");
-  prof_report(n);
+    qsort(dt, n, sizeof dt[0], cmp_i64);
+    ESP_LOGI(TAG, "--- RESULT: %s ---------------------------------", name);
+    ESP_LOGI(TAG, "generated %d tokens in %.0f ms", n, total / 1000.0);
+    ESP_LOGI(TAG, "throughput      %.1f tok/s   (%.2f ms/token mean)",
+             n * 1e6 / total, total / 1000.0 / n);
+    ESP_LOGI(TAG, "per-token p50   %.2f ms", dt[n / 2] / 1000.0);
+    ESP_LOGI(TAG, "per-token p99   %.2f ms", dt[(n * 99) / 100] / 1000.0);
+    ESP_LOGI(TAG, "per-token min   %.2f ms   max %.2f ms", dt[0] / 1000.0, dt[n - 1] / 1000.0);
+    report_mem("after generation");
+    prof_report(n);
 
-  // --- extrapolate to the model we would actually train --------------------
-  // Compute scales with NON-embedding parameters; the embedding table is a
-  // lookup, not a matmul. stories260K has 227,840 of them.
-  const double ms = total / 1000.0 / n;
-  const double per_param = ms / 227840.0;
-  ESP_LOGI(TAG, "--- EXTRAPOLATION (fp32, same code path) --------------");
-  struct { const char* name; long nonemb; } cfg[] = {
-      {"Config S  v1024 d128 L6", 1179648},
-      {"Config M  v2048 d192 L8", 3538944},
-      {"Config L  v2048 d256 L8", 6291456},
+    // --- extrapolate to the model we would actually train ------------------
+    // Compute scales with NON-embedding parameters; the embedding table is a
+    // lookup, not a matmul. stories260K has 227,840 of them.
+    const double ms = total / 1000.0 / n;
+    const double per_param = ms / 227840.0;
+    ESP_LOGI(TAG, "--- EXTRAPOLATION (same code path) --------------------");
+    struct { const char* cname; long nonemb; } cfg[] = {
+        {"Config S  v1024 d128 L6", 1179648},
+        {"Config M  v2048 d192 L8", 3538944},
+        {"Config L  v2048 d256 L8", 6291456},
+    };
+    for (auto& c : cfg) {
+      const double p_ms = per_param * c.nonemb;
+      ESP_LOGI(TAG, "%s -> %6.1f ms/token = %5.1f tok/s",
+               c.cname, p_ms, 1000.0 / p_ms);
+    }
+    ESP_LOGI(TAG, "sample: %.120s", out.c_str());
   };
-  for (auto& c : cfg) {
-    const double p_ms = per_param * c.nonemb;
-    ESP_LOGI(TAG, "%s -> %6.1f ms/token = %5.1f tok/s (int4 ~%.1f tok/s)",
-             c.name, p_ms, 1000.0 / p_ms, 1000.0 / (p_ms * 0.6));
-  }
 
-  ESP_LOGI(TAG, "sample: %.120s", out.c_str());
+  auto fwd_fp32 = [&](int token, int pos) { return forward(&t, token, pos); };
+  run_pass("fp32, weights mmap'd from flash", fwd_fp32);
+  relocate_weights_to_psram(&t, 1056540);
+  run_pass("fp32, weights in PSRAM", fwd_fp32);
+
+  // int8 row-quantised kernel — avenue 2 (PSRAM) and avenue 3 (internal RAM).
+  if (QTransformer* q8 = build_transformer_q8(MALLOC_CAP_SPIRAM)) {
+    run_pass("int8 rowq8, weights in PSRAM",
+             [&](int token, int pos) { return forward_q8(q8, token, pos); });
+    free_transformer_q8(q8);
+  }
+  if (QTransformer* q8 = build_transformer_q8(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT)) {
+    run_pass("int8 rowq8, weights in INTERNAL RAM",
+             [&](int token, int pos) { return forward_q8(q8, token, pos); });
+    free_transformer_q8(q8);
   }
 
   for (;;) vTaskDelay(pdMS_TO_TICKS(1000));

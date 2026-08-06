@@ -189,27 +189,15 @@ void free_transformer(Transformer* t) {
 }
 
 // ----------------------------------------------------------------------------
-// profiling: cycle-accurate section timers for forward(). The counter read is
-// one special-register access, so a mark costs nothing next to the sections it
-// times. Deltas are 32-bit; the counter wraps every ~17.9 s at 240 MHz, far
-// longer than any single token, and the accumulators are 64-bit.
-#include "esp_cpu.h"
+// profiling: buckets and macros live in prof.h, shared with the int8 kernel.
+#include "prof.h"
 #include "esp_rom_sys.h"
 
-enum { PROF_MM_QKV, PROF_MM_WO, PROF_MM_FFN, PROF_MM_CLS,
-       PROF_ATTN, PROF_RMSNORM, PROF_ROPE, PROF_SWIGLU, PROF_OTHER, PROF_N };
 static const char* prof_names[PROF_N] = {
     "matmul qkv", "matmul attn-out (wo)", "matmul ffn (w1,w3,w2)",
     "matmul classifier", "attention (score+softmax+sum)", "rmsnorm", "RoPE",
-    "SwiGLU", "residual+embed" };
-static uint64_t prof_cycles[PROF_N];
-
-// Mark style: each PROF_MARK attributes everything since the previous mark
-// (or PROF_START) to one bucket, then restarts the clock. forward() is fully
-// sequential, so this covers 100% of it with no gaps and no double counting.
-#define PROF_START() uint32_t prof_c_ = esp_cpu_get_cycle_count()
-#define PROF_MARK(slot) do { uint32_t prof_n_ = esp_cpu_get_cycle_count(); \
-    prof_cycles[slot] += prof_n_ - prof_c_; prof_c_ = prof_n_; } while (0)
+    "SwiGLU", "quantize x", "residual+embed" };
+uint64_t prof_cycles[PROF_N];
 
 void prof_reset(void) { memset(prof_cycles, 0, sizeof prof_cycles); }
 
@@ -220,6 +208,7 @@ void prof_report(int n_tokens) {
     const double us_per_cyc = 1.0 / esp_rom_get_cpu_ticks_per_us();
     printf("--- PROFILE of forward(), per token over %d tokens ----\n", n_tokens);
     for (int i = 0; i < PROF_N; i++) {
+        if (prof_cycles[i] == 0) continue;  // bucket unused by this kernel
         printf("  %-30s %7.3f ms  %5.1f%%\n", prof_names[i],
                prof_cycles[i] * us_per_cyc / 1000.0 / n_tokens,
                100.0 * (double)prof_cycles[i] / (double)total);

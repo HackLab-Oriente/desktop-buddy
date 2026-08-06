@@ -1,6 +1,8 @@
-// Declarations the ESP32 harness needs from the ported llama2.c run.c.
+// Declarations the ESP32 harness needs from the ported llama2.c run.c and
+// the int8 row-quantised kernel in runq8.c.
 #pragma once
 #include <stddef.h>
+#include <stdint.h>
 
 typedef struct { int dim, hidden_dim, n_layers, n_heads, n_kv_heads, vocab_size, seq_len; } Config;
 typedef struct { float *token_embedding_table, *rms_att_weight, *rms_ffn_weight,
@@ -24,3 +26,15 @@ char* decode(Tokenizer* t, int prev_token, int token);
 void relocate_weights_to_psram(Transformer* t, size_t bytes);
 void prof_reset(void);
 void prof_report(int n_tokens);
+
+// shared building blocks (defined in run.c, reused by runq8.c)
+void rmsnorm(float* o, float* x, float* weight, int size);
+void softmax(float* x, int size);
+
+// int8 row-quantised model (runq8.c). weight_caps picks where the weights
+// live: MALLOC_CAP_SPIRAM or MALLOC_CAP_INTERNAL — everything else is
+// identical between the two, so placement is the only measured variable.
+typedef struct QTransformer QTransformer;
+QTransformer* build_transformer_q8(uint32_t weight_caps);
+float* forward_q8(QTransformer* t, int token, int pos);
+void free_transformer_q8(QTransformer* t);
