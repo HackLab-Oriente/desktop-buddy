@@ -67,6 +67,7 @@ extern "C" void app_main() {
   for (int pass = 0; pass < 2; pass++) {
   if (pass == 1) relocate_weights_to_psram(&t, 1056540);
   ESP_LOGI(TAG, "=== pass %d: weights in %s ===", pass, pass ? "PSRAM" : "mmap'd FLASH");
+  prof_reset();
   constexpr int kSteps = 120;
   static int64_t dt[kSteps];
   int token = 1;  // BOS
@@ -96,6 +97,7 @@ extern "C" void app_main() {
   ESP_LOGI(TAG, "per-token p99   %.2f ms", dt[(n * 99) / 100] / 1000.0);
   ESP_LOGI(TAG, "per-token min   %.2f ms   max %.2f ms", dt[0] / 1000.0, dt[n - 1] / 1000.0);
   report_mem("after generation");
+  prof_report(n);
 
   // --- extrapolate to the model we would actually train --------------------
   // Compute scales with NON-embedding parameters; the embedding table is a

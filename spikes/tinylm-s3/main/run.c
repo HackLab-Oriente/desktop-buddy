@@ -186,6 +186,46 @@ void free_transformer(Transformer* t) {
 }
 
 // ----------------------------------------------------------------------------
+// profiling: cycle-accurate section timers for forward(). The counter read is
+// one special-register access, so a mark costs nothing next to the sections it
+// times. Deltas are 32-bit; the counter wraps every ~17.9 s at 240 MHz, far
+// longer than any single token, and the accumulators are 64-bit.
+#include "esp_cpu.h"
+#include "esp_rom_sys.h"
+
+enum { PROF_MM_QKV, PROF_MM_WO, PROF_MM_FFN, PROF_MM_CLS,
+       PROF_ATTN, PROF_RMSNORM, PROF_ROPE, PROF_SWIGLU, PROF_OTHER, PROF_N };
+static const char* prof_names[PROF_N] = {
+    "matmul qkv", "matmul attn-out (wo)", "matmul ffn (w1,w3,w2)",
+    "matmul classifier", "attention (score+softmax+sum)", "rmsnorm", "RoPE",
+    "SwiGLU", "residual+embed" };
+static uint64_t prof_cycles[PROF_N];
+
+// Mark style: each PROF_MARK attributes everything since the previous mark
+// (or PROF_START) to one bucket, then restarts the clock. forward() is fully
+// sequential, so this covers 100% of it with no gaps and no double counting.
+#define PROF_START() uint32_t prof_c_ = esp_cpu_get_cycle_count()
+#define PROF_MARK(slot) do { uint32_t prof_n_ = esp_cpu_get_cycle_count(); \
+    prof_cycles[slot] += prof_n_ - prof_c_; prof_c_ = prof_n_; } while (0)
+
+void prof_reset(void) { memset(prof_cycles, 0, sizeof prof_cycles); }
+
+void prof_report(int n_tokens) {
+    uint64_t total = 0;
+    for (int i = 0; i < PROF_N; i++) total += prof_cycles[i];
+    if (total == 0 || n_tokens <= 0) return;
+    const double us_per_cyc = 1.0 / esp_rom_get_cpu_ticks_per_us();
+    printf("--- PROFILE of forward(), per token over %d tokens ----\n", n_tokens);
+    for (int i = 0; i < PROF_N; i++) {
+        printf("  %-30s %7.3f ms  %5.1f%%\n", prof_names[i],
+               prof_cycles[i] * us_per_cyc / 1000.0 / n_tokens,
+               100.0 * (double)prof_cycles[i] / (double)total);
+    }
+    printf("  %-30s %7.3f ms\n", "TOTAL forward()",
+           total * us_per_cyc / 1000.0 / n_tokens);
+}
+
+// ----------------------------------------------------------------------------
 // neural net blocks; the dynamics of the Transformer
 
 void rmsnorm(float* o, float* x, float* weight, int size) {
@@ -252,13 +292,16 @@ float* forward(Transformer* transformer, int token, int pos) {
 
     // copy the token embedding into x
     float* content_row = w->token_embedding_table + token * dim;
+    PROF_START();
     memcpy(x, content_row, dim*sizeof(*x));
+    PROF_MARK(PROF_OTHER);
 
     // forward all the layers
     for(unsigned long long l = 0; l < p->n_layers; l++) {
 
         // attention rmsnorm
         rmsnorm(s->xb, x, w->rms_att_weight + l*dim, dim);
+        PROF_MARK(PROF_RMSNORM);
 
         // key and value point to the kv cache
         int loff = l * p->seq_len * kv_dim; // kv cache layer offset for convenience
@@ -269,6 +312,7 @@ float* forward(Transformer* transformer, int token, int pos) {
         matmul(s->q, s->xb, w->wq + l*dim*dim, dim, dim);
         matmul(s->k, s->xb, w->wk + l*dim*kv_dim, dim, kv_dim);
         matmul(s->v, s->xb, w->wv + l*dim*kv_dim, dim, kv_dim);
+        PROF_MARK(PROF_MM_QKV);
 
         // RoPE relative positional encoding: complex-valued rotate q and k in each head
         for (int i = 0; i < dim; i+=2) {
@@ -286,6 +330,7 @@ float* forward(Transformer* transformer, int token, int pos) {
                 vec[i+1] = v0 * fci + v1 * fcr;
             }
         }
+        PROF_MARK(PROF_ROPE);
 
         // multihead attention. iterate over all heads
         int h;
@@ -326,22 +371,27 @@ float* forward(Transformer* transformer, int token, int pos) {
                 }
             }
         }
+        PROF_MARK(PROF_ATTN);
 
         // final matmul to get the output of the attention
         matmul(s->xb2, s->xb, w->wo + l*dim*dim, dim, dim);
+        PROF_MARK(PROF_MM_WO);
 
         // residual connection back into x
         for (int i = 0; i < dim; i++) {
             x[i] += s->xb2[i];
         }
+        PROF_MARK(PROF_OTHER);
 
         // ffn rmsnorm
         rmsnorm(s->xb, x, w->rms_ffn_weight + l*dim, dim);
+        PROF_MARK(PROF_RMSNORM);
 
         // Now for FFN in PyTorch we have: self.w2(F.silu(self.w1(x)) * self.w3(x))
         // first calculate self.w1(x) and self.w3(x)
         matmul(s->hb, s->xb, w->w1 + l*dim*hidden_dim, dim, hidden_dim);
         matmul(s->hb2, s->xb, w->w3 + l*dim*hidden_dim, dim, hidden_dim);
+        PROF_MARK(PROF_MM_FFN);
 
         // SwiGLU non-linearity
         for (int i = 0; i < hidden_dim; i++) {
@@ -352,21 +402,26 @@ float* forward(Transformer* transformer, int token, int pos) {
             val *= s->hb2[i];
             s->hb[i] = val;
         }
+        PROF_MARK(PROF_SWIGLU);
 
         // final matmul to get the output of the ffn
         matmul(s->xb, s->hb, w->w2 + l*dim*hidden_dim, hidden_dim, dim);
+        PROF_MARK(PROF_MM_FFN);
 
         // residual connection
         for (int i = 0; i < dim; i++) {
             x[i] += s->xb[i];
         }
+        PROF_MARK(PROF_OTHER);
     }
 
     // final rmsnorm
     rmsnorm(x, x, w->rms_final_weight, dim);
+    PROF_MARK(PROF_RMSNORM);
 
     // classifier into logits
     matmul(s->logits, x, w->wcls, p->dim, p->vocab_size);
+    PROF_MARK(PROF_MM_CLS);
     return s->logits;
 }
 

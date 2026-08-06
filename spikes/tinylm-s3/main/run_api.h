@@ -22,3 +22,5 @@ float* forward(Transformer* transformer, int token, int pos);
 int sample(Sampler* sampler, float* logits);
 char* decode(Tokenizer* t, int prev_token, int token);
 void relocate_weights_to_psram(Transformer* t, size_t bytes);
+void prof_reset(void);
+void prof_report(int n_tokens);
