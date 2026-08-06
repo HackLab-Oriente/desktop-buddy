@@ -1,0 +1,5 @@
+build/
+sdkconfig
+sdkconfig.old
+# Weights are a 1 MB binary fetched at setup time — see README.md.
+*.bin

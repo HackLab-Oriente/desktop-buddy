@@ -1,0 +1,27 @@
+# Partition table — ESP32-S3 N16R8 (16 MB flash).
+#
+# The old table mapped only 3.56 MB of the 16 MB chip: it was written for the
+# 4 MB classic-ESP32 PoC and never grew when we migrated. 12.44 MB sat unused.
+#
+# Layout:
+#   nvs       24K   wifi creds, api keys
+#   phy_init   4K
+#   factory    3M   app image (1.14M used today — headroom for LVGL, audio, Berry)
+#   storage    4M   LittleFS packs: reflexes, faces, chirps, assets
+#   model      4M   raw, memory-mappable: local model weights
+#   (free)  4.94M   unallocated from 0xB10000 — reserved for a future OTA app pair
+#
+# Why "model" is a raw partition and not a file in LittleFS:
+# flash-resident model weights only work if they can be memory-mapped
+# (esp_partition_mmap), so the MMU can fetch rows on demand without ever
+# copying them into RAM. mmap works on a raw partition; it does NOT work on a
+# file inside a LittleFS image. Hence a dedicated raw region.
+# Subtype 0x40 is an arbitrary free data subtype — it just has to be stable.
+# See docs/local-model-bringup.md.
+#
+# Name,   Type, SubType,  Offset,   Size
+nvs,      data, nvs,      0x9000,   0x6000
+phy_init, data, phy,      0xf000,   0x1000
+factory,  app,  factory,  0x10000,  0x300000
+storage,  data, littlefs,         , 0x400000
+model,    data, 0x40,            , 0x400000
