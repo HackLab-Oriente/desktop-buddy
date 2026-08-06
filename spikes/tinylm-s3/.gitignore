@@ -3,3 +3,6 @@ sdkconfig
 sdkconfig.old
 # Weights are a 1 MB binary fetched at setup time — see README.md.
 *.bin
+# Fetched by the component manager; idf_component.yml + dependencies.lock
+# are the source of truth, never the downloaded copies.
+managed_components/
