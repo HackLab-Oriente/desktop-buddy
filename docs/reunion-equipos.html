@@ -130,6 +130,19 @@
   .bubble.empty{color:var(--muted);font-size:16.5px}
   .demoface{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px}
   .demoface svg{width:100%;height:auto;display:block}
+  .diagram{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px}
+  .diagram svg{width:100%;height:auto;display:block}
+  .legend{display:flex;flex-wrap:wrap;gap:14px;margin-top:10px;font-size:15px;color:var(--ink2)}
+  .legend span{display:flex;align-items:center;gap:6px}
+  .legend i{width:15px;height:4px;border-radius:2px;display:inline-block}
+  .bom{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  @media(max-width:1080px){.bom{grid-template-columns:1fr}}
+  .bomcard ul{list-style:none;margin:8px 0 0;padding:0;font-size:16px;color:var(--ink2)}
+  .bomcard li{padding:5px 0;border-bottom:1px solid var(--line);display:flex;gap:9px}
+  .bomcard li:last-child{border-bottom:0}
+  .bomcard li b{color:var(--ink);font-weight:600}
+  .bomcard li .m{color:var(--muted);font-size:14.5px}
+  .tick{flex:none;width:17px;text-align:center}
   .code i{color:var(--muted);font-style:normal}
   .moodgrid.mini{grid-template-columns:repeat(2,1fr);gap:12px;margin-top:10px}
   .moodgrid.mini .mood{border-style:dashed;opacity:.92}
@@ -645,6 +658,60 @@ end)</div>
   </div>
 </div>
 
+<!-- ============================ PART 4 ============================ -->
+<h2><span class="n">4</span>El hardware: qué tenemos y cómo se conecta</h2>
+<p class="lede">Referencia para los equipos de <b>electrónica</b> y <b>CAD</b>. Lo verde ya está comprado, lo ámbar falta por pedir, y lo gris son decisiones del grupo.</p>
+
+<div class="bom">
+  <div class="card bomcard">
+    <div class="tag2" style="color:var(--good-ink)">Ya lo tenemos &middot; pedido</div>
+    <ul>
+      <li><span class="tick">&#10003;</span><span><b>ESP32-S3</b> devkit N16R8 <span class="m">&mdash; 16 MB flash, 8 MB PSRAM, 2 USB-C</span></span></li>
+      <li><span class="tick">&#10003;</span><span><b>GC9A01</b> redonda 1.28&Prime; <span class="m">&mdash; 240&times;240 SPI</span></span></li>
+      <li><span class="tick">&#10003;</span><span><b>INMP441</b> <span class="m">&mdash; micro I2S MEMS</span></span></li>
+      <li><span class="tick">&#10003;</span><span><b>MAX98357A</b> + altavoz 4&Omega; 3 W <span class="m">&mdash; audio I2S</span></span></li>
+      <li><span class="tick">&#10003;</span><span><b>Anillo WS2812</b> 12 LED</span></li>
+      <li><span class="tick">&#10003;</span><span><b>Cinta de cobre</b> <span class="m">&mdash; las almohadillas t&aacute;ctiles</span></span></li>
+      <li><span class="tick">&#10003;</span><span><b>M&oacute;dulo micro SD</b> 3.3 V SPI</span></li>
+      <li><span class="tick">&#10003;</span><span><b>Pegatinas NFC</b> NTAG215</span></li>
+      <li><span class="tick">&#10003;</span><span><span class="m">Placa soldable, tornillos M3 + inserts, cable de silicona, pulsadores</span></span></li>
+    </ul>
+  </div>
+
+  <div class="card bomcard" style="border-color:var(--warn-ink)">
+    <div class="tag2" style="color:var(--warn-ink)">Por pedir</div>
+    <ul>
+      <li><span class="tick">&#9675;</span><span><b>Protoboard</b> + cables Dupont <span class="m">&mdash; sesiones 1&ndash;3</span></span></li>
+      <li><span class="tick">&#9675;</span><span><b>USB-C de panel</b> <span class="m">&mdash; entrada de 5 V de la carcasa</span></span></li>
+      <li><span class="tick">&#9675;</span><span><b>AHT20 + BMP280</b> <span class="m">&mdash; temp/humedad/presi&oacute;n, I2C</span></span></li>
+      <li><span class="tick">&#9675;</span><span><b>BH1750</b> <span class="m">&mdash; luz ambiente, I2C</span></span></li>
+      <li><span class="tick">&#9675;</span><span><b>MPU6050</b> <span class="m">&mdash; aceler&oacute;metro, I2C</span></span></li>
+      <li><span class="tick">&#9675;</span><span><b>LD2410C</b> <span class="m">&mdash; radar de presencia, atraviesa el PLA</span></span></li>
+      <li><span class="tick">&#9675;</span><span><b>PN532</b> <span class="m">&mdash; NFC por I2C (sustituye al RC522)</span></span></li>
+      <li><span class="tick">&#9675;</span><span><b>Tiras de pines</b> + cables Qwiic <span class="m">&mdash; el hack port</span></span></li>
+      <li><span class="tick">&#9675;</span><span><b>Servos MG90S</b> <span class="m">&mdash; solo prep para v2</span></span></li>
+    </ul>
+  </div>
+
+  <div class="card bomcard">
+    <div class="tag2">Por decidir &middot; hoy o en la sesi&oacute;n 1</div>
+    <ul>
+      <li><span class="tick">?</span><span><b>&iquest;Pantalla redonda o cuadrada?</b> <span class="m">&mdash; GC9A01 vs ST7789. Mismo cableado y misma resoluci&oacute;n; solo cambia la silueta. Tenemos redondas.</span></span></li>
+      <li><span class="tick">?</span><span><b>El mapa del hack port</b> <span class="m">&mdash; 2&times;4 pines en la trasera. Hay que congelarlo antes de dise&ntilde;ar la carcasa.</span></span></li>
+      <li><span class="tick">?</span><span><b>&iquest;VL53L0X?</b> <span class="m">&mdash; sensor de distancia. Necesita agujero en la carcasa: es una decisi&oacute;n de CAD, no solo de electr&oacute;nica.</span></span></li>
+      <li><span class="tick">?</span><span><b>Cu&aacute;ntos buddies</b> <span class="m">&mdash; la decisi&oacute;n de julio fue 2&ndash;3 prototipos, no uno por persona. &iquest;Sigue valiendo?</span></span></li>
+    </ul>
+    <p class="note" style="margin-top:12px"><b>Regla de potencia:</b> el pico son ~1,5 A a 5 V y <b>no puede pasar por el devkit</b>. Alimentaci&oacute;n por USB-C de panel a un ra&iacute;l de 5 V propio; el USB del devkit se queda para depurar.</p>
+  </div>
+</div>
+
+<h3 class="sec">El cableado que ya est&aacute; definido</h3>
+<p class="lede2">Generado desde los valores reales de <code>Kconfig.projbuild</code>: es lo que el firmware espera hoy. Lo punteado a&uacute;n no tiene pines asignados &mdash; primera tarea de electr&oacute;nica junto a voz.</p>
+
+<div class="diagram"><div id="wiring"></div></div>
+<div class="legend" id="legend"></div>
+<p class="note"><b>Trampas del S3 que explican estos pines:</b> GPIO 33&ndash;37 son la PSRAM octal, 19/20 son USB, 26&ndash;32 la flash y 0/3/45/46 son pines de arranque. Ninguno se puede usar. Por eso la pantalla vive en 7&ndash;12 y el RC522 en 38&ndash;42.</p>
+
 <p class="note" style="margin-top:22px">
   <span data-lang="es">Números de rendimiento medidos en la placa real (spike <code>tinylm-s3</code>). Detalle técnico en <code>docs/training-workshop.md</code> y <code>docs/param-explorer.html</code>.</span>
   <span data-lang="en">Performance numbers measured on the real board (spike <code>tinylm-s3</code>). Technical detail in <code>docs/training-workshop.md</code> and <code>docs/param-explorer.html</code>.</span>
@@ -839,6 +906,106 @@ document.getElementById("triggers").addEventListener("click", ev => {
 });
 document.getElementById("demoface").innerHTML =
   faceSVG({...PACKX.feliz, n:"neutral", c:[0,190,255], lift:0}, null, "demo");
+
+// ---------------------------------------------------------------------------
+// Wiring diagram, computed from the pin data rather than drawn by hand, so it
+// cannot drift from Kconfig. Self-contained SVG: no CDN, works offline in the
+// lab. Colours are mid-tones chosen to read on both light and dark surfaces.
+const SIG = {
+  p3:  {c:"#e5484d", es:"3V3"},
+  p5:  {c:"#f76b15", es:"5V"},
+  gnd: {c:"#8b8d98", es:"GND"},
+  clk: {c:"#3e63dd", es:"reloj (SCK/SCL)"},
+  dat: {c:"#30a46c", es:"datos (MOSI/MISO/SDA)"},
+  ctl: {c:"#8e4ec6", es:"control (CS/DC/RST/BLK)"},
+  tch: {c:"#0d9488", es:"táctil"},
+};
+const DEVS = [
+  {n:"GC9A01 · pantalla", bus:"SPI2", side:"L", ok:true, pins:[
+    ["VCC","3V3","p3"],["GND","GND","gnd"],["SCL","12","clk"],["SDA","11","dat"],
+    ["RES","8","ctl"],["DC","9","ctl"],["CS","10","ctl"],["BLK","7","ctl"]]},
+  {n:"Anillo WS2812", bus:"12 LED", side:"L", ok:true, pins:[
+    ["VCC","5V","p5"],["GND","GND","gnd"],["DIN","21","dat"]]},
+  {n:"Almohadilla táctil", bus:"cobre", side:"L", ok:true, pins:[
+    ["PAD","4","tch"]]},
+  {n:"RC522 · NFC", bus:"SPI3 · sin probar", side:"R", ok:true, pins:[
+    ["SCK","39","clk"],["MISO","40","dat"],["MOSI","41","dat"],
+    ["CS","42","ctl"],["RST","38","ctl"]]},
+  {n:"INMP441 + MAX98357A", bus:"I2S · sin definir", side:"R", ok:false, pins:[
+    ["BCLK","?","clk"],["WS/LRC","?","clk"],["DIN/DOUT","?","dat"]]},
+  {n:"Sensores + hack port", bus:"I2C · sin definir", side:"R", ok:false, pins:[
+    ["SDA","?","dat"],["SCL","?","clk"]]},
+];
+
+function wiringSVG() {
+  const W = 1140, PAD = 24, ROW = 23, HEAD = 46, GAP = 30;
+  const dw = 232, bx = 452, bw = 236;
+  const cols = {L: DEVS.filter(d => d.side === "L"), R: DEVS.filter(d => d.side === "R")};
+  const place = list => {                       // stack the boxes in a column
+    let y = PAD, out = [];
+    for (const d of list) { const h = HEAD + d.pins.length * ROW + 12;
+      out.push({d, y, h}); y += h + GAP; }
+    return {out, bottom: y - GAP};
+  };
+  const L = place(cols.L), R = place(cols.R);
+  const H = Math.max(L.bottom, R.bottom) + PAD;
+  const by = PAD, bh = H - PAD * 2;
+
+  // board-edge slots, one per wire, in the order the wires leave the column
+  const HDR = 58;                               // keep clear of the board title
+  const slots = side => {
+    const all = (side === "L" ? L : R).out.flatMap(b => b.d.pins.map(() => 0));
+    const step = (bh - HDR - 12) / (all.length + 1);
+    return all.map((_, i) => by + HDR + step * (i + 1));
+  };
+  const sl = {L: slots("L"), R: slots("R")};
+  let li = 0, ri = 0, wires = "", boxes = "", stubs = "";
+
+  for (const side of ["L", "R"]) {
+    const col = side === "L" ? L : R;
+    const x = side === "L" ? PAD : W - PAD - dw;
+    for (const {d, y, h} of col.out) {
+      boxes += `<rect x="${x}" y="${y}" width="${dw}" height="${h}" rx="12"
+        fill="var(--card)" stroke="${d.ok ? "var(--line)" : "var(--muted)"}"
+        stroke-width="1.5"${d.ok ? "" : ' stroke-dasharray="6 4"'}/>
+        <text x="${x + 14}" y="${y + 25}" font-size="15.5" font-weight="700" fill="var(--ink)">${d.n}</text>
+        <text x="${x + 14}" y="${y + 42}" font-size="12.5" fill="var(--muted)">${d.bus}</text>`;
+      d.pins.forEach((p, k) => {
+        const py = y + HEAD + k * ROW + 11;
+        const sig = SIG[p[2]];
+        boxes += `<text x="${x + 14}" y="${py + 4}" font-size="13"
+          font-family="ui-monospace,Menlo,monospace" fill="var(--ink2)">${p[0]}</text>`;
+        // wire from the box edge to its slot on the board
+        const i = side === "L" ? li++ : ri++;
+        const sy = sl[side][i];
+        const x1 = side === "L" ? x + dw : x;
+        const x2 = side === "L" ? bx : bx + bw;
+        const dx = side === "L" ? 62 : -62;
+        wires += `<path d="M${x1},${py} C${x1 + dx},${py} ${x2 - dx},${sy} ${x2},${sy}"
+          fill="none" stroke="${sig.c}" stroke-width="2.2" opacity="${d.ok ? .95 : .45}"
+          ${d.ok ? "" : 'stroke-dasharray="5 4"'} stroke-linecap="round"/>`;
+        // the labelled pad on the board edge
+        const tx = side === "L" ? bx + 9 : bx + bw - 9;
+        stubs += `<circle cx="${x2}" cy="${sy}" r="3.4" fill="${sig.c}"/>
+          <text x="${tx}" y="${sy + 4.5}" font-size="13" font-weight="700"
+            font-family="ui-monospace,Menlo,monospace" fill="var(--ink)"
+            text-anchor="${side === "L" ? "start" : "end"}">${p[1]}</text>`;
+      });
+    }
+  }
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Diagrama de cableado">
+    <rect x="${bx}" y="${by}" width="${bw}" height="${bh}" rx="14"
+      fill="var(--soft)" stroke="var(--accent)" stroke-width="2"/>
+    <text x="${bx + bw / 2}" y="${by + 26}" text-anchor="middle" font-size="16"
+      font-weight="700" fill="var(--ink)">ESP32-S3</text>
+    <text x="${bx + bw / 2}" y="${by + 44}" text-anchor="middle" font-size="12.5"
+      fill="var(--muted)">N16R8 · 16 MB flash · 8 MB PSRAM</text>
+    ${wires}${boxes}${stubs}</svg>`;
+}
+document.getElementById("wiring").innerHTML = wiringSVG();
+document.getElementById("legend").innerHTML = Object.values(SIG)
+  .map(s => `<span><i style="background:${s.c}"></i>${s.es}</span>`).join("") +
+  `<span><i style="background:var(--muted)"></i>punteado = sin definir</span>`;
 
 document.getElementById("lang").addEventListener("click", () => {
   const h = document.documentElement;
