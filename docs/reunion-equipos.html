@@ -109,6 +109,27 @@
   .code b{color:var(--accent);font-weight:700}
   .tsub{color:var(--muted);font-size:15px}
   tr.warn td{background:var(--warn-bg)}
+  .tree{font:15px/1.75 ui-monospace,Menlo,monospace;color:var(--ink2);white-space:pre}
+  .tree b{color:var(--accent)}
+  .tree i{color:var(--muted);font-style:normal}
+  .demo{display:grid;grid-template-columns:250px 1fr;gap:20px;align-items:start}
+  @media(max-width:1080px){.demo{grid-template-columns:1fr}}
+  .triggers{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+  .triggers button{background:var(--card);color:var(--ink);border:1px solid var(--line);
+    border-radius:11px;padding:10px 16px;font-size:17px;cursor:pointer}
+  .triggers button:hover{border-color:var(--accent);color:var(--accent)}
+  .step{border:1px solid var(--line);border-radius:11px;padding:9px 13px;margin-bottom:7px;
+    opacity:.3;transition:opacity .3s,border-color .3s,background .3s}
+  .step.on{opacity:1;border-color:var(--accent);background:var(--soft)}
+  .step .k{font:12.5px ui-monospace,Menlo,monospace;color:var(--muted);
+    text-transform:uppercase;letter-spacing:.06em}
+  .step .v{font:15.5px/1.5 ui-monospace,Menlo,monospace;color:var(--ink);word-break:break-word}
+  .step .v em{color:var(--muted);font-style:normal}
+  .bubble{background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:13px 16px;font-size:19px;color:var(--ink);min-height:56px;margin-top:10px}
+  .bubble.empty{color:var(--muted);font-size:16.5px}
+  .demoface{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px}
+  .demoface svg{width:100%;height:auto;display:block}
   .code i{color:var(--muted);font-style:normal}
   .moodgrid.mini{grid-template-columns:repeat(2,1fr);gap:12px;margin-top:10px}
   .moodgrid.mini .mood{border-style:dashed;opacity:.92}
@@ -369,18 +390,89 @@
   </div>
 </div>
 
+<h3 class="sec">Un pack completo</h3>
+<p class="lede2">Esto es todo lo que hay dentro de un pack. Un directorio, se comprime y se pasa: eso es un &laquo;cartucho&raquo;. Ningún archivo necesita compilarse.</p>
+
+<div class="two">
+  <div class="card">
+    <div class="lbl" style="margin-top:0">La estructura</div>
+    <div class="tree"><b>mi-buddy/</b>
+├─ <b>pack.json</b>            <i>quién es y cómo piensa</i>
+├─ <b>reflexes/</b>
+│   └─ main.be           <i>qué hace ante cada evento</i>
+├─ <b>faces/</b>
+│   ├─ emotions.json     <i>las expresiones con nombre</i>
+│   └─ sprites/          <i>imágenes, si las hay</i>
+├─ <b>lines/</b>              <i>el banco, por registro</i>
+│   ├─ bright.txt
+│   ├─ sharp.txt
+│   └─ soft.txt
+└─ <b>sounds/</b>             <i>pitidos y efectos</i></div>
+    <p class="note" style="margin-top:10px"><code>lines/</code> es la parte nueva: hoy el formato de packs no la tiene. Es justo lo que hay que añadirle si sale adelante el banco de frases.</p>
+  </div>
+
+  <div class="card">
+    <div class="lbl" style="margin-top:0">pack.json &middot; la identidad</div>
+    <div class="code">{
+  "id": "mi-buddy",
+  "name": "El buddy de Marta",
+  "api_level": 1,
+  "language": "es",
+  "brain": {
+    "system_prompt": "Eres un bicho sarcástico
+       pero cariñoso. Menos de 20 palabras."
+  },
+  "expressions": { "emotion_map": "faces/emotions.json" }
+}</div>
+    <div class="lbl">faces/emotions.json &middot; la capa pack</div>
+    <div class="code">{
+ "<b>feliz</b>":       { "registro":"bright", "color":"#28eb78",
+                  "ojos":{"w":26,"h":30,"lift":14} },
+ "<b>travieso</b>":    { "registro":"sharp",  "color":"#c060ff",
+                  "ojos":{"w":26,"h":30,"open":55,"ceja":1} }
+}</div>
+  </div>
+</div>
+
 <div class="card" style="margin-top:16px">
-  <div class="lbl" style="margin-top:0">Una caricia, paso a paso</div>
-  <div class="code">1  el sensor dispara               <b>touch.pet</b>
-2  un reflejo del pack decide      <b>face.emotion "feliz"</b>
-3  el framework busca "feliz" en expressions.json
-       registro  <b>bright</b>              ─→ al modelo (o al banco)
-       color     #28eb78              ─→ ojos + anillo LED
-       ojos      w26 h30 lift14       ─→ la cara que ya viste arriba
-4  el modelo genera en registro <b>bright</b>
-       "¡Ooh, otra vez tú! Me alegro un montón."
-5  salen a la vez  <b>face.say</b> + <b>led.mood</b> + la cara feliz</div>
-  <p class="note" style="margin-top:10px">Fíjate en el paso 4: <b>el modelo nunca oye la palabra <code>feliz</code></b>. Solo conoce <code>bright</code>. El nombre, el color y la forma del ojo son un archivo de texto que cualquiera edita.</p>
+  <div class="lbl" style="margin-top:0">reflexes/main.be &middot; el paso 2, entero</div>
+  <div class="code"><i># Se sube desde la web del buddy y se edita en caliente:</i>
+<i># ni recompilar ni reflashear. Este archivo ES la personalidad.</i>
+
+pokes = 0
+
+buddy.on(<b>"touch.pet"</b>, def (ev)
+  pokes = 0                          <i># acariciar perdona</i>
+  buddy.face.emotion(<b>"feliz"</b>)
+  buddy.led.mood("excited")
+end)
+
+buddy.on(<b>"touch.poke"</b>, def (ev)
+  pokes += 1
+  if pokes >= 3                      <i># tiene memoria: se harta</i>
+    buddy.face.emotion(<b>"enfadado"</b>)
+    buddy.show("HMPH.")
+  else
+    buddy.face.emotion(<b>"sorprendido"</b>)
+  end
+end)
+
+buddy.on(<b>"nfc.tag"</b>, def (ev)
+  buddy.face.emotion(<b>"curioso"</b>)
+  buddy.say("Te han enseñado una tarjeta " + ev['payload'])
+end)</div>
+</div>
+
+<h3 class="sec">Pruébalo: del gesto a la frase</h3>
+<p class="lede2">Pulsa un gesto y sigue el recorrido. Es exactamente la lógica del <code>main.be</code> de arriba — incluido que se enfada al tercer toque, porque los reflejos tienen memoria.</p>
+
+<div class="triggers" id="triggers"></div>
+<div class="demo">
+  <div>
+    <div class="demoface" id="demoface"></div>
+    <div class="bubble empty" id="bubble">…</div>
+  </div>
+  <div id="flow"></div>
 </div>
 
 <h3 class="sec">Qué puede cambiar cada uno</h3>
@@ -604,10 +696,21 @@ function faceSVG(m, colour, uid) {
     // (brow > 0) == (side == 0), so the deep end always faces the nose for
     // angry (+1) and the ears for sad (-1).
     const deepRight = (m.brow > 0) === (side === 0);
-    const browL = top + browAmt * (deepRight ? 0 : 1);
-    const browR = top + browAmt * (deepRight ? 1 : 0);
-    const lidY = cy + hh - liftPx;          // lower lid, raised by the squint
-    const L = cx - hw - 3, R = cx + hw + 3;
+    // The lids cut only vertically on the device — nothing trims the glow at
+    // the sides. Stop the clip short horizontally and the blurred halo gets
+    // sliced into a visible box, so extend well past the eye and extrapolate
+    // the brow line to the new edges to keep its slope identical.
+    const M = 44, L = cx - hw - M, R = cx + hw + M;
+    const browAt = x => {
+      const t = (x - (cx - hw)) / eyeW;
+      return top + browAmt * (deepRight ? t : 1 - t);
+    };
+    // Mirror the C++ guards: no brow means NO upper cut, no lift means no
+    // lower cut. Cutting unconditionally left a faint rectangular band across
+    // the halo of every mood that has neither.
+    const browL = browAmt > 0 ? browAt(L) : top - M;
+    const browR = browAmt > 0 ? browAt(R) : top - M;
+    const lidY  = m.lift > 0 ? cy + hh - liftPx : cy + hh + M;
 
     const cid = `clip-${id}-${side}`;
     defs += `<clipPath id="${cid}"><polygon points="${L},${browL} ${R},${browR} ${R},${lidY} ${L},${lidY}"/></clipPath>`;
@@ -640,6 +743,90 @@ document.getElementById("moods-todo").innerHTML = TODO.map(m => `
     <div class="nm"><span data-lang="es">${m.es}</span><span data-lang="en">${m.en}</span></div>
     <div class="desc"><span data-lang="es">${m.des}</span><span data-lang="en">${m.den}</span></div>
   </div>`).join("");
+
+// ---------------------------------------------------------------------------
+// Interactive flow. Mirrors packs/zero/reflexes/main.be, including the poke
+// counter, so what the room sees is the logic the device actually runs.
+const PACKX = {
+  feliz:       {registro:"bright", c:[40,235,120],  w:26,h:30,o:100,lift:14,brow:0},
+  sorprendido: {registro:"urgent", c:[150,240,255], w:34,h:40,o:100,lift:0, brow:0},
+  enfadado:    {registro:"sharp",  c:[255,50,25],   w:28,h:28,o:100,lift:0, brow:1},
+  curioso:     {registro:"bright", c:[0,210,235],   w:30,h:34,o:100,lift:0, brow:0},
+  dormido:     {registro:"hushed", c:[90,90,200],   w:26,h:30,o:35, lift:0, brow:0},
+};
+const BANK = {
+  bright: ["¡Ooh, otra vez tú! Me alegro un montón.", "¡Un amigo! Hoy es el mejor día."],
+  urgent: ["¡Eh! ¿Pero qué haces?", "¡Uy! No me lo esperaba."],
+  sharp:  ["HMPH.", "Ah. Otra vez tú. Qué ilusión."],
+  hushed: ["Cinco minutos más… bueno, diez.", "Zzz… ¿decías algo?"],
+};
+const TRIGGERS = [
+  {label:"Acariciar",       ev:"touch.pet"},
+  {label:"Dar un toque",    ev:"touch.poke"},
+  {label:"Enseñar tarjeta", ev:"nfc.tag", payload:"game:catan"},
+  {label:"Dejarlo solo",    ev:"timer.idle"},
+];
+let pokes = 0, seq = 0;
+
+document.getElementById("triggers").innerHTML =
+  TRIGGERS.map((t,i) => `<button data-i="${i}">${t.label}</button>`).join("") +
+  `<button data-i="reset" style="opacity:.6">↺ reiniciar</button>`;
+
+function reflex(ev) {   // <- the Berry script, transcribed
+  if (ev === "touch.pet")  { pokes = 0; return {expr:"feliz", why:'pokes = 0 · face.emotion("feliz")'}; }
+  if (ev === "touch.poke") {
+    pokes++;
+    return pokes >= 3
+      ? {expr:"enfadado",    why:`pokes = ${pokes} → if pokes >= 3 · face.emotion("enfadado")`}
+      : {expr:"sorprendido", why:`pokes = ${pokes} → else · face.emotion("sorprendido")`};
+  }
+  if (ev === "nfc.tag")    return {expr:"curioso", why:'face.emotion("curioso") + say(...)'};
+  return {expr:"dormido",  why:'face.emotion("dormido")'};
+}
+
+function runFlow(t) {
+  const my = ++seq;
+  const r = reflex(t.ev);
+  const e = PACKX[r.expr];
+  const hexc = "#" + e.c.map(v => v.toString(16).padStart(2,"0")).join("");
+  const pool = BANK[e.registro] || ["…"];
+  const line = pool[Math.floor(seq * 7919) % pool.length];   // deterministic, no RNG
+  const steps = [
+    {k:"1 · evento en el bus",        v:`<b>${t.ev}</b>${t.payload ? ` <em>payload: ${t.payload}</em>` : ""}`},
+    {k:"2 · reflejo · reflexes/main.be", v:r.why},
+    {k:"3 · expresión (capa pack)",   v:`<b>${r.expr}</b> <em>→ faces/emotions.json</em>`},
+    {k:"4 · registro (capa modelo)",  v:`<b>${e.registro}</b> · color ${hexc} · ojos w${e.w} h${e.h}`},
+    {k:"5 · salida",                  v:`face.say + led.mood + la cara <em>(a la derecha)</em>`},
+  ];
+  const flow = document.getElementById("flow");
+  flow.innerHTML = steps.map(s =>
+    `<div class="step"><div class="k">${s.k}</div><div class="v">${s.v}</div></div>`).join("");
+  const bubble = document.getElementById("bubble");
+  bubble.className = "bubble empty"; bubble.textContent = "…";
+
+  const els = [...flow.querySelectorAll(".step")];
+  els.forEach((el, i) => setTimeout(() => {
+    if (my !== seq) return;                    // a newer click superseded this run
+    el.classList.add("on");
+    if (i === 3) document.getElementById("demoface").innerHTML =
+      faceSVG({...e, n:r.expr}, null, "demo");
+    if (i === 4) { bubble.className = "bubble"; bubble.textContent = "\u201C" + line + "\u201D"; }
+  }, 380 * (i + 1)));
+}
+
+document.getElementById("triggers").addEventListener("click", ev => {
+  const b = ev.target.closest("button"); if (!b) return;
+  if (b.dataset.i === "reset") {
+    pokes = 0; seq++;
+    document.getElementById("flow").innerHTML = "";
+    document.getElementById("demoface").innerHTML = faceSVG({...PACKX.feliz, n:"neutral", c:[0,190,255], lift:0}, null, "demo");
+    const bu = document.getElementById("bubble"); bu.className = "bubble empty"; bu.textContent = "…";
+    return;
+  }
+  runFlow(TRIGGERS[+b.dataset.i]);
+});
+document.getElementById("demoface").innerHTML =
+  faceSVG({...PACKX.feliz, n:"neutral", c:[0,190,255], lift:0}, null, "demo");
 
 document.getElementById("lang").addEventListener("click", () => {
   const h = document.documentElement;
