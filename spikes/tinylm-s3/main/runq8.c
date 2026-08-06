@@ -45,6 +45,7 @@ typedef struct {
 struct QTransformer {
     Config c;
     int kv_dim, head_size;
+    float rope_freq[16];  // 10000^(-head_dim/head_size), one per rotation pair
     float *rms_att, *rms_ffn, *rms_final;              // fp32, in the blob
     QTensor tokens, wq, wk, wv, wo, w1, w2, w3;        // layers concatenated
     uint8_t* blob;                                     // owned aligned copy
@@ -91,6 +92,12 @@ QTransformer* build_transformer_q8(uint32_t weight_caps) {
     const Config* c = &t->c;
     t->kv_dim = c->dim * c->n_kv_heads / c->n_heads;
     t->head_size = c->dim / c->n_heads;
+    if (t->head_size / 2 > 16) { ESP_LOGE(TAG, "head_size too large"); free(t); return NULL; }
+    // RoPE frequencies depend only on the pair index — hoist the powf here,
+    // and the per-position sin/cos to once per token in forward_q8 (they were
+    // being recomputed per LAYER: 160 transcendental calls/token, ~0.9 ms).
+    for (int j = 0; j < t->head_size / 2; j++)
+        t->rope_freq[j] = powf(10000.0f, -(2.0f * j) / t->head_size);
 
     // total blob size, mirroring the converter
     const int L = c->n_layers, dim = c->dim, hid = c->hidden_dim;
@@ -163,9 +170,15 @@ static float quantize_vec(int8_t* out, const float* in, int n, int npad) {
     for (int j = 0; j < n; j++) { float a = fabsf(in[j]); if (a > amax) amax = a; }
     const float scale = amax > 0.0f ? amax / 127.0f : 1.0f;
     const float inv = 1.0f / scale;
+    // Round-to-nearest via the 1.5*2^23 magic constant: the add forces the
+    // value into a fixed-exponent float whose low mantissa bits ARE the
+    // integer (two's complement included) — a few cycles vs a lrintf call.
+    // |in*inv| <= 127 by construction of the scale, so no clamp is needed
+    // and we are far inside the trick's +/-2^22 validity range.
     for (int j = 0; j < n; j++) {
-        int v = (int)lrintf(in[j] * inv);
-        out[j] = (int8_t)(v > 127 ? 127 : (v < -127 ? -127 : v));
+        union { float v; int32_t i; } u;
+        u.v = in[j] * inv + 12582912.0f;
+        out[j] = (int8_t)(u.i - 0x4B400000);
     }
     memset(out + n, 0, npad - n);
     return scale;
@@ -202,6 +215,15 @@ float* forward_q8(QTransformer* t, int token, int pos) {
     }
     PROF_MARK(PROF_OTHER);
 
+    // RoPE angles depend only on (pos, pair index) — same for every layer.
+    float fcr[16], fci[16];
+    for (int j = 0; j < head_size / 2; j++) {
+        const float val = pos * t->rope_freq[j];
+        fcr[j] = cosf(val);
+        fci[j] = sinf(val);
+    }
+    PROF_MARK(PROF_ROPE);
+
     for (int l = 0; l < c->n_layers; l++) {
         rmsnorm(t->xb, x, t->rms_att + l * dim, dim);
         PROF_MARK(PROF_RMSNORM);
@@ -217,18 +239,15 @@ float* forward_q8(QTransformer* t, int token, int pos) {
         matmul_q8(v, t->xq, xs, &t->wv, l * kv_dim, kv_dim);
         PROF_MARK(PROF_MM_QKV);
 
-        // RoPE — identical to the fp32 path
+        // RoPE — same maths as the fp32 path, with the angles precomputed
         for (int i = 0; i < dim; i += 2) {
-            int head_dim = i % head_size;
-            float freq = 1.0f / powf(10000.0f, head_dim / (float)head_size);
-            float val = pos * freq;
-            float fcr = cosf(val), fci = sinf(val);
-            int rotn = i < kv_dim ? 2 : 1;
+            const int j = (i % head_size) >> 1;
+            const int rotn = i < kv_dim ? 2 : 1;
             for (int vv = 0; vv < rotn; vv++) {
                 float* vec = vv == 0 ? t->q : k;
                 float v0 = vec[i], v1 = vec[i + 1];
-                vec[i] = v0 * fcr - v1 * fci;
-                vec[i + 1] = v0 * fci + v1 * fcr;
+                vec[i] = v0 * fcr[j] - v1 * fci[j];
+                vec[i + 1] = v0 * fci[j] + v1 * fcr[j];
             }
         }
         PROF_MARK(PROF_ROPE);
