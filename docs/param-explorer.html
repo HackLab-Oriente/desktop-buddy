@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Buddy model — parameter explorer</title>
+<title>Modelo del buddy — explorador de parámetros</title>
 <style>
   :root {
     --bg: #f7f5f0; --card: #ffffff; --ink: #1e2126; --ink2: #5a6068;
@@ -26,7 +26,8 @@
   header { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; margin-bottom: 6px; }
   h1 { font-size: 30px; letter-spacing: -0.02em; }
   header .sub { color: var(--ink2); font-size: 18px; }
-  #theme { margin-left: auto; background: var(--card); color: var(--ink);
+  header .btns { margin-left: auto; display: flex; gap: 8px; }
+  header .btns button { background: var(--card); color: var(--ink);
     border: 1px solid var(--line); border-radius: 10px; padding: 6px 14px;
     font-size: 16px; cursor: pointer; }
 
@@ -78,14 +79,15 @@
 </head>
 <body>
 <header>
-  <h1>Buddy model — parameter explorer</h1>
-  <span class="sub">drag the knobs; watch what ships to the ESP32-S3</span>
-  <button id="theme">◐ theme</button>
+  <h1 id="t-title">Modelo del buddy — explorador de parámetros</h1>
+  <span class="sub" id="t-sub"></span>
+  <div class="btns">
+    <button id="lang">EN</button>
+    <button id="theme">◐</button>
+  </div>
 </header>
 
-<div class="presets" id="presets">
-  <span class="note">ladder presets:</span>
-</div>
+<div class="presets" id="presets"><span class="note" id="t-presets"></span></div>
 
 <div class="grid">
   <section id="knobs"></section>
@@ -93,87 +95,163 @@
   <section>
     <div class="tiles2">
       <div class="tile">
-        <div class="label">parameters (total)</div>
+        <div class="label" id="t-params"></div>
         <div class="big" id="o-total">–</div>
         <div class="foot" id="o-nonemb">–</div>
       </div>
       <div class="tile">
-        <div class="label">speed on the buddy <span class="badge b-warn">estimate</span></div>
-        <div class="big" id="o-speed">–<span class="unit"> tok/s</span></div>
+        <div class="label"><span id="t-speed"></span> <span class="badge b-warn" id="t-est"></span></div>
+        <div class="big" id="o-speed">–</div>
         <div class="foot" id="o-words">–</div>
       </div>
     </div>
 
     <div class="tile">
-      <div class="label">a 15-word line takes</div>
+      <div class="label" id="t-line"></div>
       <div class="big" id="o-line">–</div>
-      <div class="foot">tokens stream to the face as they generate — perceived wait is the <i>first</i> token, not the last</div>
+      <div class="foot" id="t-stream"></div>
     </div>
 
     <div class="tiles2">
       <div class="tile">
-        <div class="label">int8 model size</div>
-        <div class="big" id="o-int8">–<span class="unit"> KB</span></div>
+        <div class="label" id="t-int8"></div>
+        <div class="big" id="o-int8">–</div>
         <div class="foot" id="o-fit">–</div>
       </div>
       <div class="tile">
-        <div class="label">KV cache (chat memory) RAM</div>
-        <div class="big" id="o-kv">–<span class="unit"> KB</span></div>
-        <div class="foot">2 · layers · seq_len · kv_dim · 4 bytes, in PSRAM</div>
+        <div class="label" id="t-kv"></div>
+        <div class="big" id="o-kv">–</div>
+        <div class="foot" id="t-kvfoot"></div>
       </div>
     </div>
 
     <div class="tile">
-      <div class="label">training run (very rough)</div>
+      <div class="label" id="t-train"></div>
       <div class="big" id="o-train">–</div>
-      <div class="foot">M-series Mac / free Colab GPU, to a val-loss plateau on TinyStories</div>
+      <div class="foot" id="t-trainfoot"></div>
     </div>
 
     <div class="tile anchor">
-      <div class="label"><b>the measured anchor</b> — everything above scales from this</div>
-      <div class="foot" style="font-size:17px; margin-top:6px">
-        stories260K (260,672 params) on the real board, int8 kernel:
-        <b>88 tok/s</b> from PSRAM (the realistic in-firmware number) ·
-        <b>152 tok/s</b> from internal RAM (idle-chip benchmark).
-        Speed estimates here = 88 × (its 227,840 non-embedding params ÷ yours).
-      </div>
+      <div class="label" id="t-anchor"></div>
+      <div class="foot" style="font-size:17px; margin-top:6px" id="t-anchorbody"></div>
       <div class="cmd" id="o-flags">–</div>
     </div>
   </section>
 </div>
 
-<footer>
-  Estimates are honest extrapolations from one measured point, not promises —
-  attention and the sampler scale a little slower than parameter count, so big
-  models tend to land slightly <i>better</i> than shown. What no slider can
-  predict is <b>quality</b>: that's decided by the corpus, and judged by ear.
-  Recipe &amp; deeper explanations: <b>training-workshop.md</b>.
-</footer>
+<footer id="t-footer"></footer>
 
 <script>
 "use strict";
 // ---- model arithmetic (mirrors llama2.c model.py) -------------------------
 const ANCHOR_TOKS = 88.0, ANCHOR_NONEMB = 227840;   // measured: int8, PSRAM
 
+// ---- strings --------------------------------------------------------------
+const STR = {
+  es: {
+    locale: "es-ES",
+    title: "Modelo del buddy — explorador de parámetros",
+    sub: "mueve los mandos y mira qué acaba en el ESP32-S3",
+    presets: "presets de la escalera:",
+    params: "parámetros (total)",
+    nonemb: (n, hid, hs) => `${n} no-embedding (marcan la velocidad) · hidden ${hid} · tamaño de cabeza ${hs}`,
+    speed: "velocidad en el buddy", est: "estimación",
+    words: w => `≈ ${w} palabras/s — kernel int8, pesos en PSRAM, junto al firmware real`,
+    line: "una frase de 15 palabras tarda",
+    stream: "los tokens llegan a la cara según se generan — la espera percibida es el <i>primer</i> token, no el último",
+    feel: { instant: "instantáneo", snappy: "ágil", notice: "se nota", slug: "lento" },
+    int8: "tamaño del modelo int8",
+    fitYes: `<span class="badge b-good">✓ cabe en RAM interna</span> con el chip ocioso (≈ +70% velocidad); dentro del firmware real cuenta con PSRAM`,
+    fitNo: `<span class="badge b-warn">solo PSRAM</span> — mayor que la RAM interna libre del S3; la velocidad mostrada ya lo asume`,
+    kv: "caché KV (memoria de conversación)",
+    kvfoot: "2 · capas · seq_len · kv_dim · 4 bytes, en PSRAM",
+    train: "entrenamiento (muy aproximado)",
+    trainfoot: "Mac serie M / GPU gratuita de Colab, hasta que la val loss se aplana con TinyStories",
+    anchor: "<b>el ancla medida</b> — todo lo de arriba escala desde aquí",
+    anchorbody: `stories260K (260.672 parámetros) en la placa real, kernel int8:
+      <b>88 tok/s</b> desde PSRAM (el número realista dentro del firmware) ·
+      <b>152 tok/s</b> desde RAM interna (banco con el chip ocioso).
+      Estimaciones = 88 × (sus 227.840 parámetros no-embedding ÷ los tuyos).`,
+    flashNote: "   # fichero fp32 > 2 MB: flashea solo el blob int8",
+    deviceHint: "[+ flags de tu máquina]",
+    footer: `Las estimaciones son extrapolaciones honestas desde un único punto
+      medido, no promesas — la atención y el muestreador escalan algo más
+      despacio que los parámetros, así que los modelos grandes suelen quedar
+      un poco <i>mejor</i> de lo mostrado. Lo que ningún mando puede predecir
+      es la <b>calidad</b>: la decide el corpus, y se juzga con el oído.
+      Receta y explicaciones: <b>training-workshop.md</b>.`,
+    knobs: {
+      dim:    { name: "anchura", what: "El tamaño del «pensamiento» que lleva cada pieza de palabra.",
+                up: "<b>Subirlo:</b> más matiz y mejor elección de palabras — pero el coste crece con dim²; es el mando más caro." },
+      layers: { name: "profundidad", what: "Cuántas veces se refina el pensamiento antes de predecir.",
+                up: "<b>Subirlo:</b> mejor gramática y coherencia de frase completa; el coste crece linealmente." },
+      heads:  { name: "cabezas de atención", what: "Cuántas cosas puede «buscar» a la vez en las palabras anteriores.",
+                up: "<b>Subirlo:</b> rendimientos decrecientes a esta escala. Restricción: anchura ÷ cabezas (tamaño por cabeza) entre 8 y 16." },
+      kv:     { name: "tablas compartidas", what: "Las cabezas pueden compartir sus tablas de consulta — ahorro de memoria casi gratis.",
+                up: "<b>Bajarlo:</b> caché KV más pequeña en el buddy; stories260K usa la mitad y no pierde nada apreciable." },
+      vocab:  { name: "vocabulario", what: "Cuántas piezas de palabra existen; las raras se deletrean con fragmentos.",
+                up: "<b>Subirlo:</b> menos piezas por frase pero mayor tabla de embeddings. Estándar del taller: 512, para compartir herramientas." },
+      seq:    { name: "memoria de contexto", what: "Hasta dónde puede mirar atrás, en piezas de palabra.",
+                up: "<b>Bajarlo:</b> caché KV más pequeña. Generamos frases de 15 palabras — 256 ya es generoso." },
+    },
+  },
+  en: {
+    locale: "en-US",
+    title: "Buddy model — parameter explorer",
+    sub: "drag the knobs; watch what ships to the ESP32-S3",
+    presets: "ladder presets:",
+    params: "parameters (total)",
+    nonemb: (n, hid, hs) => `${n} non-embedding (these set the speed) · hidden ${hid} · head size ${hs}`,
+    speed: "speed on the buddy", est: "estimate",
+    words: w => `≈ ${w} words/s — int8 kernel, weights in PSRAM, alongside the real firmware`,
+    line: "a 15-word line takes",
+    stream: "tokens stream to the face as they generate — perceived wait is the <i>first</i> token, not the last",
+    feel: { instant: "instant", snappy: "snappy", notice: "noticeable", slug: "sluggish" },
+    int8: "int8 model size",
+    fitYes: `<span class="badge b-good">✓ fits internal RAM</span> on an idle chip (≈ +70% speed); count on PSRAM in real firmware`,
+    fitNo: `<span class="badge b-warn">PSRAM only</span> — bigger than the S3's free internal RAM; the speed shown already assumes this`,
+    kv: "KV cache (chat memory) RAM",
+    kvfoot: "2 · layers · seq_len · kv_dim · 4 bytes, in PSRAM",
+    train: "training run (very rough)",
+    trainfoot: "M-series Mac / free Colab GPU, to a val-loss plateau on TinyStories",
+    anchor: "<b>the measured anchor</b> — everything above scales from this",
+    anchorbody: `stories260K (260,672 params) on the real board, int8 kernel:
+      <b>88 tok/s</b> from PSRAM (the realistic in-firmware number) ·
+      <b>152 tok/s</b> from internal RAM (idle-chip benchmark).
+      Estimates = 88 × (its 227,840 non-embedding params ÷ yours).`,
+    flashNote: "   # fp32 file > 2 MB: flash the int8 blob only",
+    deviceHint: "[+ device flags for your machine]",
+    footer: `Estimates are honest extrapolations from one measured point, not
+      promises — attention and the sampler scale a little slower than
+      parameter count, so big models tend to land slightly <i>better</i> than
+      shown. What no slider can predict is <b>quality</b>: that's decided by
+      the corpus, and judged by ear. Recipe &amp; deeper explanations:
+      <b>training-workshop.md</b>.`,
+    knobs: {
+      dim:    { name: "width", what: "How big the “thought” carried per word-piece is.",
+                up: "<b>Up:</b> more nuance and better word choice — but cost grows with dim², the most expensive knob here." },
+      layers: { name: "depth", what: "How many times the thought is refined before predicting.",
+                up: "<b>Up:</b> better grammar and whole-sentence coherence; cost grows linearly." },
+      heads:  { name: "attention heads", what: "How many things it can “look for” at once in the words so far.",
+                up: "<b>Up:</b> diminishing returns at this scale. Constraint: width ÷ heads (the per-head size) should stay 8–16." },
+      kv:     { name: "shared lookups", what: "Heads can share their lookup tables — a nearly-free memory saver.",
+                up: "<b>Down:</b> smaller KV cache on the buddy; stories260K uses half and loses nothing noticeable." },
+      vocab:  { name: "vocabulary", what: "How many word-pieces exist; rare words get spelled from fragments.",
+                up: "<b>Up:</b> fewer pieces per sentence but a bigger embedding table. Workshop standard: 512, so all models share tooling." },
+      seq:    { name: "memory span", what: "How far back it can see, in word-pieces.",
+                up: "<b>Down:</b> smaller KV cache. We generate 15-word one-liners — 256 is already generous." },
+    },
+  },
+};
+let LANG = "es";
+
 const KNOBS = [
-  { id:"dim", flag:"--dim", name:"width", type:"range", min:32, max:160, step:16, val:64,
-    what:"How big the “thought” carried per word-piece is.",
-    up:"<b>Up:</b> more nuance and better word choice — but cost grows with dim², the most expensive knob here." },
-  { id:"layers", flag:"--n_layers", name:"depth", type:"range", min:2, max:8, step:1, val:5,
-    what:"How many times the thought is refined before predicting.",
-    up:"<b>Up:</b> better grammar and whole-sentence coherence; cost grows linearly." },
-  { id:"heads", flag:"--n_heads", name:"attention heads", type:"opts", opts:[4,8], val:8,
-    what:"How many things it can “look for” at once in the words so far.",
-    up:"<b>Up:</b> diminishing returns at this scale. Constraint: width ÷ heads (the per-head size) should stay 8–16." },
-  { id:"kv", flag:"--n_kv_heads", name:"shared lookups", type:"opts", opts:[2,4,8], val:4,
-    what:"Heads can share their lookup tables — a nearly-free memory saver.",
-    up:"<b>Down:</b> smaller KV cache on the buddy; stories260K uses half and loses nothing noticeable." },
-  { id:"vocab", flag:"--vocab_size", name:"vocabulary", type:"opts", opts:[512,1024], val:512,
-    what:"How many word-pieces exist; rare words get spelled from fragments.",
-    up:"<b>Up:</b> fewer pieces per sentence but a bigger embedding table. Workshop standard: 512, so all models share tooling." },
-  { id:"seq", flag:"--max_seq_len", name:"memory span", type:"opts", opts:[64,128,256,512], val:256,
-    what:"How far back it can see, in word-pieces.",
-    up:"<b>Down:</b> smaller KV cache. We generate 15-word one-liners — 256 is already generous." },
+  { id:"dim", flag:"--dim", type:"range", min:32, max:160, step:16, val:64 },
+  { id:"layers", flag:"--n_layers", type:"range", min:2, max:8, step:1, val:5 },
+  { id:"heads", flag:"--n_heads", type:"opts", opts:[4,8], val:8 },
+  { id:"kv", flag:"--n_kv_heads", type:"opts", opts:[2,4,8], val:4 },
+  { id:"vocab", flag:"--vocab_size", type:"opts", opts:[512,1024], val:512 },
+  { id:"seq", flag:"--max_seq_len", type:"opts", opts:[64,128,256,512], val:256 },
 ];
 const PRESETS = {
   "XS ~140K": {dim:48, layers:4, heads:4, kv:4, vocab:512, seq:256},
@@ -204,48 +282,69 @@ function model() {
     fp32MB: total * 4 / 1048576,
     kvKB: 2 * layers * seq * kvDim * 4 / 1024 };
 }
-const fmt = n => n.toLocaleString("en-US");
+const fmt = n => n.toLocaleString(STR[LANG].locale);
 
 function render() {
-  const m = model();
+  const t = STR[LANG], m = model();
   document.getElementById("o-total").textContent = fmt(m.total);
-  document.getElementById("o-nonemb").textContent =
-    `${fmt(m.nonEmb)} non-embedding (these set the speed) · hidden ${m.hid} · head size ${S.dim / S.heads}`;
-  document.getElementById("o-speed").innerHTML =
-    `${m.toks >= 100 ? Math.round(m.toks) : m.toks.toFixed(0)}<span class="unit"> tok/s</span>`;
-  document.getElementById("o-words").textContent =
-    `≈ ${(m.toks / 1.4).toFixed(0)} words/s — int8 kernel, weights in PSRAM, alongside the real firmware`;
-  const feel = m.lineSec < 0.4 ? ["instant", "b-good"] : m.lineSec < 1.0 ? ["snappy", "b-good"]
-             : m.lineSec < 2.0 ? ["noticeable", "b-warn"] : ["sluggish", "b-bad"];
+  document.getElementById("o-nonemb").textContent = t.nonemb(fmt(m.nonEmb), m.hid, S.dim / S.heads);
+  document.getElementById("o-speed").innerHTML = `${Math.round(m.toks)}<span class="unit"> tok/s</span>`;
+  document.getElementById("o-words").textContent = t.words((m.toks / 1.4).toFixed(0));
+  const feel = m.lineSec < 0.4 ? [t.feel.instant, "b-good"] : m.lineSec < 1.0 ? [t.feel.snappy, "b-good"]
+             : m.lineSec < 2.0 ? [t.feel.notice, "b-warn"] : [t.feel.slug, "b-bad"];
   document.getElementById("o-line").innerHTML =
-    `${m.lineSec < 10 ? m.lineSec.toFixed(2) : m.lineSec.toFixed(1)}<span class="unit"> s</span> <span class="badge ${feel[1]}">${feel[0]}</span>`;
+    `${m.lineSec.toFixed(2).replace(".", t.locale === "es-ES" ? "," : ".")}<span class="unit"> s</span> <span class="badge ${feel[1]}">${feel[0]}</span>`;
   document.getElementById("o-int8").innerHTML = `${Math.round(m.int8KB)}<span class="unit"> KB</span>`;
-  const fit = document.getElementById("o-fit");
-  if (m.int8KB <= 350)
-    fit.innerHTML = `<span class="badge b-good">✓ fits internal RAM</span> on an idle chip (≈ +70% speed); count on PSRAM in real firmware`;
-  else
-    fit.innerHTML = `<span class="badge b-warn">PSRAM only</span> — bigger than the S3's free internal RAM; the speed shown already assumes this`;
+  document.getElementById("o-fit").innerHTML = m.int8KB <= 350 ? t.fitYes : t.fitNo;
   document.getElementById("o-kv").innerHTML = `${Math.round(m.kvKB)}<span class="unit"> KB</span>`;
   const mins = 20 + m.nonEmb / 1e6 * 90;
   document.getElementById("o-train").innerHTML = mins < 55
     ? `~${Math.round(mins / 10) * 10}<span class="unit"> min</span>`
-    : `~${(mins / 60).toFixed(1)}<span class="unit"> h</span>`;
-  const flashNote = m.fp32MB > 2 ? "   # fp32 file > 2 MB: flash the int8 blob only" : "";
+    : `~${(mins / 60).toFixed(1).replace(".", t.locale === "es-ES" ? "," : ".")}<span class="unit"> h</span>`;
   document.getElementById("o-flags").textContent =
     `python train.py --vocab_source=custom --vocab_size=${S.vocab} \\\n` +
     `  --dim=${S.dim} --n_layers=${S.layers} --n_heads=${S.heads} --n_kv_heads=${S.kv} \\\n` +
-    `  --max_seq_len=${S.seq} --batch_size=32 [+ device flags for your machine]${flashNote}`;
-  // preset highlighting
+    `  --max_seq_len=${S.seq} --batch_size=32 ${t.deviceHint}` +
+    (m.fp32MB > 2 ? t.flashNote : "");
   document.querySelectorAll("#presets button").forEach(b => {
     const p = PRESETS[b.textContent];
     b.classList.toggle("on", p && Object.keys(p).every(k => S[k] === p[k]));
   });
-  // keep kv options legal (must divide heads)
   document.querySelectorAll('[data-knob="kv"] .opts button').forEach(b => {
     const v = +b.dataset.v;
     b.disabled = S.heads % v !== 0;
     b.style.opacity = b.disabled ? 0.25 : 1;
   });
+}
+
+function applyLang() {
+  const t = STR[LANG];
+  document.documentElement.lang = LANG;
+  document.title = t.title;
+  document.getElementById("t-title").textContent = t.title;
+  document.getElementById("t-sub").textContent = t.sub;
+  document.getElementById("t-presets").textContent = t.presets;
+  document.getElementById("t-params").textContent = t.params;
+  document.getElementById("t-speed").textContent = t.speed;
+  document.getElementById("t-est").textContent = t.est;
+  document.getElementById("t-line").textContent = t.line;
+  document.getElementById("t-stream").innerHTML = t.stream;
+  document.getElementById("t-int8").textContent = t.int8;
+  document.getElementById("t-kv").textContent = t.kv;
+  document.getElementById("t-kvfoot").textContent = t.kvfoot;
+  document.getElementById("t-train").textContent = t.train;
+  document.getElementById("t-trainfoot").textContent = t.trainfoot;
+  document.getElementById("t-anchor").innerHTML = t.anchor;
+  document.getElementById("t-anchorbody").innerHTML = t.anchorbody;
+  document.getElementById("t-footer").innerHTML = t.footer;
+  document.getElementById("lang").textContent = LANG === "es" ? "EN" : "ES";
+  for (const k of KNOBS) {
+    const el = document.querySelector(`[data-knob="${k.id}"]`);
+    el.querySelector(".name").textContent = t.knobs[k.id].name;
+    el.querySelector(".what").innerHTML = t.knobs[k.id].what;
+    el.querySelector(".up").innerHTML = t.knobs[k.id].up;
+  }
+  render();
 }
 
 // ---- build the UI ---------------------------------------------------------
@@ -255,18 +354,17 @@ for (const k of KNOBS) {
   div.className = "knob"; div.dataset.knob = k.id;
   let control;
   if (k.type === "range") {
-    control = `<input type="range" min="${k.min}" max="${k.max}" step="${k.step}" value="${k.val}"
-               aria-label="${k.name}">`;
+    control = `<input type="range" min="${k.min}" max="${k.max}" step="${k.step}" value="${k.val}">`;
   } else {
     control = `<div class="opts">` + k.opts.map(o =>
       `<button data-v="${o}" class="${o === k.val ? "on" : ""}">${o}</button>`).join("") + `</div>`;
   }
   div.innerHTML = `
-    <div class="row"><span class="name">${k.name}</span>
+    <div class="row"><span class="name"></span>
       <span class="flag">${k.flag}</span><span class="val" id="v-${k.id}">${k.val}</span></div>
     ${control}
-    <div class="what">${k.what}</div>
-    <div class="up">${k.up}</div>`;
+    <div class="what"></div>
+    <div class="up"></div>`;
   knobsEl.appendChild(div);
   if (k.type === "range") {
     div.querySelector("input").addEventListener("input", e => {
@@ -300,13 +398,17 @@ for (const [name, p] of Object.entries(PRESETS)) {
   b.addEventListener("click", () => { Object.assign(S, p); syncUI(); render(); });
   presetsEl.appendChild(b);
 }
+document.getElementById("lang").addEventListener("click", () => {
+  LANG = LANG === "es" ? "en" : "es";
+  applyLang();
+});
 document.getElementById("theme").addEventListener("click", () => {
   const r = document.documentElement;
   r.dataset.theme = r.dataset.theme === "dark" ? "" : "dark";
 });
 if (matchMedia("(prefers-color-scheme: dark)").matches)
   document.documentElement.dataset.theme = "dark";
-render();
+applyLang();
 </script>
 </body>
 </html>
