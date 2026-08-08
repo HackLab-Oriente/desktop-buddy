@@ -1,0 +1,17 @@
+# Partition table — classic ESP32 DevKit V1 (4 MB flash).
+#
+# The S3 table (partitions.csv) maps 16 MB and reserves 4 MB for local model
+# weights. Neither fits here, and the model could not run anyway: inference
+# needs ~676 KB of PSRAM and this chip has none. So this table is just app +
+# packs, with everything else dropped.
+#
+#   nvs       24K   wifi creds, api keys
+#   phy_init   4K
+#   factory  1.87M  app image (~1.3 MB used today)
+#   storage  2.06M  LittleFS packs: reflexes, faces, chirps, assets
+#
+# Name,   Type, SubType,  Offset,   Size
+nvs,      data, nvs,      0x9000,   0x6000
+phy_init, data, phy,      0xf000,   0x1000
+factory,  app,  factory,  0x10000,  0x1E0000
+storage,  data, littlefs,         , 0x210000

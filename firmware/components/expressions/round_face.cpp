@@ -50,11 +50,36 @@ constexpr float kBrowDepth = 0.24f;
 constexpr int kLevels[] = {100, 45, 12};
 constexpr int kLevelCount = 3;
 
+// --- how the frame gets built, per target ---------------------------------
+// The S3 draws the whole 240x240 frame at once (115 KB in internal RAM) and
+// caches three eye levels in PSRAM, so a blink is a blit.
+//
+// The classic ESP32 has NO PSRAM, and its largest contiguous DRAM block is
+// only ~110-120 KB — about the size of one full frame, which WiFi and TLS
+// then have to fit around. So it renders the SAME picture in horizontal
+// bands: 240x48 is 23 KB, and each band is pushed as it is finished.
+//
+// kBandH == H on the S3 means a single band, i.e. exactly the old code path.
+// That is deliberate: banding must not be able to regress the target that
+// already works.
+#if CONFIG_IDF_TARGET_ESP32S3
+constexpr int kBandH = H;
+constexpr bool kUseCache = true;
+#else
+constexpr int kBandH = 48;
+constexpr bool kUseCache = false;  // no PSRAM to cache into
+#endif
+constexpr int kBands = (H + kBandH - 1) / kBandH;
+
 LGFX_Buddy lcd;
-LGFX_Sprite spr(&lcd);                 // the working frame
+LGFX_Sprite spr(&lcd);                 // the working frame (one band tall)
 LGFX_Sprite cache[kLevelCount] = {LGFX_Sprite(&lcd), LGFX_Sprite(&lcd), LGFX_Sprite(&lcd)};
-uint16_t* fb = nullptr;                // spr's raw buffer
+uint16_t* fb = nullptr;                // spr's buffer, biased so fb[y*W+x]
+                                       // takes ABSOLUTE y inside the band
+int band_y0 = 0;                       // first row of the band being drawn
 int cached_emotion = -1;
+
+inline bool in_band(int y) { return y >= band_y0 && y < band_y0 + kBandH; }
 
 volatile int s_emotion = 0;
 volatile bool s_dirty = true;
@@ -93,10 +118,34 @@ inline uint16_t blend565(uint16_t bg, uint16_t fg, float a) {
   const int b = bb + static_cast<int>((fbb - bb) * a + 0.5f);
   return static_cast<uint16_t>((r << 11) | (g << 5) | b);
 }
+// The buffer only holds the current band, so absolute y is shifted down to it.
+inline uint16_t* row_ptr(int y) { return &fb[(y - band_y0) * W]; }
+
 inline void blend_at(int x, int y, uint16_t c, float a) {
-  if (x < 0 || x >= W || y < 0 || y >= H || a <= 0.f) return;
-  uint16_t& p = fb[y * W + x];
+  if (x < 0 || x >= W || !in_band(y) || a <= 0.f) return;
+  uint16_t& p = row_ptr(y)[x];
   p = to_store(blend565(from_store(p), c, a > 1.f ? 1.f : a));
+}
+// Same clip for opaque writes. Every path into the framebuffer goes through
+// one of these two, which is what makes banding safe: a draw routine keeps
+// using absolute screen coordinates and simply produces nothing off-band.
+inline void put_at(int x, int y, uint16_t stored) {
+  if (x < 0 || x >= W || !in_band(y)) return;
+  row_ptr(y)[x] = stored;
+}
+
+// Paint one whole screen. Runs `paint` once per band and pushes each band as
+// it is finished; on the S3 kBands is 1, so this is the original single-shot
+// path with no behavioural change.
+template <typename F>
+void render_bands(F&& paint) {
+  for (int b = 0; b < kBands; b++) {
+    band_y0 = b * kBandH;
+    spr.fillScreen(TFT_BLACK);
+    paint();
+    spr.pushSprite(0, band_y0);
+  }
+  band_y0 = 0;
 }
 
 // ===== the eye =====
@@ -165,7 +214,7 @@ void draw_eye(int cxi, int side, const Emotion& em, int open_pct, int gx, int gy
         col = rgb_dither(x, y, em.r * k, em.g * k, em.b * k);
       }
       if (ecov >= 0.999f) {
-        if (x >= 0 && x < W && y >= 0 && y < H) fb[y * W + x] = to_store(col);
+        put_at(x, y, to_store(col));
       } else {
         if (gcov > 0.f) blend_at(x, y, glow_col, gcov);
         if (ecov > 0.f) blend_at(x, y, col, ecov);
@@ -175,6 +224,10 @@ void draw_eye(int cxi, int side, const Emotion& em, int open_pct, int gx, int gy
 }
 
 void build_cache(int emo) {
+  // Only reachable when kUseCache, which is also the only case where spr is
+  // full height — the memcpy below copies W*H, so make that dependency a
+  // compile error rather than a corruption if the band config ever changes.
+  static_assert(!kUseCache || kBandH == H, "cache requires a full-height frame");
   if (cached_emotion == emo) return;
   const int64_t t0 = esp_timer_get_time();
   for (int i = 0; i < kLevelCount; i++) {
@@ -189,16 +242,25 @@ void build_cache(int emo) {
 }
 
 void draw_eyes(int open_pct, int gx, int gy) {
-  // build_cache uses spr as scratch, so it must run BEFORE the clear —
-  // otherwise its last level survives under the transparent blit and shows as
-  // a stray bar below the eyes.
-  build_cache(s_emotion);
-  int li = 0;
-  for (int i = 1; i < kLevelCount; i++)
-    if (abs(kLevels[i] - open_pct) < abs(kLevels[li] - open_pct)) li = i;
-  spr.fillScreen(TFT_BLACK);
-  cache[li].pushSprite(&spr, gx, gy, TFT_BLACK);  // black = transparent
-  spr.pushSprite(0, 0);
+  if (kUseCache) {
+    // build_cache uses spr as scratch, so it must run BEFORE the clear —
+    // otherwise its last level survives under the transparent blit and shows
+    // as a stray bar below the eyes.
+    build_cache(s_emotion);
+    int li = 0;
+    for (int i = 1; i < kLevelCount; i++)
+      if (abs(kLevels[i] - open_pct) < abs(kLevels[li] - open_pct)) li = i;
+    spr.fillScreen(TFT_BLACK);
+    cache[li].pushSprite(&spr, gx, gy, TFT_BLACK);  // black = transparent
+    spr.pushSprite(0, 0);
+    return;
+  }
+  // No PSRAM to cache into: draw the eyes for real, band by band. Slower —
+  // this is the pre-cache path, ~13 fps — but pixel-identical output.
+  render_bands([&] {
+    draw_eye(CX - GAP, 0, kEmotions[s_emotion], open_pct, gx, gy);
+    draw_eye(CX + GAP, 1, kEmotions[s_emotion], open_pct, gx, gy);
+  });
 }
 
 // ===== speech =====
@@ -206,7 +268,8 @@ void draw_eyes(int open_pct, int gx, int gy) {
 // shipped a buffer overrun that rebooted the device on long replies; letting
 // the library measure and draw removes the whole class of bug.
 void draw_text(const char* text) {
-  spr.fillScreen(TFT_BLACK);
+  // Wrapping is measured once, outside the band loop — it only needs the font
+  // metrics, not the pixels.
   spr.setFont(&fonts::Font2);
   const Emotion& em = kEmotions[s_emotion];
   spr.setTextColor(spr.color565(em.r, em.g, em.b));
@@ -251,12 +314,17 @@ void draw_text(const char* text) {
   }
   const int used = (col > 0) ? nlines + 1 : nlines;
   const int pitch = spr.fontHeight() + 2;
-  int y = CY - (used - 1) * pitch / 2;
-  for (int i = 0; i < used; i++) {
-    spr.drawString(lines[i], CX, y);
-    y += pitch;
-  }
-  spr.pushSprite(0, 0);
+  const int y_top = CY - (used - 1) * pitch / 2;
+  render_bands([&] {
+    spr.setFont(&fonts::Font2);
+    spr.setTextColor(spr.color565(em.r, em.g, em.b));
+    spr.setTextDatum(middle_center);
+    int y = y_top;
+    for (int i = 0; i < used; i++) {
+      spr.drawString(lines[i], CX, y - band_y0);  // sprite-local y
+      y += pitch;
+    }
+  });
 }
 
 // ===== boot splash =====
@@ -287,71 +355,98 @@ inline uint16_t scale_rgb(uint16_t c, float k) {
 
 // CRT / VHS damage, applied to the finished frame. amt 1 is barely a signal,
 // 0 is clean. Effects in the order a real bad signal applies them.
-void glitch_frame(float amt, int roll) {
+// Every effect below is ROW-LOCAL — none of them reads a row other than the
+// one being written — which is the property that lets the glitch survive being
+// rendered in bands. The one thing that would NOT survive is esp_random():
+// each band would draw different damage and the seams would show. So the
+// caller passes a per-frame seed and this replays the identical sequence in
+// every band, clipping to whichever rows are in front of it.
+// xorshift32, not an LCG: the snow reads bits 20-24 for brightness and 0-8 for
+// position, and an LCG's low bits are too regular for that (and a shifted-down
+// LCG loses the high bits entirely, which silently turned every fleck grey).
+// Seeds are forced odd by the caller, so the state can never reach 0.
+uint32_t g_glitch_seed = 1;
+inline uint32_t grnd() {
+  g_glitch_seed ^= g_glitch_seed << 13;
+  g_glitch_seed ^= g_glitch_seed >> 17;
+  g_glitch_seed ^= g_glitch_seed << 5;
+  return g_glitch_seed;
+}
+
+void glitch_frame(float amt, int roll, uint32_t seed) {
   if (amt <= 0.f) return;
   static uint16_t row[W];
+  g_glitch_seed = seed;
 
   const float dim = 1.0f - 0.28f * amt;                 // scanlines
-  for (int y = 1; y < H; y += 2)
-    for (int x = 0; x < W; x++)
-      fb[y * W + x] = to_store(scale_rgb(from_store(fb[y * W + x]), dim));
+  for (int y = 1; y < H; y += 2) {
+    if (!in_band(y)) continue;
+    uint16_t* r = row_ptr(y);
+    for (int x = 0; x < W; x++) r[x] = to_store(scale_rgb(from_store(r[x]), dim));
+  }
 
-  const int bands = 2 + esp_random() % 5 + static_cast<int>(amt * 4);
+  const int bands = 2 + grnd() % 5 + static_cast<int>(amt * 4);
   for (int i = 0; i < bands; i++) {                     // sync loss: band tearing
-    const int y0 = esp_random() % H, hgt = 2 + esp_random() % 14;
-    const int dx = static_cast<int>((static_cast<int>(esp_random() % 41) - 20) * amt);
+    const int y0 = grnd() % H, hgt = 2 + grnd() % 14;
+    const int dx = static_cast<int>((static_cast<int>(grnd() % 41) - 20) * amt);
     if (!dx) continue;
     for (int y = y0; y < y0 + hgt && y < H; y++) {
-      memcpy(row, &fb[y * W], sizeof row);
+      if (!in_band(y)) continue;
+      uint16_t* r = row_ptr(y);
+      memcpy(row, r, sizeof row);
       for (int x = 0; x < W; x++) {
         const int sx = x - dx;
-        fb[y * W + x] = (sx >= 0 && sx < W) ? row[sx] : 0;
+        r[x] = (sx >= 0 && sx < W) ? row[sx] : 0;
       }
     }
   }
 
   for (int i = 0; i < 2; i++) {                         // colour carrier mistrack
-    const int y0 = esp_random() % H, hgt = 6 + esp_random() % 26;
+    const int y0 = grnd() % H, hgt = 6 + grnd() % 26;
     const int dx = 1 + static_cast<int>(amt * 7);
     for (int y = y0; y < y0 + hgt && y < H; y++) {
-      memcpy(row, &fb[y * W], sizeof row);
+      if (!in_band(y)) continue;
+      uint16_t* r = row_ptr(y);
+      memcpy(row, r, sizeof row);
       for (int x = 0; x < W; x++) {
         const int xr = x - dx < 0 ? 0 : x - dx;
         const int xb = x + dx >= W ? W - 1 : x + dx;
-        fb[y * W + x] = to_store((from_store(row[xr]) & 0xF800) |
-                                 (from_store(row[x]) & 0x07E0) |
-                                 (from_store(row[xb]) & 0x001F));
+        r[x] = to_store((from_store(row[xr]) & 0xF800) |
+                        (from_store(row[x]) & 0x07E0) |
+                        (from_store(row[xb]) & 0x001F));
       }
     }
   }
 
   for (int y = roll; y < roll + 22 && y < H; y++) {     // vertical hold slipping
-    if (y < 0) continue;
+    if (y < 0 || !in_band(y)) continue;
+    uint16_t* r = row_ptr(y);
     for (int x = 0; x < W; x++)
-      fb[y * W + x] = to_store(scale_rgb(from_store(fb[y * W + x]), 1.0f + 0.9f * amt));
+      r[x] = to_store(scale_rgb(from_store(r[x]), 1.0f + 0.9f * amt));
   }
 
   const int flecks = static_cast<int>(amt * 900);       // snow
   for (int i = 0; i < flecks; i++) {
-    const uint32_t r = esp_random();
-    const int x = r % W, y = (r >> 9) % H;
+    const uint32_t r = grnd();
     const uint8_t v = (r >> 20) & 0x1F;
-    fb[y * W + x] = to_store(v > 20 ? 0xFFFF : rgb(v * 6, v * 6, v * 6));
+    put_at(r % W, (r >> 9) % H,
+           to_store(v > 20 ? 0xFFFF : rgb(v * 6, v * 6, v * 6)));
   }
 }
 
 void draw_splash(float amt, int roll, bool with_logo) {
-  spr.fillScreen(TFT_BLACK);
-  if (with_logo) draw_logo((W - kLogoW) / 2, (H - kLogoH) / 2 - 12);
-  {
-    std::lock_guard<std::mutex> lock(s_status_mu);
-    spr.setFont(&fonts::Font2);
-    spr.setTextDatum(top_center);
-    spr.setTextColor(spr.color565(120, 130, 145));
-    spr.drawString(s_status, CX, 200);
-  }
-  glitch_frame(amt, roll);
-  spr.pushSprite(0, 0);
+  const uint32_t seed = esp_random() | 1u;  // one draw of the damage per frame
+  render_bands([&] {
+    if (with_logo) draw_logo((W - kLogoW) / 2, (H - kLogoH) / 2 - 12);
+    {
+      std::lock_guard<std::mutex> lock(s_status_mu);
+      spr.setFont(&fonts::Font2);
+      spr.setTextDatum(top_center);
+      spr.setTextColor(spr.color565(120, 130, 145));
+      spr.drawString(s_status, CX, 200 - band_y0);  // sprite-local y
+    }
+    glitch_frame(amt, roll, seed);
+  });
 }
 
 void splash_boot() {
@@ -374,12 +469,13 @@ void splash_boot() {
   const int64_t t1 = esp_timer_get_time();
   while (esp_timer_get_time() - t1 < 420000) {
     const float t = (esp_timer_get_time() - t1) / 420000.f;
-    spr.fillScreen(TFT_BLACK);
-    if (t < 0.5f) draw_logo((W - kLogoW) / 2, (H - kLogoH) / 2 - 12);
-    else draw_eye(CX - GAP, 0, kEmotions[s_emotion], 100, 0, 0),
-         draw_eye(CX + GAP, 1, kEmotions[s_emotion], 100, 0, 0);
-    glitch_frame(0.85f, static_cast<int>(t * H));
-    spr.pushSprite(0, 0);
+    const uint32_t seed = esp_random() | 1u;
+    render_bands([&] {
+      if (t < 0.5f) draw_logo((W - kLogoW) / 2, (H - kLogoH) / 2 - 12);
+      else draw_eye(CX - GAP, 0, kEmotions[s_emotion], 100, 0, 0),
+           draw_eye(CX + GAP, 1, kEmotions[s_emotion], 100, 0, 0);
+      glitch_frame(0.85f, static_cast<int>(t * H), seed);
+    });
   }
 }
 
@@ -459,15 +555,21 @@ void face_start() {
 
   spr.setColorDepth(16);
   spr.setPsram(false);  // internal RAM is ~2x faster to draw into, and it fits
-  if (!spr.createSprite(W, H)) {
+  if (!spr.createSprite(W, kBandH)) {
     spr.setPsram(true);
-    if (!spr.createSprite(W, H)) { ESP_LOGE(TAG, "no memory for the frame"); return; }
+    if (!spr.createSprite(W, kBandH)) { ESP_LOGE(TAG, "no memory for the frame"); return; }
   }
   fb = static_cast<uint16_t*>(spr.getBuffer());
-  for (int i = 0; i < kLevelCount; i++) {
-    cache[i].setColorDepth(16);
-    cache[i].setPsram(true);  // 3 x 115 KB, only ever blitted
-    if (!cache[i].createSprite(W, H)) ESP_LOGE(TAG, "no memory for eye cache %d", i);
+  ESP_LOGI(TAG, "frame %dx%d in %d band%s (%u B)%s", W, kBandH, kBands,
+           kBands == 1 ? "" : "s",
+           static_cast<unsigned>(W) * kBandH * 2,
+           kUseCache ? "" : ", no cache (no PSRAM)");
+  if (kUseCache) {
+    for (int i = 0; i < kLevelCount; i++) {
+      cache[i].setColorDepth(16);
+      cache[i].setPsram(true);  // 3 x 115 KB, only ever blitted
+      if (!cache[i].createSprite(W, H)) ESP_LOGE(TAG, "no memory for eye cache %d", i);
+    }
   }
 
   bus().subscribe("face.emotion", [](const Event& ev) {
@@ -504,9 +606,7 @@ void face_start() {
 
   // First frame is pure noise, so the backlight can come straight up: the
   // static IS the fade-in, and the uninitialised panel is never seen.
-  spr.fillScreen(TFT_BLACK);
-  glitch_frame(1.f, 40);
-  spr.pushSprite(0, 0);
+  render_bands([seed = esp_random() | 1u] { glitch_frame(1.f, 40, seed); });
   lcd.setBrightness(160);
 
   xTaskCreatePinnedToCore(face_task, "face", 6144, nullptr, 4, nullptr, 1);

@@ -1,0 +1,10 @@
+# Classic ESP32 DevKit V1 (WROOM-32): 4 MB flash, 520 KB SRAM, NO PSRAM.
+#
+# Everything the buddy does works here except the two things that need PSRAM:
+# the eye-level sprite cache (the face is rendered in bands instead — see
+# round_face.cpp) and the local language model. See firmware/README.md.
+CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions_4mb.csv"
+# No ECC acceleration on this chip, so the TLS handshake is slow enough to
+# starve IDLE0 — the generous watchdog window is not optional here.
+CONFIG_ESP_TASK_WDT_TIMEOUT_S=15

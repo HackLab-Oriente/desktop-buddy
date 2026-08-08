@@ -37,13 +37,20 @@ void touch_task(void*) {
     vTaskDelay(pdMS_TO_TICKS(20));
   }
   baseline /= 16;
-  // On touch hw v2 a touch RAISES the reading (it LOWERS it on the classic
-  // ESP32 — opposite polarity, and the bug that ate an evening once). S3
-  // deltas are large (~30%+), so a 15% band is both sensitive and noise-safe;
-  // the two-sample confirm below guards the rest.
+  // The two touch generations read in OPPOSITE directions: on hw v2 (S3) a
+  // touch RAISES the reading, on v1 (classic ESP32) it LOWERS it. This cost us
+  // an evening once, so it is a branch and not an assumption. S3 deltas are
+  // large (~30%+), so a 15% band is both sensitive and noise-safe; the
+  // two-sample confirm below guards the rest.
+#if SOC_TOUCH_SENSOR_VERSION == 1
+  const uint32_t threshold = baseline * 9 / 10;     // 10% BELOW baseline
+  const bool touch_raises = false;
+#else
   const uint32_t threshold = baseline * 115 / 100;  // 15% above baseline
-  ESP_LOGI(TAG, "baseline=%u threshold=%u (touch raises)", (unsigned)baseline,
-           (unsigned)threshold);
+  const bool touch_raises = true;
+#endif
+  ESP_LOGI(TAG, "baseline=%u threshold=%u (touch %s)", (unsigned)baseline,
+           (unsigned)threshold, touch_raises ? "raises" : "lowers");
 
   bool touching = false;
   int confirm = 0;
@@ -51,7 +58,7 @@ void touch_task(void*) {
   int64_t touch_start_ms = 0;
   for (;;) {
     const uint32_t v = read_smooth();
-    const bool raw = v > threshold;
+    const bool raw = touch_raises ? (v > threshold) : (v < threshold);
     const int64_t ms = esp_log_timestamp();
 
 #if CONFIG_BUDDY_DEBUG
@@ -86,16 +93,29 @@ void touch_sense_start(int gpio_touch_pad) {
   }
 
   static touch_sensor_sample_config_t sample_cfg[TOUCH_SAMPLE_CFG_NUM] = {
+#if SOC_TOUCH_SENSOR_VERSION == 1
+      TOUCH_SENSOR_V1_DEFAULT_SAMPLE_CONFIG(5.0, TOUCH_VOLT_LIM_L_0V5, TOUCH_VOLT_LIM_H_1V7),
+#elif SOC_TOUCH_SENSOR_VERSION == 2
       TOUCH_SENSOR_V2_DEFAULT_SAMPLE_CONFIG(500, TOUCH_VOLT_LIM_L_0V5, TOUCH_VOLT_LIM_H_2V2),
+#else
+#error "unsupported touch hw version"
+#endif
   };
   touch_sensor_config_t sens_cfg = TOUCH_SENSOR_DEFAULT_BASIC_CONFIG(TOUCH_SAMPLE_CFG_NUM, sample_cfg);
   touch_sensor_handle_t sens = nullptr;
   ESP_ERROR_CHECK(touch_sensor_new_controller(&sens_cfg, &sens));
 
   touch_channel_config_t chan_cfg = {};
+#if SOC_TOUCH_SENSOR_VERSION == 1
+  chan_cfg.abs_active_thresh[0] = 1;  // we do our own thresholding in the task
+  chan_cfg.charge_speed = TOUCH_CHARGE_SPEED_7;
+  chan_cfg.init_charge_volt = TOUCH_INIT_CHARGE_VOLT_DEFAULT;
+  chan_cfg.group = TOUCH_CHAN_TRIG_GROUP_BOTH;
+#else
   chan_cfg.active_thresh[0] = 1;  // we do our own thresholding in the task
   chan_cfg.charge_speed = TOUCH_CHARGE_SPEED_7;
   chan_cfg.init_charge_volt = TOUCH_INIT_CHARGE_VOLT_DEFAULT;
+#endif
   ESP_ERROR_CHECK(touch_sensor_new_channel(sens, chan_id, &chan_cfg, &s_chan));
 
   touch_sensor_filter_config_t filter_cfg = TOUCH_SENSOR_DEFAULT_FILTER_CONFIG();

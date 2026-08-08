@@ -2,8 +2,6 @@ CONFIG_COMPILER_CXX_EXCEPTIONS=n
 CONFIG_COMPILER_OPTIMIZATION_SIZE=y
 CONFIG_PARTITION_TABLE_CUSTOM=y
 CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
-# ESP32-S3 N16R8 — 16 MB flash, 8 MB octal PSRAM.
-CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
 CONFIG_FREERTOS_HZ=1000
 # app_main brings up esp_lcd, the first framebuffer draw, and the Berry VM on
 # one task — the 3584-byte default overflows. Give it real headroom.
