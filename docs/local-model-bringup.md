@@ -1,49 +1,55 @@
-# Local model bring-up — Step 0: prove the inference path
+# Arranque del modelo local — Paso 0: probar la ruta de inferencia
 
-**Status:** DONE — run 2026-08-05. Verdict: **yellow, with headroom.**
-Code and full notes: branch `spike/tinylm-s3` (spikes are not merged to main).
-**Audience:** whoever (human or agent) picks this up before Workshop 0.
+**Estado:** HECHO — ejecutado el 2026-08-05. Veredicto: **amarillo, con
+margen.** Código y notas completas: rama `spike/tinylm-s3` (los spikes no se
+mergean a main). *(Continuación: el Paso 0.5 — la optimización del kernel —
+llevó luego el resultado de 31,4 a 152 tok/s; ver el README del spike y
+[training-workshop.md](training-workshop.md). Las cifras de este documento
+son las del Paso 0 original.)*
+**Audiencia:** quien retome esto (humano o agente) antes del Taller 0.
 
-## What this is, and what it is not
+## Qué es esto, y qué no es
 
-We want the buddy to generate its own short in-character utterances on-device,
-from a small model we train ourselves (see "Where this leads" at the bottom).
+Queremos que el buddy genere sus propias frases cortas con carácter en el
+dispositivo, con un modelo pequeño entrenado por nosotros (ver "A dónde lleva
+esto" al final).
 
-Before we spend money and a weekend training anything, we need to answer one
-question with a **measured number**, not an estimate:
+Antes de gastar dinero y un fin de semana entrenando nada, hay que responder
+una pregunta con un **número medido**, no una estimación:
 
-> Can an ESP32-S3 run transformer inference fast enough, *while the face is
-> still animating*, to be worth doing at all?
+> ¿Puede un ESP32-S3 correr inferencia de transformer lo bastante rápido,
+> *mientras la cara sigue animándose*, como para que valga la pena?
 
-This document is only about answering that. It uses a throwaway model.
+Este documento trata solo de responder eso. Usa un modelo desechable.
 
-### The throwaway model: `stories260K`
+### El modelo desechable: `stories260K`
 
-**`stories260K` is NOT the model from
-[slvDev/esp32-ai](https://github.com/slvDev/esp32-ai), and it is not the model
-we intend to ship.** Three different things, easy to confuse:
+**`stories260K` NO es el modelo de
+[slvDev/esp32-ai](https://github.com/slvDev/esp32-ai), y no es el modelo que
+pretendemos entregar.** Tres cosas distintas, fáciles de confundir:
 
-| | What | Why it's here |
+| | Qué | Por qué está aquí |
 |---|---|---|
-| **slvDev/esp32-ai** | 28.9M params, 4-bit, **14.9 MB** | The project that inspired this. **Rejected**: does not fit our flash (see `docs/ideas-exploration.html`). Good source of technique. |
-| **`stories260K`** | ~260K params, fp32, **~1 MB** | **This document.** A disposable benchmark. Its output is near-gibberish. We do not care what it says — only how fast it says it. |
-| **"Buddy voice" model** | ~1.3–4M params, 4-bit, ~0.7–2 MB | What we actually want to train. Blocked on the answer here. |
+| **slvDev/esp32-ai** | 28,9M params, 4-bit, **14,9 MB** | El proyecto que inspiró esto. **Rechazado**: no cabe en nuestra flash (ver `docs/ideas-exploration.html`). Buena fuente de técnica. |
+| **`stories260K`** | ~260K params, fp32, **~1 MB** | **Este documento.** Un benchmark desechable. Su salida es casi galimatías. No nos importa qué dice — solo a qué velocidad lo dice. |
+| **El modelo "voz del buddy"** | ~1,3–4M params, 4-bit, ~0,7–2 MB | Lo que de verdad queremos entrenar. Bloqueado por la respuesta de aquí. |
 
-`stories260K` is from Andrej Karpathy's [llama2.c](https://github.com/karpathy/llama2.c).
-It is the right benchmark because it is *deliberately tiny*: same architecture
-family as what we'd train, small enough to run in fp32 with **no quantization
-work at all**, and its inference engine (`run.c`) is a single dependency-free
-C file under 1000 lines. That means Step 0 is a porting exercise, not a
-research project. If we had to write a 4-bit kernel first, this would be a
-month instead of a weekend.
+`stories260K` es de [llama2.c](https://github.com/karpathy/llama2.c) de
+Andrej Karpathy. Es el benchmark correcto porque es *deliberadamente
+diminuto*: la misma familia de arquitectura que entrenaríamos, tan pequeño
+que corre en fp32 **sin ningún trabajo de cuantización**, y su motor de
+inferencia (`run.c`) es un único archivo C sin dependencias de menos de 1000
+líneas. Eso convierte el Paso 0 en un ejercicio de porteo, no un proyecto de
+investigación. Si hubiera que escribir primero un kernel de 4 bits, esto
+sería un mes en vez de un fin de semana.
 
-## Prerequisites
+## Prerrequisitos
 
-- ESP32-S3 N16R8 board with the round display already working (`hardware/buddy-s3-display.md`)
+- Placa ESP32-S3 N16R8 con la pantalla redonda ya funcionando (`hardware/buddy-s3-display.md`)
 - ESP-IDF v6.0.2 (`source ~/.espressif/tools/activate_idf_v6.0.2.sh`)
-- The `model` partition, already added to `firmware/partitions.csv` (4 MB, raw, offset 0x710000)
+- La partición `model`, ya añadida a `firmware/partitions.csv` (4 MB, cruda, offset 0x710000)
 
-## Step 1 — Get the model and verify its shape
+## Paso 1 — Conseguir el modelo y verificar su forma
 
 ```bash
 mkdir -p /tmp/l2c && cd /tmp/l2c
@@ -51,10 +57,10 @@ git clone --depth 1 https://github.com/karpathy/llama2.c
 ls -la llama2.c/stories260K/    # stories260K.bin + tok512.bin
 ```
 
-If that folder is missing, the models are also mirrored at
-`huggingface.co/karpathy/tinyllamas`. **Do not trust any config numbers quoted
-from memory — read them out of the file.** The legacy llama2.c header is seven
-little-endian int32s:
+Si esa carpeta falta, los modelos están también replicados en
+`huggingface.co/karpathy/tinyllamas`. **No te fíes de números de
+configuración citados de memoria — léelos del archivo.** La cabecera legacy
+de llama2.c son siete int32 little-endian:
 
 ```python
 import struct
@@ -66,34 +72,37 @@ print(f"{dim=} {hidden_dim=} {n_layers=} {n_heads=} {n_kv_heads=} {vocab_size=} 
 # embedding table — run.c keys off this, so note which one you have.
 ```
 
-Record these numbers in this file when you get them. Everything downstream
-(memory sizing, the extrapolation in Step 5) depends on them.
+Registra estos números en este archivo cuando los tengas. Todo lo de aguas
+abajo (dimensionado de memoria, la extrapolación del Paso 5) depende de
+ellos.
 
-## Step 2 — Flash the weights into the `model` partition
+## Paso 2 — Flashear los pesos a la partición `model`
 
-The weights go in **raw**, not as a file, so they can be memory-mapped at all —
-`esp_partition_mmap` works on a raw partition but not on a file inside LittleFS.
-(Step 4 found that we should *not* actually run from the mapping: copy it into
-PSRAM at boot instead. The raw partition is still the right place to store it.)
+Los pesos van **en crudo**, no como archivo, para que se puedan mapear a
+memoria siquiera — `esp_partition_mmap` funciona sobre una partición cruda
+pero no sobre un archivo dentro de LittleFS. (El Paso 4 descubrió que *no*
+conviene ejecutar desde el mapeo: cópialo a PSRAM en el arranque. La
+partición cruda sigue siendo el sitio correcto para guardarlo.)
 
 ```bash
 esptool.py --chip esp32s3 write_flash 0x710000 llama2.c/stories260K/stories260K.bin
 ```
 
-Confirm the offset against `firmware/partitions.csv` before running this —
-writing to the wrong offset will corrupt the app or the pack filesystem.
+Confirma el offset contra `firmware/partitions.csv` antes de ejecutar esto —
+escribir en el offset equivocado corrompe la app o el sistema de archivos de
+packs.
 
-The tokenizer (`tok512.bin`, a few KB) can go in LittleFS as a normal file;
-it's read sequentially once at startup, so it doesn't need mmap.
+El tokenizer (`tok512.bin`, unos KB) puede ir en LittleFS como archivo
+normal; se lee secuencialmente una vez al arrancar, así que no necesita mmap.
 
-## Step 3 — Port `run.c` into an ESP-IDF component
+## Paso 3 — Portar `run.c` a un componente ESP-IDF
 
-Create `firmware/components/tinylm/`. Copy `llama2.c/run.c` in as-is, then make
-exactly four changes. Resist doing more — the goal is a measurement, not a
-good component.
+Crea `firmware/components/tinylm/`. Copia `llama2.c/run.c` tal cual y haz
+exactamente cuatro cambios. Resiste hacer más — la meta es una medición, no
+un buen componente.
 
-1. **Weights: file I/O → mmap.** Replace the `mmap()`/`open()` block in
-   `build_transformer` with:
+1. **Pesos: I/O de archivo → mmap.** Sustituye el bloque `mmap()`/`open()`
+   de `build_transformer` por:
    ```c
    const esp_partition_t* p = esp_partition_find_first(
        ESP_PARTITION_TYPE_DATA, (esp_partition_subtype_t)0x40, "model");
@@ -102,113 +111,128 @@ good component.
    ESP_ERROR_CHECK(esp_partition_mmap(p, 0, p->size,
                                       ESP_PARTITION_MMAP_DATA, &base, &h));
    ```
-   then point the weight pointers into `base` exactly as the original code
-   points them into the mmap'd file.
-2. **RunState buffers → PSRAM.** Every `calloc` in `malloc_run_state` becomes
-   `heap_caps_calloc(..., MALLOC_CAP_SPIRAM)`. These are the activations and
-   KV cache — they're written every token, so they must be in RAM, not flash.
-3. **Tokenizer from an embedded array**, not a file — a benchmark should not
-   need a filesystem. And **drop `main()`**.
-4. **Add a `CMakeLists.txt`**: `idf_component_register(SRCS "run.c" INCLUDE_DIRS "include" REQUIRES spi_flash esp_partition)`
-   and set `-ffast-math -O2` on this component only.
+   y apunta los punteros de pesos dentro de `base` exactamente como el
+   código original los apunta dentro del archivo mapeado.
+2. **Buffers de RunState → PSRAM.** Cada `calloc` de `malloc_run_state` se
+   vuelve `heap_caps_calloc(..., MALLOC_CAP_SPIRAM)`. Son las activaciones y
+   la KV cache — se escriben en cada token, así que deben estar en RAM, no
+   en flash.
+3. **Tokenizer desde un array embebido**, no un archivo — un benchmark no
+   debería necesitar sistema de archivos. Y **elimina `main()`**.
+4. **Añade un `CMakeLists.txt`**: `idf_component_register(SRCS "run.c" INCLUDE_DIRS "include" REQUIRES spi_flash esp_partition)`
+   y pon `-ffast-math -O2` solo en este componente.
 
-Then call it from a task pinned to **core 1**, priority **3** (below the face
-task at 4, so the face wins contention — we want to measure the face
-degrading, not starving).
+Luego llámalo desde una tarea fijada al **core 1**, prioridad **3** (por
+debajo de la tarea de la cara a 4, para que la cara gane la contención —
+queremos medir la cara degradándose, no muriéndose de hambre).
 
-## Step 4 — Measure
+## Paso 4 — Medir
 
-Take five numbers. Log them here in the table below.
+Toma cinco números. Regístralos aquí en la tabla.
 
-| Metric | Result |
+| Métrica | Resultado |
 |---|---|
-| Model, read from its own header | dim 64, hidden 172, 5 layers, 8 heads, 4 kv-heads, vocab 512, seq 512 |
-| Parameters | 260,672 total — **227,840 non-embedding** (the part that costs compute) |
-| tok/s, weights memory-mapped from flash | **12.6** (79.5 ms/token) |
-| tok/s, weights copied to PSRAM | **31.4** (31.8 ms/token) |
-| Per-token p50 / p99 (PSRAM) | 31.7 / 39.2 ms — very flat, no jitter problem |
-| PSRAM consumed | 676 KB, almost all of it the KV cache |
-| Internal RAM consumed | ~17 KB |
-| Output | coherent TinyStories prose — the port is correct, not just fast |
+| Modelo, leído de su propia cabecera | dim 64, hidden 172, 5 capas, 8 heads, 4 kv-heads, vocab 512, seq 512 |
+| Parámetros | 260.672 en total — **227.840 no-embedding** (la parte que cuesta cómputo) |
+| tok/s, pesos mapeados desde flash | **12,6** (79,5 ms/token) |
+| tok/s, pesos copiados a PSRAM | **31,4** (31,8 ms/token) |
+| p50 / p99 por token (PSRAM) | 31,7 / 39,2 ms — muy plano, el jitter no es problema |
+| PSRAM consumida | 676 KB, casi todo la KV cache |
+| RAM interna consumida | ~17 KB |
+| Salida | prosa TinyStories coherente — el porteo es correcto, no solo rápido |
 
-### The headline finding: do NOT memory-map the weights
+### El hallazgo titular: NO mapees los pesos a memoria
 
-Every token reads the whole weight set, and 1 MB does not fit in the MMU
-cache — so mmap'd inference spends **60% of its time waiting on flash**.
-Copying the weights into PSRAM at boot is **2.5x faster**, and it is free for
-us: PSRAM is 8 MB and every model we are considering is 0.7–3.4 MB.
+Cada token lee el set de pesos completo, y 1 MB no cabe en la caché de la
+MMU — la inferencia mapeada gasta el **60% de su tiempo esperando a la
+flash**. Copiar los pesos a PSRAM en el arranque es **2,5× más rápido**, y
+para nosotros es gratis: la PSRAM son 8 MB y todos los modelos que
+consideramos pesan 0,7–3,4 MB.
 
-This is where the esp32-ai project's Per-Layer Embeddings trick stops applying
-to us. PLE exists because a 14.9 MB model *cannot* fit in RAM. Ours fits, so we
-simply keep them resident and skip the whole problem.
+Aquí es donde el truco de Per-Layer Embeddings del proyecto esp32-ai deja de
+aplicarnos. PLE existe porque un modelo de 14,9 MB *no puede* caber en RAM.
+El nuestro cabe, así que simplemente lo dejamos residente y nos saltamos el
+problema entero.
 
-## Step 5 — Extrapolate to the real model
+## Paso 5 — Extrapolar al modelo real
 
-Compute cost scales with **non-embedding** parameters (the embedding table is
-a lookup, not a matmul). For `stories260K`, non-embedding ≈
-`n_layers × 12 × dim²`. For our candidate Config S (vocab 1024, d=128,
-6 layers) that's ~1.18M.
+El coste de cómputo escala con los parámetros **no-embedding** (la tabla de
+embedding es una búsqueda, no un matmul). Para `stories260K`, no-embedding ≈
+`n_layers × 12 × dim²`. Para nuestra candidata Config S (vocab 1024, d=128,
+6 capas) son ~1,18M.
 
 ```
 predicted_ms_per_token(Config S) ≈ measured_ms_per_token(260K) × (1.18M / non_emb_260K)
 ```
 
-Then apply a **0.5–0.7× speedup factor** for int4 weights (less memory traffic,
-more unpack cost) — and treat that factor as a guess until someone measures it.
+Luego aplica un **factor de aceleración de 0,5–0,7×** por pesos int4 (menos
+tráfico de memoria, más coste de desempaquetado) — y trátalo como una
+suposición hasta que alguien lo mida.
 
-### Decision gates — and where we landed
+### Puertas de decisión — y dónde caímos
 
-Scaling by non-embedding parameters from the PSRAM number:
+Escalando por parámetros no-embedding desde el número de PSRAM:
 
-| | ms/token | fp32 | int4 (est. 0.6x) |
+| | ms/token | fp32 | int4 (est. 0,6×) |
 |---|---|---|---|
-| **Config S** (v1024 d128 L6, 1.18 M non-emb) | 164.8 | 6.1 tok/s | **~10 tok/s** |
-| Config M (v2048 d192 L8, 3.54 M) | 494 | 2.0 tok/s | ~3.4 tok/s |
-| Config L (v2048 d256 L8, 6.29 M) | 878 | 1.1 tok/s | ~1.9 tok/s |
+| **Config S** (v1024 d128 L6, 1,18 M no-emb) | 164,8 | 6,1 tok/s | **~10 tok/s** |
+| Config M (v2048 d192 L8, 3,54 M) | 494 | 2,0 tok/s | ~3,4 tok/s |
+| Config L (v2048 d256 L8, 6,29 M) | 878 | 1,1 tok/s | ~1,9 tok/s |
 
-Against the gates: **Config S is YELLOW** (5–15 tok/s). Good for short quips
-and idle murmurs; not conversational. Config M and L are red.
+Contra las puertas: **Config S es AMARILLO** (5–15 tok/s). Buena para
+réplicas cortas y murmullos de reposo; no conversacional. Config M y L son
+rojas.
 
-**But three levers are completely untouched**, and two are large:
+**Pero tres palancas están completamente sin tocar**, y dos son grandes:
 
-1. **`seq_len` is 512 and we need ~64.** A 15-word utterance is ~20 tokens.
-   That cuts the KV cache 8x (676 KB → ~85 KB) *and* cuts attention compute.
-2. **The matmul is a naive scalar triple loop.** The S3 has 128-bit SIMD and
-   ESP-DSP ships optimised dot products. For scale: esp32-ai runs ~17x more
-   non-embedding parameters at a similar token rate, which implies its kernel
-   is roughly an order of magnitude better than llama2.c's reference C.
-3. **int4** — the 0.6x above is a guess, not a measurement.
+1. **`seq_len` es 512 y necesitamos ~64.** Una frase de 15 palabras son ~20
+   tokens. Eso recorta la KV cache 8× (676 KB → ~85 KB) *y* recorta el
+   cómputo de atención.
+2. **El matmul es un triple bucle escalar naíf.** El S3 tiene SIMD de 128
+   bits y ESP-DSP trae productos punto optimizados. Para dar escala:
+   esp32-ai corre ~17× más parámetros no-embedding a un ritmo de tokens
+   similar, lo que implica que su kernel es aproximadamente un orden de
+   magnitud mejor que el C de referencia de llama2.c.
+3. **int4** — el 0,6× de arriba es una suposición, no una medición.
 
-So the honest reading is **not "the chip can't"** — a naive, unvectorised fp32
-port already gets Config S into the usable band. The remaining question is how
-much kernel work the lab wants to do, and esp32-ai is open source to learn from.
+Así que la lectura honesta **no es "el chip no puede"** — un porteo fp32
+naíf y sin vectorizar ya mete a Config S en la banda usable. La pregunta
+restante es cuánto trabajo de kernel quiere hacer el lab, y esp32-ai es open
+source para aprender de él. *(Posdata: ese trabajo de kernel se hizo — Paso
+0.5, rama `spike/tinylm-s3` — y rindió 4,85×.)*
 
-### The face-contention question answered differently
+### La pregunta de la contención con la cara, respondida de otro modo
 
-The original plan was to measure inference against a busy face. That framing is
-now obsolete: since the eyes were cached, the face renders only on a blink or
-emotion change and blits otherwise — it is **idle most of the time**. Per-token
-jitter here is 31.7 p50 vs 39.2 p99 with nothing else running; the face's
-occasional ~8 ms draw plus 23 ms push will not meaningfully disturb that.
-The contention worry was a product of the *old* renderer's cost.
+El plan original era medir la inferencia contra una cara ocupada. Ese
+planteamiento quedó obsoleto: desde que los ojos van cacheados, la cara solo
+renderiza en un parpadeo o cambio de emoción y blitea el resto del tiempo —
+está **ociosa la mayor parte del tiempo**. El jitter por token aquí es 31,7
+p50 vs 39,2 p99 sin nada más corriendo; el dibujado ocasional de ~8 ms de la
+cara más los 23 ms de push no van a perturbar eso de forma significativa. La
+preocupación por la contención era un producto del coste del renderer
+*antiguo*.
 
-## Known risks
+## Riesgos conocidos
 
-- **PSRAM bandwidth contention.** The framebuffer (112 KB) also lives in PSRAM
-  and is DMA'd to the display every frame. Inference activations compete for
-  the same bus. This may hurt more than CPU time does, and it will not show up
-  in a CPU-only benchmark — which is exactly why row 2 of the table exists.
-- **`esp_partition_mmap` address space is finite.** The S3 has a limited number
-  of MMU pages for data mapping. A 1 MB mapping is fine; a 4 MB one may not be.
-  Worth knowing before the real model gets bigger.
-- **fp32 is not what we'll ship.** Step 0 deliberately skips quantization.
-  Expect the int4 numbers to differ; that's what the fudge factor in Step 5 is for.
+- **Contención de ancho de banda de PSRAM.** El framebuffer (112 KB) también
+  vive en PSRAM y se manda por DMA a la pantalla cada frame. Las
+  activaciones de la inferencia compiten por el mismo bus. Esto puede doler
+  más que el tiempo de CPU, y no aparece en un benchmark solo-CPU — que es
+  exactamente la razón de la fila 2 de la tabla.
+- **El espacio de direcciones de `esp_partition_mmap` es finito.** El S3
+  tiene un número limitado de páginas MMU para mapear datos. Un mapeo de
+  1 MB va bien; uno de 4 MB puede que no. Conviene saberlo antes de que el
+  modelo real crezca.
+- **fp32 no es lo que entregaremos.** El Paso 0 se salta la cuantización a
+  propósito. Espera que los números int4 difieran; para eso está el factor
+  de corrección del Paso 5.
 
-## Where this leads (not part of Step 0)
+## A dónde lleva esto (no es parte del Paso 0)
 
-If the gates pass: generate ~100k mood-labelled utterances with Claude Haiku
-(~$15), train a custom 1024-token BPE tokenizer on that corpus, train Config S
-with `nanoGPT` or `llama2.c`'s trainer, quantize to int4, and ship it as the
-offline Brain path. The corpus is the personality — which is why the **corpus
-format, the affect-token set, and the expression vocabulary are group
-decisions**, not something to settle here. See `docs/ideas-exploration.html`.
+Si las puertas pasan: generar ~100k frases etiquetadas por ánimo con Claude
+Haiku (~$15), entrenar un tokenizer BPE propio de 1024 tokens sobre ese
+corpus, entrenar Config S con el trainer de `nanoGPT` o `llama2.c`,
+cuantizar a int4 y entregarlo como la ruta de Brain offline. El corpus ES la
+personalidad — y por eso el **formato del corpus, el set de tokens de afecto
+y el vocabulario de expresiones son decisiones de grupo**, no algo que se
+decida aquí. Ver `docs/ideas-exploration.html`.

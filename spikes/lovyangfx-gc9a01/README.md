@@ -1,50 +1,53 @@
-# Spike: LovyanGFX on ESP-IDF v6.0.2 + GC9A01
+# Spike: LovyanGFX en ESP-IDF v6.0.2 + GC9A01
 
-A throwaway project on a **second** S3 + GC9A01 rig, so the working PoC buddy
-never has to be disassembled. Disposable by design — if the verdict is "no",
-delete the directory.
+Un proyecto desechable en un **segundo** montaje S3 + GC9A01, para que el
+buddy PoC que funciona nunca tenga que desmontarse. Desechable por diseño —
+si el veredicto es "no", se borra el directorio.
 
-## The question
+## La pregunta
 
-Is LovyanGFX a better substrate for the buddy's graphics layer than our
-hand-rolled `esp_lcd` + framebuffer code in
+¿Es LovyanGFX mejor sustrato para la capa gráfica del buddy que nuestro
+código a mano de `esp_lcd` + framebuffer en
 `firmware/components/expressions/round_face.cpp`?
 
-It is **not** an LVGL alternative — LovyanGFX is drawing primitives and a panel
-driver, LVGL is a widget toolkit. They compose. What LovyanGFX would replace is
-*our* code: panel setup, the `put`/`blend_at`/`clear`/`push` plumbing, and the
-hand-written 5×7 `kFont57`.
+**No** es una alternativa a LVGL — LovyanGFX son primitivas de dibujo y un
+driver de panel, LVGL es un toolkit de widgets. Se componen. Lo que LovyanGFX
+sustituiría es *nuestro* código: setup del panel, la fontanería de
+`put`/`blend_at`/`clear`/`push`, y la fuente 5×7 `kFont57` escrita a mano.
 
-## Gate 0 — does it even build on ESP-IDF v6.0.2? ✅ PASSED
+## Puerta 0 — ¿siquiera compila en ESP-IDF v6.0.2? ✅ PASADA
 
-This was the real risk: v6 removed the legacy driver APIs that forced our own
-rewrite, and LovyanGFX reaches deep into the SPI/LCD peripherals.
+Este era el riesgo real: la v6 eliminó las APIs legacy de driver que forzaron
+nuestra propia reescritura, y LovyanGFX mete la mano hondo en los periféricos
+SPI/LCD.
 
 | | |
 |---|---|
-| LovyanGFX commit | `3f78b70`, 2026-07-22 (actively maintained) |
-| Build result | **clean, exit 0** |
-| Flash cost | **37,642 B** (27,722 text + 9,484 rodata) |
-| Static RAM | 436 B |
-| Warnings | 3, all the same one — see below |
+| Commit de LovyanGFX | `3f78b70`, 2026-07-22 (mantenido activamente) |
+| Resultado del build | **limpio, exit 0** |
+| Coste en flash | **37.642 B** (27.722 text + 9.484 rodata) |
+| RAM estática | 436 B |
+| Warnings | 3, todos el mismo — ver abajo |
 
-37 KB is far cheaper than expected. Against the 1.86 MB of headroom in the
-3 MB app partition, cost is a non-issue.
+37 KB es mucho más barato de lo esperado. Contra los 1,86 MB de margen de la
+partición de app de 3 MB, el coste es un no-tema.
 
-The only warning is `ledc_channel_config_t::intr_type is deprecated` in
-`Light_PWM.cpp` — LovyanGFX's backlight PWM helper. Cosmetic, and avoidable
-entirely by tying BL to 3V3 and setting `pin_bl = -1`.
+El único warning es `ledc_channel_config_t::intr_type is deprecated` en
+`Light_PWM.cpp` — el helper PWM de retroiluminación de LovyanGFX. Cosmético,
+y evitable del todo atando BL a 3V3 y poniendo `pin_bl = -1`.
 
 ## Setup
 
-LovyanGFX is **not** vendored (40 MB of git history, and we may not keep it):
+LovyanGFX **no** está vendorizado (40 MB de historia git, y quizá no lo
+conservemos):
 
 ```bash
 git clone --depth 1 https://github.com/lovyan03/LovyanGFX.git components/LovyanGFX
 ```
 
-Wiring is identical to the real buddy (see `../../hardware/buddy-s3-display.md`)
-so every measurement transfers without a pin translation step.
+El cableado es idéntico al buddy real (ver
+`../../hardware/buddy-s3-display.md`) para que cada medición se transfiera
+sin paso de traducción de pines.
 
 ```bash
 source ~/.espressif/tools/activate_idf_v6.0.2.sh
@@ -52,244 +55,268 @@ idf.py set-target esp32s3
 idf.py -p /dev/cu.usbmodemXXXXXXX build flash monitor
 ```
 
-**Always pass `-p`.** With two boards on the desk, a bare `idf.py flash` will
-happily overwrite the working buddy.
+**Pasa `-p` siempre.** Con dos placas en la mesa, un `idf.py flash` a secas
+sobrescribe alegremente el buddy que funciona.
 
-## What the firmware tests, in order
+## Qué prueba el firmware, en orden
 
-1. **Colour order** — four labelled swatches. The word must match the colour.
-   RED showing blue → flip `cfg.rgb_order`. Photo-negative → flip `cfg.invert`.
-   Our `esp_lcd` path needed `invert=true` + BGR; this checks whether
-   LovyanGFX gets GC9A01 right on its own.
-2. **Orientation** — "BUDDY" must read left-to-right. Our `esp_lcd` path came
-   up mirrored and needed `esp_lcd_panel_mirror(panel, true, false)`. If this
-   is correct out of the box, that regression risk is retired.
-3. **Text quality** — a small-text sample. This is the readability bar our
-   5×7 font has to beat, and it's the direct answer to "smaller font, fit
-   more text" without hand-rolling another bitmap font (the last one shipped
-   a buffer overrun that crashed the device on long Claude replies).
-4. **Frame time** — 60 full-screen pushes, reported as ms/frame and fps.
-5. **Sprite cost** — a 240×240 PSRAM sprite (112 KB, same as our current
-   framebuffer) drawn and pushed 60×. This is both the "fly around the buddy"
-   primitive and the surface we'd render the SDF eyes into.
+1. **Orden de color** — cuatro muestras etiquetadas. La palabra debe
+   coincidir con el color. ROJO mostrando azul → invierte `cfg.rgb_order`.
+   Negativo fotográfico → invierte `cfg.invert`. Nuestra ruta `esp_lcd`
+   necesitó `invert=true` + BGR; esto comprueba si LovyanGFX acierta el
+   GC9A01 por sí solo.
+2. **Orientación** — "BUDDY" debe leerse de izquierda a derecha. Nuestra
+   ruta `esp_lcd` salía en espejo y necesitó
+   `esp_lcd_panel_mirror(panel, true, false)`. Si esto sale bien de fábrica,
+   ese riesgo de regresión queda retirado.
+3. **Calidad de texto** — una muestra de texto pequeño. Es el listón de
+   legibilidad que nuestra fuente 5×7 tiene que superar, y la respuesta
+   directa a "fuente más pequeña, más texto" sin escribir a mano otra fuente
+   de bitmap (la última traía un desbordamiento de buffer que reiniciaba el
+   dispositivo con respuestas largas de Claude).
+4. **Tiempo de frame** — 60 pushes de pantalla completa, reportado como
+   ms/frame y fps.
+5. **Coste de sprite** — un sprite PSRAM de 240×240 (112 KB, igual que
+   nuestro framebuffer actual) dibujado y empujado 60×. Es a la vez la
+   primitiva de "volar alrededor del buddy" y la superficie donde
+   renderizaríamos los ojos SDF.
 
-## Results
+## Resultados
 
-Fill these in from the serial log. Gate for adoption: frame time no worse than
-the current `esp_lcd` path, and correct colours/orientation without a fight.
+Rellenados desde el log serie. Puerta de adopción: tiempo de frame no peor
+que la ruta `esp_lcd` actual, y colores/orientación correctos sin pelea.
 
-| Measurement | Result |
+| Medición | Resultado |
 |---|---|
-| Colour order correct out of the box | **yes** — no `rgb_order` fight |
-| Orientation correct out of the box | **yes** — text reads forwards, no mirror needed |
-| `fillScreen` | **24.01 ms/frame (41.6 fps)** |
-| Sprite draw+push | **30.78 ms/frame (32.5 fps)** |
-| PSRAM for a 240×240 sprite | **116,740 B** |
-| `lcd.init` internal RAM | 2,352 B |
+| Orden de color correcto de fábrica | **sí** — sin pelea de `rgb_order` |
+| Orientación correcta de fábrica | **sí** — el texto se lee del derecho, sin mirror |
+| `fillScreen` | **24,01 ms/frame (41,6 fps)** |
+| Dibujo+push de sprite | **30,78 ms/frame (32,5 fps)** |
+| PSRAM para un sprite 240×240 | **116.740 B** |
+| RAM interna de `lcd.init` | 2.352 B |
 
-### The important one: we are wire-bound, not CPU-bound
+### La importante: estamos limitados por el cable, no por la CPU
 
-240×240×2 B at 40 MHz SPI is **23.04 ms of pure wire time**. We measured
-24.01 ms — LovyanGFX is achieving ~96% of theoretical bus bandwidth. There is
-nothing left to optimise inside the library, and our own `esp_lcd` path pays
-exactly the same 23 ms, so adopting this cannot cost us frame rate.
+240×240×2 B a SPI de 40 MHz son **23,04 ms de puro tiempo de cable**. Medimos
+24,01 ms — LovyanGFX logra ~96% del ancho de banda teórico del bus. No queda
+nada que optimizar dentro de la librería, y nuestra propia ruta `esp_lcd`
+paga exactamente los mismos 23 ms, así que adoptar esto no puede costarnos
+frame rate.
 
-The only two levers on frame rate are therefore:
-- **raise the SPI clock** (many GC9A01 clones run at 80 MHz → ~12 ms), and
-- **push dirty rectangles instead of whole frames** (the eyes are a small
-  fraction of 240×240).
+Las únicas dos palancas sobre el frame rate son por tanto:
+- **subir el reloj SPI** (muchos clones del GC9A01 van a 80 MHz → ~12 ms), y
+- **empujar rectángulos sucios en vez de frames enteros** (los ojos son una
+  fracción pequeña de 240×240).
 
-Both apply equally to our current renderer. Worth knowing before anyone spends
-a session "optimising the drawing code" — the drawing was never the problem.
+Ambas aplican igual a nuestro renderer actual. Conviene saberlo antes de que
+alguien gaste una sesión "optimizando el código de dibujo" — el dibujo nunca
+fue el problema.
 
-## Test 2 — the eye showcase, and a correction
+## Test 2 — el escaparate de ojos, y una corrección
 
-Five renderings of the same emotion, cycling on screen. **These are options for
-the group to pick from, not a proposal that one is better.**
+Cinco renderizados de la misma emoción, rotando en pantalla. **Son opciones
+para que el grupo elija, no una propuesta de que una sea mejor.**
 
 | | |
 |---|---|
-| A SHIPPED | exactly what `round_face.cpp` draws today: flat colour + glow |
-| B DITHERED | + vertical gradient, ordered-dithered so RGB565 stops banding |
-| C CATCHLIGHT | + a specular highlight — the biggest "alive" cue in character animation |
-| D DEPTH | + inner rim shading, so the eye reads as a lens not a decal |
-| E LGFX NATIVE | `fillSmoothRoundRect`; **cannot** do the brow slant or squint |
+| A SHIPPED | exactamente lo que `round_face.cpp` dibuja hoy: color plano + glow |
+| B DITHERED | + gradiente vertical, con dithering ordenado para que RGB565 deje de hacer bandas |
+| C CATCHLIGHT | + un brillo especular — la mayor señal de "vivo" en animación de personajes |
+| D DEPTH | + sombreado de borde interior, para que el ojo se lea como lente y no como pegatina |
+| E LGFX NATIVE | `fillSmoothRoundRect`; **no puede** hacer la ceja ni el guiño |
 
-Measured, ms per frame, sprite in **internal** RAM (it fits — 115 KB of ~380 KB):
+Medido, ms por frame, sprite en RAM **interna** (cabe — 115 KB de ~380 KB):
 
-| emotion | A draw | B draw | C draw | D draw | E draw | push |
+| emoción | A draw | B draw | C draw | D draw | E draw | push |
 |---|---|---|---|---|---|---|
-| sleepy | 30.6 | 35.2 | 37.9 | 39.5 | 1.8 | 23.1 |
-| happy | 62.9 | 69.6 | 73.6 | 76.0 | 2.5 | 23.1 |
-| neutral | 64.3 | 76.2 | 82.6 | 87.2 | 2.6 | 23.1 |
-| angry | 69.1 | 78.4 | — | — | — | 23.1 |
-| curious | 80.4 | 96.2 | 104.4 | — | — | 23.1 |
-| **surprised** | **102.4** | 123.8 | 134.7 | **142.7** | 3.3 | 23.1 |
+| sleepy | 30,6 | 35,2 | 37,9 | 39,5 | 1,8 | 23,1 |
+| happy | 62,9 | 69,6 | 73,6 | 76,0 | 2,5 | 23,1 |
+| neutral | 64,3 | 76,2 | 82,6 | 87,2 | 2,6 | 23,1 |
+| angry | 69,1 | 78,4 | — | — | — | 23,1 |
+| curious | 80,4 | 96,2 | 104,4 | — | — | 23,1 |
+| **surprised** | **102,4** | 123,8 | 134,7 | **142,7** | 3,3 | 23,1 |
 
-### Correction: we are CPU-bound, not wire-bound
+### Corrección: estamos limitados por CPU, no por el cable
 
-The earlier `fillScreen` benchmark said "wire-bound" — but `fillScreen` is a
-memset and a push, and never touches the eye maths. With the real renderer,
-**our SDF eye drawing costs 1.3×–4.4× the wire time.** A full face is 54 ms
-(sleepy) to 125 ms (surprised) → roughly **8–19 fps**, and the CPU is the
-bottleneck.
+El benchmark anterior de `fillScreen` dijo "limitado por el cable" — pero
+`fillScreen` es un memset y un push, y nunca toca las cuentas del ojo. Con el
+renderer real, **nuestro dibujo SDF del ojo cuesta 1,3×–4,4× el tiempo de
+cable.** Una cara completa son 54 ms (sleepy) a 125 ms (surprised) →
+aproximadamente **8–19 fps**, y la CPU es el cuello de botella.
 
-This is almost certainly why the face has felt sluggish. It is not the panel,
-not the SPI clock, and not LovyanGFX — it is our per-pixel loop, which calls
-`sqrtf` on every pixel of the eye bounding box plus a 10 px glow margin.
+Es casi seguro por esto que la cara se sentía lenta. No es el panel, no es el
+reloj SPI y no es LovyanGFX — es nuestro bucle por píxel, que llama a `sqrtf`
+en cada píxel de la caja del ojo más un margen de glow de 10 px.
 
-## Test 3 — optimising the renderer
+## Test 3 — optimizar el renderer
 
-Five changes, all in the inner loop, none of them clever:
+Cinco cambios, todos en el bucle interior, ninguno ingenioso:
 
-1. **`-O2` for this component** (project is `-Os` globally — right for the
-   firmware, wrong for a per-pixel loop).
-2. **Skip the `sqrtf`** — `outside` is only non-zero at the four rounded
-   corners. Everywhere else we were computing `sqrtf(0)` or `sqrtf(v*v)`.
-3. **Hoist the per-row term** — `qy` depends only on `y`, and was being
-   recomputed for every pixel in the row. Plus an early `continue` for pixels
-   beyond the glow radius.
-4. **Hoist the per-eye colours** — `rgb(em.r/4, ...)` was recomputed per pixel.
-5. **Skip the read-modify-write where the eye is opaque** — that is most of the
-   eye's pixels, and there is nothing behind them to blend against.
+1. **`-O2` para este componente** (el proyecto es `-Os` global — correcto
+   para el firmware, incorrecto para un bucle por píxel).
+2. **Saltarse el `sqrtf`** — `outside` solo es distinto de cero en las
+   cuatro esquinas redondeadas. En el resto estábamos calculando `sqrtf(0)`
+   o `sqrtf(v*v)`.
+3. **Izar el término por fila** — `qy` depende solo de `y`, y se recalculaba
+   para cada píxel de la fila. Más un `continue` temprano para píxeles más
+   allá del radio del glow.
+4. **Izar los colores por ojo** — `rgb(em.r/4, ...)` se recalculaba por
+   píxel.
+5. **Saltarse el leer-modificar-escribir donde el ojo es opaco** — que es la
+   mayoría de sus píxeles, y no hay nada detrás contra lo que mezclar.
 
-| emotion · variant | before | after | gain |
+| emoción · variante | antes | después | ganancia |
 |---|---|---|---|
-| neutral · A SHIPPED | 64.29 | **42.74** | −34% |
-| happy · A SHIPPED | 62.93 | **45.81** | −27% |
-| curious · A SHIPPED | 80.38 | **53.47** | −33% |
-| neutral · D DEPTH | 87.15 | **66.74** | −23% |
+| neutral · A SHIPPED | 64,29 | **42,74** | −34% |
+| happy · A SHIPPED | 62,93 | **45,81** | −27% |
+| curious · A SHIPPED | 80,38 | **53,47** | −33% |
+| neutral · D DEPTH | 87,15 | **66,74** | −23% |
 
-A full neutral face is now **65.9 ms** (42.7 draw + 23.2 push) against 87.5 ms
-before — about **15 fps, up from 11**. Push is untouched at 23.1 ms, as
-expected; it is the wire.
+Una cara neutral completa son ahora **65,9 ms** (42,7 dibujo + 23,2 push)
+contra 87,5 ms antes — cerca de **15 fps, desde 11**. El push sigue intacto
+en 23,1 ms, como se esperaba; es el cable.
 
-**The trade, now quantified:** even optimised, our SDF renderer is ~16× the
-cost of LovyanGFX's `fillSmoothRoundRect` (2.6 ms). What that buys is the brow
-slant and the happy squint, which the library primitive cannot express at all.
-That is the decision for the group, and it is no longer a matter of opinion.
+**El intercambio, ya cuantificado:** incluso optimizado, nuestro renderer SDF
+es ~16× el coste del `fillSmoothRoundRect` de LovyanGFX (2,6 ms). Lo que eso
+compra es la ceja inclinada y el guiño de felicidad, que la primitiva de la
+librería no puede expresar en absoluto. Esa es la decisión para el grupo, y
+ya no es cuestión de opinión.
 
-**Biggest remaining lever, not yet tried:** cache the rendered eye. The eye
-bitmap only changes on blink or emotion change — an idle saccade is a
-*translation* of an unchanged shape. Blitting a cached eye at a gaze offset
-would drop most frames to near zero draw cost, leaving only the 23 ms push.
-Fixed-point maths and dirty-rect pushes are the next two after that.
+**La mayor palanca restante, aún sin probar:** cachear el ojo renderizado. El
+bitmap del ojo solo cambia en un parpadeo o cambio de emoción — una sacada en
+reposo es una *traslación* de una forma que no cambió. Blitear un ojo
+cacheado con offset de mirada dejaría la mayoría de frames a coste de dibujo
+casi cero, quedando solo el push de 23 ms. Aritmética de punto fijo y pushes
+de rectángulos sucios son las dos siguientes.
 
-### The gradient bug (why B looked flat on the panel)
+### El bug del gradiente (por qué B se veía plano en el panel)
 
-First attempt used `k = 1.18 - 0.62t`, brightening the top of the eye. But
-neutral's blue is already **255**, so scaling above 1.0 just clips: the top
-third of the eye was pinned at max blue, then fell away in ~6 px steps. Flat
-region followed by visible steps reads exactly as "no gradient, hard colour
-changes", which is what it looked like.
+El primer intento usó `k = 1.18 - 0.62t`, aclarando la parte alta del ojo.
+Pero el azul de neutral ya es **255**, así que escalar por encima de 1.0 solo
+recorta: el tercio superior del ojo quedaba clavado en azul máximo y luego
+caía en escalones de ~6 px. Región plana seguida de escalones visibles se lee
+exactamente como "sin gradiente, cambios duros de color", que es lo que
+parecía.
 
-Found by dumping the sprite buffer over serial rather than squinting at the
-panel — the numbers showed `b5=31,31,31,31,30,29,...` immediately.
+Encontrado volcando el buffer del sprite por serie en vez de entrecerrar los
+ojos frente al panel — los números mostraron `b5=31,31,31,31,30,29,...` de
+inmediato.
 
-Fix: `k = 1.0 - 0.55t` (never exceeds 1.0), and dither amplitude raised from
-one quantisation step to 1.5, since one step barely breaks a band at this
-viewing distance. The column now ramps `g6 46→22, b5 30→14`, monotonic from
-the top pixel.
+Arreglo: `k = 1.0 - 0.55t` (nunca pasa de 1.0), y la amplitud del dithering
+subida de un paso de cuantización a 1,5, porque un paso apenas rompe una
+banda a esta distancia de visión. La columna ahora baja `g6 46→22, b5
+30→14`, monótona desde el píxel de arriba.
 
-For contrast, LovyanGFX's own primitive draws in **1.8–3.3 ms**, 25–40× faster
-— but it cannot express the brow slant or the happy squint, because those are
-carved out of the shape as *coverage*, not drawn as shapes. That is the real
-trade to discuss: expressiveness vs. an order of magnitude of CPU.
+Para contraste, la primitiva propia de LovyanGFX dibuja en **1,8–3,3 ms**,
+25–40× más rápido — pero no puede expresar la ceja ni el guiño, porque esos
+se recortan de la forma como *cobertura*, no se dibujan como formas. Ese es
+el intercambio real a discutir: expresividad vs un orden de magnitud de CPU.
 
-### The byte-order trap (cost us an afternoon — read this one)
+### La trampa del orden de bytes (nos costó una tarde — lee esta)
 
-**LovyanGFX stores 16bpp sprites BIG-ENDIAN**, because that is the byte order
-the SPI bus consumes. `getBuffer()` hands you that raw buffer. Writing native
-little-endian `uint16_t` RGB565 into it — the obvious thing to do, and what
-`round_face.cpp` does with its own framebuffer — is wrong, and wrong in a way
-that is easy to misdiagnose:
+**LovyanGFX guarda los sprites de 16 bpp en BIG-ENDIAN**, porque ese es el
+orden de bytes que consume el bus SPI. `getBuffer()` te da ese buffer crudo.
+Escribir `uint16_t` RGB565 little-endian nativo en él — lo obvio, y lo que
+`round_face.cpp` hace con su propio framebuffer — está mal, y mal de una
+forma fácil de diagnosticar erróneamente:
 
-- a **flat** colour byte-swaps to a solid but *wrong* colour (red renders as
-  blue-purple), which reads like a palette bug;
-- a **gradient** byte-swaps to *horizontal rainbow stripes*, because the low
-  byte carrying blue becomes the red channel and cycles rapidly down the ramp.
+- un color **plano** byte-swapeado da un color sólido pero *equivocado* (el
+  rojo sale azul-morado), que se lee como bug de paleta;
+- un **gradiente** byte-swapeado da *franjas arcoíris horizontales*, porque
+  el byte bajo que lleva el azul se convierte en el canal rojo y cicla
+  rápidamente rampa abajo.
 
-Proved with a test card that draws the same three colours three ways. Row 1
-(LovyanGFX API) and row 3 (raw, byte-swapped) were correct; row 2 (raw,
-little-endian) rendered R/G/B as Blue/Red/Green. Rows 1 and 3 were confirmed
-byte-identical on-device (`0x00F8` / `0xE007` / `0x1F00`), so direct buffer
-writes cost nothing in quality versus the library's API — which matters,
-because the SDF eye renderer needs per-pixel access and cannot use `fillRect`.
+Demostrado con una carta de prueba que dibuja los mismos tres colores de
+tres maneras. La fila 1 (API de LovyanGFX) y la 3 (crudo, byte-swapeado)
+salieron correctas; la fila 2 (crudo, little-endian) renderizó R/G/B como
+Azul/Rojo/Verde. Las filas 1 y 3 se confirmaron byte-idénticas en el
+dispositivo (`0x00F8` / `0xE007` / `0x1F00`), así que escribir el buffer
+directamente no cuesta nada en calidad frente a la API de la librería — lo
+que importa, porque el renderer SDF necesita acceso por píxel y no puede
+usar `fillRect`.
 
-Fix: convert only at the buffer boundary (`to_store` / `from_store`), and pass
-`spr.color565(r,g,b)` — never a raw 565 `uint16_t` — to any LovyanGFX call.
+Arreglo: convertir solo en la frontera del buffer (`to_store` /
+`from_store`), y pasar `spr.color565(r,g,b)` — nunca un `uint16_t` 565
+crudo — a cualquier llamada de LovyanGFX.
 
-**Methodology note.** The first round of framebuffer screenshots was decoded
-with the same little-endian assumption used to write them, so they agreed with
-themselves and showed nothing. Photographs of the actual panel are what caught
-this. A dump is only evidence once it has been checked against the glass at
-least once.
+**Nota de metodología.** La primera ronda de capturas del framebuffer se
+decodificó con la misma suposición little-endian con que se escribió, así
+que estaban de acuerdo consigo mismas y no mostraban nada. Lo que cazó esto
+fueron fotografías del panel real. Un volcado solo es evidencia cuando se ha
+contrastado contra el cristal al menos una vez.
 
-### Bring-up notes (cost us 20 minutes, will cost you the same)
+### Notas de arranque (nos costaron 20 minutos, te costarán lo mismo)
 
-- The board arrived running firmware that presented a **TinyUSB CDC** port
-  (`0x303A:0x4001`). esptool's auto-reset has nothing to talk to on that
-  interface, so it fails with *"No serial data received"* even though the port
-  opens fine. Manual download mode (hold BOOT, tap RESET, release BOOT) makes
-  the ROM present `0x303A:0x1001` "USB JTAG_serial debug unit" instead.
-- After flashing, **release BOOT before resetting** or the ROM goes straight
-  back to `boot:0x0 (DOWNLOAD)` and the app never runs.
-- This board's USB-C is wired to the native USB pins, so the console must be
-  `CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y` — the default UART0 console goes
-  nowhere visible.
-- The devkit has a **second** USB-C socket behind a CH343 bridge. It is better
-  for flashing (auto-reset always works) but **useless for framebuffer dumps**:
-  153 KB at 115200 with no flow control loses bytes, and one lost byte
-  misaligns the whole base64 stream into torn garbage. Use the native USB
-  socket for anything that moves bulk data. Every dump now carries a checksum
-  so corruption is detected rather than silently rendered.
+- La placa llegó corriendo un firmware que presentaba un puerto **TinyUSB
+  CDC** (`0x303A:0x4001`). El auto-reset de esptool no tiene con quién
+  hablar en esa interfaz, así que falla con *"No serial data received"*
+  aunque el puerto abra bien. El modo download manual (mantener BOOT, tocar
+  RESET, soltar BOOT) hace que la ROM presente `0x303A:0x1001` "USB
+  JTAG_serial debug unit" en su lugar.
+- Tras flashear, **suelta BOOT antes de resetear** o la ROM vuelve directa a
+  `boot:0x0 (DOWNLOAD)` y la app no corre nunca.
+- El USB-C de esta placa va a los pines USB nativos, así que la consola debe
+  ser `CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y` — la consola UART0 por defecto
+  no sale por ningún sitio visible.
+- El devkit tiene un **segundo** USB-C tras un puente CH343. Es mejor para
+  flashear (el auto-reset siempre funciona) pero **inútil para volcados de
+  framebuffer**: 153 KB a 115200 sin control de flujo pierde bytes, y un
+  byte perdido desalinea todo el stream base64 en basura rasgada. Usa el USB
+  nativo para todo lo que mueva datos a granel. Cada volcado lleva ahora un
+  checksum para que la corrupción se detecte en vez de renderizarse en
+  silencio.
 
-## What we would NOT hand over
+## Lo que NO entregaríamos
 
-The eye renderer. `sd_round_rect` plus coverage multiplication is what makes
-the brow slant and the happy squint work — they are carved out of the eye as
-*coverage*, not drawn as shapes, and `fillSmoothRoundRect` cannot express that.
-The plan if this is adopted: keep the SDF eye math, render it into an
-`LGFX_Sprite` instead of our raw `s_fb`.
+El renderer de ojos. `sd_round_rect` más multiplicación de cobertura es lo
+que hace funcionar la ceja inclinada y el guiño — se recortan del ojo como
+*cobertura*, no se dibujan como formas, y `fillSmoothRoundRect` no puede
+expresar eso. El plan si esto se adopta: conservar la matemática SDF del
+ojo y renderizarla en un `LGFX_Sprite` en vez de nuestro `s_fb` crudo.
 
-Note also that LovyanGFX does **not** fix the eye-colouring problem. That's
-RGB565 depth banding; the panel is still 16-bit. Dithering or palette work
-stays ours either way.
+Nota también que LovyanGFX **no** arregla el problema del coloreado del ojo.
+Eso es banding de profundidad RGB565; el panel sigue siendo de 16 bits. El
+dithering o el trabajo de paleta es nuestro en cualquier caso.
 
+## Test 4 — puedes tener las formas Y el frame rate
 
-## Test 4 — you can have the shapes AND the frame rate
+El veredicto del lab sobre el test 2: conservar la expresividad de A/B,
+conservar la fluidez de E, descartar el catchlight. Y un desafío directo a
+mi afirmación de que las primitivas de la librería no podían hacer la ceja —
+*"no me creo que no podamos tener esas formas (aunque sea con otra
+técnica)"*.
 
-The lab's verdict on test 2: keep A/B's expressiveness, keep E's fluidity, drop
-the catchlight. And a direct challenge to my claim that the library primitives
-could not do the brow slant — *"I can't believe we can't have those shapes
-(even using another technique)."*
+**Ese desafío tenía razón y mi afirmación estaba equivocada.** Dos enfoques,
+ambos funcionan:
 
-**That challenge was right and my claim was wrong.** Two approaches, both work:
-
-| variant | what it is | fps | look |
+| variante | qué es | fps | aspecto |
 |---|---|---|---|
-| A SHIPPED | today's renderer, flat colour | 15.4 | baseline |
-| B GRADIENT | dithered gradient + glow | 13.0 | the preferred look |
-| **C CACHED** | **B's exact pixels, SDF run only on emotion/blink change** | **32.1** | **identical to B** |
-| D PRIMITIVE | `fillSmoothRoundRect` + black triangle occlusion | 39.4 | flat, no glow, shapes correct |
+| A SHIPPED | el renderer de hoy, color plano | 15,4 | línea base |
+| B GRADIENT | gradiente con dithering + glow | 13,0 | el aspecto preferido |
+| **C CACHED** | **los píxeles exactos de B, el SDF corre solo al cambiar emoción/parpadeo** | **32,1** | **idéntico a B** |
+| D PRIMITIVE | `fillSmoothRoundRect` + oclusión con triángulo negro | 39,4 | plano, sin glow, formas correctas |
 
-**C is the answer.** A saccade is a *translation* of an unchanged image, so it
-costs a blit rather than a re-render. Caching the three blink openness levels
-per emotion (3 x 115 KB in PSRAM) takes B from 13 fps to 32 — a 2.5x gain with
-pixel-identical output. Cost is a ~110 ms rebuild when the emotion changes,
-which is once per reaction and reads as a natural beat rather than a stutter.
+**C es la respuesta.** Una sacada es una *traslación* de una imagen que no
+cambió, así que cuesta un blit y no un re-render. Cachear los tres niveles
+de apertura por emoción (3 × 115 KB en PSRAM) lleva a B de 13 fps a 32 — una
+ganancia de 2,5× con salida píxel-idéntica. El coste es una reconstrucción
+de ~110 ms al cambiar la emoción, que es una vez por reacción y se lee como
+un compás natural, no un tirón.
 
-**D proves the shapes are not exclusive to the SDF.** Draw the whole eye with
-the library primitive, then paint a black triangle over the region the brow
-removes — subtraction instead of coverage multiplication. The angry slant comes
-out correctly. It loses the gradient and the glow, but the geometry is there,
-so "the primitive cannot express the brow" was simply false.
+**D demuestra que las formas no son exclusivas del SDF.** Dibuja el ojo
+entero con la primitiva de la librería y pinta un triángulo negro encima de
+la región que la ceja quita — sustracción en vez de multiplicación de
+cobertura. La inclinación de enfado sale correcta. Pierde el gradiente y el
+glow, pero la geometría está, así que "la primitiva no puede expresar la
+ceja" era simplemente falso.
 
-Both C and D are near the physical ceiling: the 23.1 ms wire time caps the
-panel at ~43 fps at 40 MHz SPI, so 32 vs 39 fps is a much smaller perceptual
-gap than 13 vs 39. Raising the SPI clock lifts both.
+Tanto C como D están cerca del techo físico: los 23,1 ms de cable limitan el
+panel a ~43 fps a SPI de 40 MHz, así que 32 vs 39 fps es una brecha
+perceptiva mucho menor que 13 vs 39. Subir el reloj SPI levanta ambos.
 
-**Still unresolved and independent of technique:** `browAmt = open * 0.5` slices
-away half the eye height, and every variant reproduces the same wedge shapes.
-That is a geometry bug, not a rendering-technique problem, and it is the
-remaining reason angry/sad/suspicious look broken.
+**Sin resolver entonces e independiente de la técnica:** `browAmt = open *
+0.5` rebanaba la mitad de la altura del ojo, y cada variante reproducía las
+mismas cuñas. Era un bug de geometría, no de técnica de renderizado.
+*(Posdata: arreglado después en el firmware — `kBrowDepth = 0.24` en
+`round_face.cpp`; las cejas de angry/sad/suspicious se ven bien desde
+entonces.)*

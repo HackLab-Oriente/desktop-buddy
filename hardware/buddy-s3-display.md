@@ -1,119 +1,126 @@
-# Buddy on ESP32-S3 — first bring-up: the round face
+# El buddy en ESP32-S3 — primer arranque: la cara redonda
 
-Goal for this step: the GC9A01 round display showing the color face on the
-ESP32-S3 (N16R8). Nothing else needs to be wired yet — touch, audio, RC522 are
-disabled by default in this config.
+Meta de este paso: la pantalla redonda GC9A01 mostrando la cara a color en el
+ESP32-S3 (N16R8). No hace falta cablear nada más todavía — tacto, audio y
+RC522 vienen deshabilitados por defecto en esta config.
 
-## Wiring — GC9A01 (SPI) → ESP32-S3
+## Cableado — GC9A01 (SPI) → ESP32-S3
 
-Match the firmware defaults in `firmware/main/Kconfig.projbuild`. Wire by the
-**silkscreen labels on the display**, not pin order.
+Coincide con los defaults del firmware en `firmware/main/Kconfig.projbuild`.
+Cablea por las **etiquetas de la serigrafía de la pantalla**, no por el orden
+de los pines.
 
-| GC9A01 pin | ESP32-S3 | Notes |
+| Pin GC9A01 | ESP32-S3 | Notas |
 |---|---|---|
-| VCC | 3V3 | never 5 V |
+| VCC | 3V3 | nunca 5 V |
 | GND | GND | |
-| SCL | GPIO 12 | SPI clock (SCLK) |
-| SDA | GPIO 11 | SPI data (MOSI) |
+| SCL | GPIO 12 | reloj SPI (SCLK) |
+| SDA | GPIO 11 | datos SPI (MOSI) |
 | RES | GPIO 8 | reset |
-| DC  | GPIO 9 | data/command |
-| CS  | GPIO 10 | chip select |
-| BLK | GPIO 7 | backlight (or tie to 3V3 and set BL = -1) |
+| DC | GPIO 9 | dato/comando |
+| CS | GPIO 10 | chip select |
+| BLK | GPIO 7 | retroiluminación (o a 3V3 y BL = -1) |
 
-**ESP32-S3 N16R8 pin landmines** (the reason for this pin choice):
-- **GPIO 33–37 are the octal PSRAM** — never use them.
-- GPIO 19/20 are USB, 0/3/45/46 are strapping pins, 26–32 are flash.
-- GPIO 7–12 (chosen here) are all clear.
+**Minas de pines del ESP32-S3 N16R8** (la razón de esta elección):
+- **GPIO 33–37 son la PSRAM octal** — no los uses jamás.
+- GPIO 19/20 son USB, 0/3/45/46 son strapping, 26–32 son la flash.
+- GPIO 7–12 (los elegidos) están todos libres.
 
-## Flash it
+## Flashearlo
 
 ```bash
 cd firmware
-idf.py set-target esp32s3      # first time on S3 — regenerates config
-idf.py menuconfig              # Buddy Zero → WiFi + Anthropic key (optional)
+idf.py set-target esp32s3      # primera vez en el S3 — regenera la config
+idf.py menuconfig              # Buddy Zero → WiFi + clave de Anthropic (opcional)
 idf.py build flash monitor
 ```
 
-The ESP32-S3 + GC9A01 is the only target — there is no backend to choose. The
-classic-ESP32 + SSD1306 PoC this grew out of was removed once the S3 landed;
-it lives on in git at `4d7b12e`.
+El ESP32-S3 + GC9A01 es el target de referencia. El **ESP32 clásico también
+está soportado** — misma cara a color, renderizada por bandas al no tener
+PSRAM, con otros pines por defecto: ver
+[buddy-zero-wiring.md](buddy-zero-wiring.md).
 
-## First-boot checklist (idf.py monitor)
+## Checklist de primer arranque (idf.py monitor)
 
-1. `face` / `buddy zero is alive` in the log, no `ESP_ERROR_CHECK` aborts.
-2. The round screen shows two cyan eyes on black that **blink and drift**.
-3. If the screen is blank: check RES/DC/CS wiring and 3V3.
-4. If colors look inverted or wrong (e.g. magenta eyes): flip the two lines in
-   `round_face.cpp` — `esp_lcd_panel_invert_color(..., true)` and
-   `rgb_ele_order = LCD_RGB_ELEMENT_ORDER_BGR` (BGR ↔ RGB). GC9A01 clones vary.
+1. `face` / `buddy zero is alive` en el log, sin abortos de
+   `ESP_ERROR_CHECK`.
+2. La pantalla redonda muestra dos ojos cian sobre negro que **parpadean y
+   derivan**.
+3. Si la pantalla está en negro: revisa el cableado de RES/DC/CS y el 3V3.
+4. Si los colores salen invertidos o mal (ej. ojos magenta): es un clon del
+   GC9A01 con otro orden — invierte `cfg.invert` y/o `cfg.rgb_order` en
+   `firmware/components/expressions/lgfx_buddy.h`. Los clones varían.
 
-## Gotchas we already hit (so you don't lose an evening)
+## Trampas que ya pisamos (para que no pierdas una tarde)
 
-These are all fixed in the firmware; documented here because the next lab
-member wiring an S3 will hit the same ones.
+Todas están arregladas en el firmware; se documentan porque el siguiente
+miembro del lab que cablee un S3 se topará con las mismas.
 
-- **Stack overflow in task `main` at boot.** `app_main` brings up `esp_lcd`,
-  the first framebuffer draw, and the Berry VM on one task; the default
-  3584-byte stack overflows (panic points at `vApplicationStackOverflowHook`).
-  Fix: `CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192` (in `sdkconfig.defaults`). The
-  color face task also runs at 6144.
-- **Touch reads backwards on the S3.** On the classic ESP32 a touch *lowers*
-  the capacitance reading; on the **S3 it raises it** — opposite polarity. The
-  driver now branches on `SOC_TOUCH_SENSOR_VERSION` (fires above baseline on
-  S3, below on classic). If touch never triggers, watch the `raw=… baseline=…`
-  debug line: touching should push `raw` ~30% *above* baseline.
-- **Display comes up horizontally mirrored.** Text reads backwards and the
-  angry/sad brow slants (and gaze) flip. Fixed with
-  `esp_lcd_panel_mirror(panel, true, false)` in `panel_init()`. If a different
-  clone comes up upside-down or still mirrored, adjust those two args.
-- **Python `python` vs `python3` mismatch.** If a CLI build complains the env
-  is "not consistent" / "configured with python3", it's because VS Code and a
-  hand-sourced shell picked different Python symlinks. Run `idf.py fullclean`
-  once from the environment you'll keep using, then rebuild.
+- **Stack overflow en la tarea `main` al arrancar.** `app_main` levanta la
+  pantalla, el primer dibujado y la VM Berry en una sola tarea; el stack de
+  3584 bytes por defecto se desborda (el pánico apunta a
+  `vApplicationStackOverflowHook`). Arreglo:
+  `CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192` (en `sdkconfig.defaults`). La tarea
+  de la cara a color corre además con 6144.
+- **El tacto lee al revés en el S3.** En el ESP32 clásico un toque *baja* la
+  lectura de capacitancia; en el **S3 la sube** — polaridad opuesta. El
+  driver ramifica por versión de hardware (dispara por encima de la línea
+  base en el S3, por debajo en el clásico). Si el tacto nunca dispara, mira
+  la línea de debug `raw=… baseline=…`: tocar debería empujar `raw` ~30% por
+  *encima* de la base en el S3.
+- **Mismatch de Python `python` vs `python3`.** Si un build de CLI se queja
+  de que el entorno "is not consistent" / "configured with python3", es que
+  VS Code y una shell activada a mano eligieron symlinks de Python
+  distintos. Ejecuta `idf.py fullclean` una vez desde el entorno que vayas a
+  usar, y recompila.
 
-## WS2812 LED ring (mood halo)
+## Anillo LED WS2812 (halo de ánimo)
 
-The 12-LED ring glows the **emotion's mood color** (same table as the eyes —
-cyan neutral, red angry, blue sad…) and animates with `led.mood`: breathe
-(calm/excited), a rotating comet (thinking), or off. It's the default mood
-indicator backend on the S3.
+El anillo de 12 LED brilla con el **color de ánimo de la emoción** (la misma
+tabla que los ojos — cian neutral, rojo enfadado, azul triste…) y se anima
+con `led.mood`: respirar (calm/excited), un cometa girando (thinking), o
+apagado.
 
-| Ring pin | ESP32-S3 | Notes |
+| Pin del anillo | ESP32-S3 | Notas |
 |---|---|---|
-| VCC / 5V / VDD | **5V** (VBUS) | 12 LEDs want 5 V; 3V3 is dim and marginal |
-| GND | GND | shared with the S3 — required |
-| DIN / IN | GPIO **21** | data in; **use the DIN side**, not DOUT |
+| VCC / 5V / VDD | **5V** (VBUS) | 12 LEDs quieren 5 V; a 3V3 se ve tenue y falla |
+| GND | GND | compartido con el S3 — obligatorio |
+| DIN / IN | GPIO **21** | datos; **usa el lado DIN**, no DOUT |
 
-Notes:
-- **Data at 3.3 V into a 5 V strip usually works** at this short length. If the
-  first LED is flaky or wrong-colored, add a level shifter, or drop the ring's
-  VCC to ~4.3 V (one series diode) to lower its logic threshold.
-- **Brightness is capped in firmware** (`kMaxBright = 0.35` in `led_ring.cpp`).
-  12 LEDs at full white pull ~700 mA — past what the devkit's 5 V pin likes.
-  Keep the cap unless the ring gets its own 5 V supply (the v1 power rail).
-- Config: `menuconfig → Buddy Zero → WS2812 mood ring`, pin `BUDDY_WS2812_PIN`
-  (21), count `BUDDY_WS2812_COUNT` (12).
-- Ring check on boot: `ring: WS2812 ring: 12 LEDs on GPIO 21`, then a gentle
-  cyan breathe. Wrong colors (e.g. red/blue swapped) → the strip isn't GRB;
-  change `LED_STRIP_COLOR_COMPONENT_FMT_GRB` to `_RGB` in `led_ring.cpp`.
+Notas:
+- **Datos a 3,3 V hacia una tira de 5 V suele funcionar** a esta longitud
+  tan corta. Si el primer LED va raro o con colores mal, añade un conversor
+  de nivel, o baja el VCC del anillo a ~4,3 V (un diodo en serie) para bajar
+  su umbral lógico.
+- **El brillo está capado en firmware** (`kMaxBright = 0.35` en
+  `led_ring.cpp`). 12 LEDs a blanco pleno piden ~700 mA — más de lo que le
+  gusta al pin de 5 V del devkit. Mantén el cap salvo que el anillo tenga su
+  propia fuente de 5 V (el raíl de la v1).
+- Config: `menuconfig → Buddy Zero → WS2812 mood ring`, pin
+  `BUDDY_WS2812_PIN` (21), cantidad `BUDDY_WS2812_COUNT` (12).
+- Comprobación al arrancar: `ring: WS2812 ring: 12 LEDs on GPIO 21`, y luego
+  una respiración cian suave. Colores mal (ej. rojo/azul intercambiados) →
+  la tira no es GRB; cambia `LED_STRIP_COLOR_COMPONENT_FMT_GRB` a `_RGB` en
+  `led_ring.cpp`.
 
-## What plugs in next (already have the parts)
+## Qué se conecta después (las piezas ya están)
 
-Same S3, incremental — each is one more Sense/Expression on the bus:
-- **Petting pad** — touch works on S3 (GPIO 1–14). Enable `BUDDY_PIN_TOUCH`.
-- **Mic (INMP441) + amp (MAX98357A) + speaker** — the I2S audio path (chirps
-  first, then the push-to-talk voice loop).
-- **Buttons** — extra digital Senses.
+Mismo S3, incremental — cada una es un Sense/Expression más en el bus:
+- **Almohadilla de caricias** — el tacto funciona en el S3 (GPIO 1–14).
+  Configura `BUDDY_PIN_TOUCH`.
+- **Micro (INMP441) + ampli (MAX98357A) + altavoz** — la ruta de audio I2S
+  (chirps primero, luego el bucle de voz push-to-talk).
+- **Botones** — Senses digitales extra.
 
-## RC522 NFC reader (untested on the S3)
+## Lector NFC RC522 (sin probar en el S3)
 
-Its own SPI3 bus, so it does not share with the display. These are the
-menuconfig defaults; the old classic-ESP32 values were actively dangerous on
-this chip because GPIO 19/20 are USB.
+Su propio bus SPI3, así que no comparte con la pantalla. Estos son los
+defaults de menuconfig; los valores viejos del ESP32 clásico eran
+directamente peligrosos en este chip porque GPIO 19/20 son el USB.
 
-| RC522 pin | ESP32-S3 | Notes |
+| Pin RC522 | ESP32-S3 | Notas |
 |---|---|---|
-| 3.3V | **3V3** | 5 V kills the module |
+| 3.3V | **3V3** | 5 V mata el módulo |
 | GND | GND | |
 | SCK | GPIO **39** | |
 | MISO | GPIO **40** | |
@@ -121,9 +128,10 @@ this chip because GPIO 19/20 are USB.
 | SDA / CS | GPIO **42** | |
 | RST | GPIO **38** | |
 
-Enable in `menuconfig → Buddy Zero → Enable RC522 RFID reader`; the pins are
-configurable in the submenu. Chosen to avoid every S3 landmine: the display bus
-(7–12), USB (19/20), flash (26–32), octal PSRAM (33–37), the strapping pins
-(0/3/45/46), touch (4) and the LED ring (21).
+Se habilita en `menuconfig → Buddy Zero → Enable RC522 RFID reader`; los
+pines son configurables en el submenú. Elegidos evitando cada mina del S3:
+el bus de la pantalla (7–12), USB (19/20), flash (26–32), PSRAM octal
+(33–37), strapping (0/3/45/46), tacto (4) y el anillo LED (21).
 
-Boot check: tap a fob and watch for `nfc.tag` with a hex UID in the trace.
+Comprobación al arrancar: acerca un llavero y busca `nfc.tag` con un UID hex
+en la traza.

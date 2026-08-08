@@ -1,77 +1,80 @@
-# Training workshop: teach the buddy to write its own lines
+# Taller de entrenamiento: enseña al buddy a escribir sus propias frases
 
-A hands-on recipe for training a tiny language model — from zero ML
-experience to a model of your own running on the buddy. This is the
-pre-workshop session voted for in [workshops.md](workshops.md); it builds on
-the kernel results in `spikes/tinylm-s3` (branch `spike/tinylm-s3`), where
-the inference side is already solved: **152 tok/s** for a 260K-param model
-on the ESP32-S3, output streaming to the face.
+Una receta práctica para entrenar un modelo de lenguaje diminuto — de cero
+experiencia en ML a un modelo tuyo corriendo en el buddy. Es la sesión previa
+a los talleres votada en [workshops.md](workshops.md); se apoya en los
+resultados de kernel de `spikes/tinylm-s3` (rama `spike/tinylm-s3`), donde el
+lado de inferencia ya está resuelto: **152 tok/s** para un modelo de 260K
+parámetros en el ESP32-S3, con la salida streameando a la cara.
 
-Nobody attending needs prior AI/ML experience. If you can run terminal
-commands, you can train a model.
+Nadie necesita experiencia previa en IA/ML para asistir. Si sabes ejecutar
+comandos en una terminal, sabes entrenar un modelo.
 
 ---
 
-## 1. Training, in five sentences
+## 1. Entrenar, en cinco frases
 
-A language model is a large pile of numbers ("parameters" or "weights") that
-turns *the words so far* into *a guess about the next word-piece*. Training
-shows it millions of text snippets; after every guess, an algorithm nudges
-each number so that guess would have been slightly less wrong. Repeat a few
-million times and the guesses get good — that's the entire trick. Your job
-as the trainer is only to pick the model's **size and shape** (the flags
-below), point it at **data**, and **watch a number fall** until it stops
-falling. Quality control is reading what it writes.
+Un modelo de lenguaje es una pila grande de números ("parámetros" o "pesos")
+que convierte *las palabras hasta ahora* en *una apuesta por la siguiente
+pieza de palabra*. Entrenar es enseñarle millones de fragmentos de texto;
+tras cada apuesta, un algoritmo empuja cada número para que esa apuesta
+hubiera estado un poco menos equivocada. Repite unos millones de veces y las
+apuestas se vuelven buenas — ese es todo el truco. Tu trabajo como
+entrenador es solo elegir el **tamaño y forma** del modelo (los flags de
+abajo), apuntarlo a **datos**, y **mirar cómo baja un número** hasta que deja
+de bajar. El control de calidad es leer lo que escribe.
 
-Two numbers matter while it runs:
+Dos números importan mientras corre:
 
-- **train loss** — how wrong its guesses are on text it is learning from.
-- **val loss** — how wrong on text it has *never seen*. This is the honest
-  one. When val loss stops falling, more training buys nothing.
+- **train loss** — cuánto se equivoca con el texto del que está aprendiendo.
+- **val loss** — cuánto se equivoca con texto que *nunca ha visto*. Este es
+  el honesto. Cuando el val loss deja de bajar, entrenar más no compra nada.
 
-## 2. What you need
+## 2. Qué necesitas
 
-- A Mac (Apple-Silicon GPU via PyTorch's `mps` device), a Linux box
-  (NVIDIA GPU ideal; plain CPU is fine for the XS/S sizes), or free Google
-  Colab. No paid cloud, no account keys.
-- **Python 3.10–3.12 — NOT 3.13/3.14.** PyTorch and the pinned build
-  tooling lag the newest Python; 3.14 fails before training even starts
-  (see troubleshooting, §8).
-- ~3 GB of disk, one evening.
-- The training code is the same repo our kernel came from —
-  [karpathy/llama2.c](https://github.com/karpathy/llama2.c). It writes the
-  exact `.bin` format the buddy already executes. Train → quantise → flash.
-- Companion for the session projector:
-  [param-explorer.html](param-explorer.html) — an interactive version of §4
-  and §5 (drag the knobs, watch size and buddy-speed move).
+- Un Mac (GPU Apple Silicon vía el device `mps` de PyTorch), una máquina
+  Linux (GPU NVIDIA ideal; CPU pelada vale para los tamaños XS/S), o Google
+  Colab gratis. Sin nube de pago, sin claves de cuenta.
+- **Python 3.10–3.12 — NO 3.13/3.14.** PyTorch y el tooling de build van por
+  detrás del Python más nuevo; con 3.14 falla antes de empezar a entrenar
+  (ver resolución de problemas, §8).
+- ~3 GB de disco, una tarde.
+- El código de entrenamiento es el mismo repo del que salió nuestro kernel —
+  [karpathy/llama2.c](https://github.com/karpathy/llama2.c). Escribe el
+  formato `.bin` exacto que el buddy ya ejecuta. Entrenar → cuantizar →
+  flashear.
+- Compañero para el proyector de la sesión:
+  [param-explorer.html](param-explorer.html) — la versión interactiva de §4 y
+  §5 (mueve los mandos, mira cómo cambian tamaño y velocidad en el buddy).
 
-## 3. First model: known data before our data
+## 3. Primer modelo: datos conocidos antes que los nuestros
 
-Train on **TinyStories** (a public dataset of simple children's stories)
-before touching a buddy corpus. This separates "learning the pipeline" from
-"building our dataset" — and gives you a direct on-device comparison against
-the reference `stories260K` model.
+Entrena con **TinyStories** (un dataset público de cuentos infantiles
+simples) antes de tocar un corpus del buddy. Esto separa "aprender el
+pipeline" de "construir nuestro dataset" — y te da comparación directa en
+dispositivo contra el modelo de referencia `stories260K`.
 
 ```bash
 git clone https://github.com/karpathy/llama2.c.git && cd llama2.c
 python3.12 -m venv .venv && source .venv/bin/activate
 pip install torch numpy sentencepiece requests tqdm
-python tinystories.py download                    # ~1.5 GB, once
+python tinystories.py download                    # ~1.5 GB, una vez
 python tinystories.py train_vocab --vocab_size=512
 python tinystories.py pretokenize --vocab_size=512
 ```
 
-(Two deliberate deviations from the repo's own README: the venv is pinned
-to Python 3.12, and we install the packages **unpinned** instead of
-`pip install -r requirements.txt` — the repo pins `numpy==1.23.5`, which is
-old enough that it won't build on current setups. Recent versions of all
-five packages work fine. On a Mac, `brew install python@3.12` first if you
-don't have it; on Debian/Ubuntu, `sudo apt install python3.12-venv`.)
+(Dos desviaciones deliberadas del README del propio repo: el venv va fijado
+a Python 3.12, y los paquetes se instalan **sin pinear** en vez de
+`pip install -r requirements.txt` — el repo pinea `numpy==1.23.5`, tan viejo
+que ya no compila en setups actuales. Las versiones recientes de los cinco
+paquetes funcionan bien. En Mac, antes `brew install python@3.12` si no lo
+tienes; en Debian/Ubuntu, `sudo apt install python3.12-venv`.)
 
-(`train_vocab` builds the 512-piece vocabulary; `pretokenize` pre-chews the
-dataset into token ids. Both are one-time and take a few minutes.)
+(`train_vocab` construye el vocabulario de 512 piezas; `pretokenize`
+pre-mastica el dataset a ids de token. Ambos son de una sola vez y tardan
+unos minutos.)
 
-Then the training run — this shape is ~150K parameters:
+Luego el entrenamiento — esta forma son ~150K parámetros:
 
 ```bash
 python train.py \
@@ -82,156 +85,160 @@ python train.py \
   --eval_interval=200 --max_iters=20000 --always_save_checkpoint=True
 ```
 
-Three of those flags are **not** the repo's defaults, and each matters:
+Tres de esos flags **no** son los defaults del repo, y cada uno importa:
 
-- **`--max_iters=20000`.** The default is 100,000, and the learning rate
-  decays on a curve calibrated to whatever that number is. Stop a 100k run
-  at 8k and the rate never comes down, so the model never gets its
-  low-rate polish phase — it ends up worse than a *shorter* run that
-  finished properly. Set the budget you actually intend to spend.
-- **`--max_seq_len=128`.** This is the **biggest speed lever there is**,
-  because attention cost grows with the square of context length. Measured
-  on an M-series Mac at XS size: 251 ms/step at 256, **89 ms at 128, 43 ms
-  at 64.** 128 is plenty of context for short stories. See §5.5.
-- **`--always_save_checkpoint=True`** so Ctrl-C never loses more than the
-  last eval interval.
+- **`--max_iters=20000`.** El default es 100.000, y el learning rate decae
+  con una curva calibrada a ese número, sea el que sea. Para una corrida de
+  100k a las 8k y el rate nunca llega a bajar, así que el modelo nunca
+  recibe su fase de pulido a rate bajo — acaba peor que una corrida *más
+  corta* que terminó como es debido. Fija el presupuesto que de verdad vas a
+  gastar.
+- **`--max_seq_len=128`.** Es **la palanca de velocidad más grande que
+  hay**, porque el coste de la atención crece con el cuadrado del contexto.
+  Medido en un Mac M-series a tamaño XS: 251 ms/paso a 256, **89 ms a 128,
+  43 ms a 64.** 128 es contexto de sobra para cuentos cortos. Ver §5.5.
+- **`--always_save_checkpoint=True`** para que un Ctrl-C nunca pierda más
+  que el último intervalo de evaluación.
 
-`--batch_size` and `--gradient_accumulation_steps`, by contrast, are
-nearly irrelevant here: every split of the same effective batch measured
-within 7% of the others. Don't spend time tuning them.
+`--batch_size` y `--gradient_accumulation_steps`, en cambio, son casi
+irrelevantes aquí: cada reparto del mismo batch efectivo midió dentro de un
+7% de los demás. No gastes tiempo en ajustarlos.
 
-It prints a loss line every few seconds. Let it run to the end, or until
-val loss flattens (ballpark 20–40 min on an M-series at this size). Read
-its stories with:
+Imprime una línea de loss cada pocos segundos. Déjalo llegar al final, o
+hasta que el val loss se aplane (a ojo, 20–40 min en un M-series a este
+tamaño). Lee sus cuentos con:
 
 ```bash
 python sample.py --checkpoint=out/ckpt.pt --num_samples=5 --seed=42
 ```
 
-**Pass `--num_samples` and `--seed` or you will be misled:** `sample.py`
-hard-codes `seed = 1337` and `num_samples = 1`, so re-running it gives
-byte-identical output every single time. That looks alarmingly like a
-stuck model and is just a fixed random seed.
+**Pasa `--num_samples` y `--seed` o te va a engañar:** `sample.py` lleva
+`seed = 1337` y `num_samples = 1` hardcodeados, así que relanzarlo da una
+salida idéntica byte a byte cada vez. Parece alarmantemente un modelo
+atascado y es solo una semilla fija.
 
-The `--device/--dtype/--compile` trio depends on your machine — they change
-speed only, never what the model learns:
+El trío `--device/--dtype/--compile` depende de tu máquina — cambian solo la
+velocidad, nunca lo que el modelo aprende:
 
-| machine | flags |
+| máquina | flags |
 |---|---|
-| Mac (Apple Silicon) | `--device=mps --dtype=float32 --compile=False` (`torch.compile` and Apple GPUs don't get along) |
-| Linux + NVIDIA GPU, or Colab | `--device=cuda --dtype=bfloat16 --compile=True` |
-| any CPU-only box | `--device=cpu --dtype=float32 --compile=False` (fine for XS/S; painful above) |
+| Mac (Apple Silicon) | `--device=mps --dtype=float32 --compile=False` (`torch.compile` y las GPU de Apple no se llevan) |
+| Linux + GPU NVIDIA, o Colab | `--device=cuda --dtype=bfloat16 --compile=True` |
+| cualquier máquina solo-CPU | `--device=cpu --dtype=float32 --compile=False` (bien para XS/S; doloroso más arriba) |
 
-## 4. The knobs, in plain language
+## 4. Los mandos, en lenguaje llano
 
-Everything you pass to `train.py` falls into two families: flags that shape
-**the model itself** (they change what ends up on the buddy) and flags that
-shape **the training process** (they change how long it takes to get there,
-but not what ships).
+Todo lo que le pasas a `train.py` cae en dos familias: flags que dan forma
+**al modelo en sí** (cambian lo que acaba en el buddy) y flags que dan forma
+**al proceso de entrenamiento** (cambian cuánto tarda en llegar, no lo que
+se entrega).
 
-### Flags that shape the model
+### Flags que dan forma al modelo
 
-| flag | plain meaning | turning it UP means |
+| flag | significado llano | subirlo significa |
 |---|---|---|
-| `--dim` | width: the size of the "thought" the model carries per word-piece | more nuance per word, better word choice — and cost grows roughly with dim², so this is the most expensive knob |
-| `--n_layers` | depth: how many times the thought gets refined before predicting | better grammar and sentence-level coherence; cost grows linearly |
-| `--n_heads` | how many things attention can "look for" at once in the earlier words (one head might track the subject, another the mood) | diminishing returns at our scale; keep dim/n_heads (the per-head size) between 8 and 16 |
-| `--n_kv_heads` | a memory-saving variant: heads can share their lookup tables | fewer = smaller KV cache on the buddy; `stories260K` uses half as many kv-heads as heads and it costs nothing noticeable |
-| `--vocab_size` | how many word-pieces exist. 512 means common words are 1 piece, rare ones are spelled from fragments | bigger vocab = fewer pieces per sentence (faster reading aloud) but a bigger embedding table; **keep 512 for everything in this workshop** so all models share tooling |
-| `--max_seq_len` | how far back it can see, in pieces | we generate 15-word one-liners; 256 is already generous. On the buddy this sets the KV-cache RAM (it's why the firmware caps it) |
-| `--dropout` | randomly ignore a fraction of the network each step, to discourage memorising | worth raising (0.1–0.2) in Part 2, when our corpus is small and memorisation is the main risk |
+| `--dim` | anchura: el tamaño del "pensamiento" que el modelo lleva por pieza de palabra | más matiz por palabra, mejor elección léxica — y el coste crece más o menos con dim², así que es el mando más caro |
+| `--n_layers` | profundidad: cuántas veces se refina el pensamiento antes de predecir | mejor gramática y coherencia de frase; el coste crece linealmente |
+| `--n_heads` | cuántas cosas puede "buscar" la atención a la vez en las palabras anteriores (una cabeza puede seguir al sujeto, otra al ánimo) | rendimientos decrecientes a nuestra escala; mantén dim/n_heads (el tamaño por cabeza) entre 8 y 16 |
+| `--n_kv_heads` | una variante de ahorro de memoria: las cabezas pueden compartir sus tablas de búsqueda | menos = KV cache más pequeña en el buddy; `stories260K` usa la mitad de kv-heads que heads y no cuesta nada apreciable |
+| `--vocab_size` | cuántas piezas de palabra existen. 512 significa que las palabras comunes son 1 pieza y las raras se deletrean con fragmentos | vocabulario mayor = menos piezas por frase (lectura más rápida) pero tabla de embedding más grande; **mantén 512 para todo el taller** para que todos los modelos compartan tooling |
+| `--max_seq_len` | hasta dónde ve hacia atrás, en piezas | generamos frases de 15 palabras; 256 ya es generoso. En el buddy fija la RAM de la KV cache (por eso el firmware la capa) |
+| `--dropout` | ignorar al azar una fracción de la red en cada paso, para desalentar la memorización | vale la pena subirlo (0.1–0.2) en la Parte 2, cuando nuestro corpus es pequeño y memorizar es el riesgo principal |
 
-**How the knobs become a parameter count** (≈ speed on the buddy): each
-layer costs about `4·dim²` (attention) `+ 3·dim·hidden` (feed-forward,
-where hidden ≈ 2.7·dim), and the embedding table costs `vocab × dim` on
-top. You never need to compute this — the first line `train.py` prints is
-the exact count. Smaller count = faster buddy, dumber model. That trade is
-the whole game.
+**Cómo los mandos se vuelven un número de parámetros** (≈ velocidad en el
+buddy): cada capa cuesta aproximadamente `4·dim²` (atención) `+ 3·dim·hidden`
+(feed-forward, con hidden ≈ 2.7·dim), y la tabla de embedding cuesta
+`vocab × dim` encima. Nunca necesitas calcularlo — la primera línea que
+imprime `train.py` es el número exacto. Menos parámetros = buddy más rápido,
+modelo más tonto. Ese intercambio es todo el juego.
 
-### Flags that shape only the training run
+### Flags que solo dan forma al entrenamiento
 
-| flag | plain meaning | what to know |
+| flag | significado llano | qué saber |
 |---|---|---|
-| `--batch_size` | snippets digested per nudge | bigger = better chip use, more RAM; it barely changes final quality. Lower it only if you run out of memory |
-| `--gradient_accumulation_steps` | split one nudge across N passes | a memory workaround for models that can't fit a real batch. **Set it to 1 at our sizes** — the default 4 quadruples the per-step overhead for identical learning |
-| `--learning_rate` | nudge size | too high: loss explodes or jitters. Too low: glacial. The default is tuned for this repo — leave it until you have a reason |
-| `--max_iters` | total nudges before stopping | **also sets the learning-rate decay curve.** Don't plan to Ctrl-C early: a truncated run never gets its low-rate polish. Pick the real budget up front |
-| `--eval_interval` | how often val loss is measured | 200 keeps the feedback loop tight |
-| `--device` / `--dtype` / `--compile` | which chip does the math and how | mechanics only — zero effect on what the model learns. Mac: `mps/float32/False`. Colab GPU: `cuda/bfloat16/True` |
+| `--batch_size` | fragmentos digeridos por empujón | mayor = mejor uso del chip, más RAM; apenas cambia la calidad final. Bájalo solo si te quedas sin memoria |
+| `--gradient_accumulation_steps` | repartir un empujón en N pasadas | un apaño de memoria para modelos que no caben con un batch real. **Ponlo a 1 a nuestros tamaños** — el default 4 cuadruplica el overhead por paso para un aprendizaje idéntico |
+| `--learning_rate` | tamaño del empujón | demasiado alto: el loss explota o tiembla. Demasiado bajo: glacial. El default está ajustado para este repo — déjalo hasta tener una razón |
+| `--max_iters` | empujones totales antes de parar | **también fija la curva de decaimiento del learning rate.** No planees hacer Ctrl-C antes de hora: una corrida truncada nunca recibe su pulido a rate bajo. Elige el presupuesto real desde el principio |
+| `--eval_interval` | cada cuánto se mide el val loss | 200 mantiene el bucle de feedback corto |
+| `--device` / `--dtype` / `--compile` | qué chip hace las cuentas y cómo | solo mecánica — cero efecto en lo que aprende. Mac: `mps/float32/False`. GPU de Colab: `cuda/bfloat16/True` |
 
-### What failure looks like (so nobody panics)
+### Cómo se ve el fracaso (para que nadie entre en pánico)
 
-- **Loss goes UP or to `nan`** → learning rate too high, or a bad flag
-  combo. Kill it, restart; nothing is damaged.
-- **Samples are word salad** → undertrained (val loss still falling — keep
-  going) or the model is too small for the data's variety.
-- **Samples repeat one phrase forever** → classic tiny-model failure;
-  more data variety, a bit more size, or more training usually fixes it.
-- **val loss rises while train loss keeps falling** → memorisation
-  (overfitting). For TinyStories that's a stop sign. For our tiny buddy
-  corpus in Part 2 it is *expected* — see §7.
+- **El loss SUBE o da `nan`** → learning rate demasiado alto, o mala
+  combinación de flags. Mátalo y relanza; no se ha roto nada.
+- **Las muestras son ensalada de palabras** → poco entrenado (el val loss
+  sigue bajando — sigue) o el modelo es demasiado pequeño para la variedad
+  de los datos.
+- **Las muestras repiten una frase para siempre** → el fallo clásico de
+  modelo diminuto; más variedad de datos, algo más de tamaño o más
+  entrenamiento suele arreglarlo.
+- **El val loss sube mientras el train loss sigue bajando** → memorización
+  (overfitting). Para TinyStories es señal de parar. Para nuestro corpus
+  diminuto del buddy en la Parte 2 es *lo esperado* — ver §7.
 
-## 5. The size ladder
+## 5. La escalera de tamaños
 
-The session's core experiment: same data, four sizes, then the group reads
-the output and picks the smallest one that sounds good. Buddy speeds are
-derived from the **measured** int8-PSRAM result in the spike (88 tok/s at
-228K non-embedding params; speed scales inversely with that count — this is
-the realistic in-firmware number, not the internal-RAM benchmark headline):
+El experimento central de la sesión: mismos datos, cuatro tamaños, y el
+grupo lee la salida y elige el más pequeño que suene bien. Las velocidades
+en el buddy derivan del resultado int8-PSRAM **medido** en el spike (88
+tok/s a 228K parámetros no-embedding; la velocidad escala inversamente con
+ese número — es la cifra realista dentro del firmware, no el titular del
+benchmark en RAM interna):
 
-| ladder | flags | ≈ params | buddy speed (int8, PSRAM) | 15-word line |
+| escalón | flags | ≈ params | velocidad en el buddy (int8, PSRAM) | frase de 15 palabras |
 |---|---|---|---|---|
-| XS | `--dim=48 --n_layers=4 --n_heads=4 --n_kv_heads=4` | ~140K | ~180 tok/s | instant |
-| S *(stories260K's shape)* | `--dim=64 --n_layers=5 --n_heads=8 --n_kv_heads=4` | ~280K | ~81 tok/s | ~0.3 s |
-| M | `--dim=64 --n_layers=6 --n_heads=8 --n_kv_heads=4` | ~305K | ~74 tok/s | ~0.35 s |
-| L | `--dim=80 --n_layers=6 --n_heads=8 --n_kv_heads=8` | ~520K | ~42 tok/s | ~0.55 s |
-| XL *(≈ "Config S")* | `--dim=128 --n_layers=6 --n_heads=8 --n_kv_heads=4` | ~1.3M | ~17 tok/s | ~1.3 s |
+| XS | `--dim=48 --n_layers=4 --n_heads=4 --n_kv_heads=4` | ~140K | ~180 tok/s | instantánea |
+| S *(la forma de stories260K)* | `--dim=64 --n_layers=5 --n_heads=8 --n_kv_heads=4` | ~280K | ~81 tok/s | ~0,3 s |
+| M | `--dim=64 --n_layers=6 --n_heads=8 --n_kv_heads=4` | ~305K | ~74 tok/s | ~0,35 s |
+| L | `--dim=80 --n_layers=6 --n_heads=8 --n_kv_heads=8` | ~520K | ~42 tok/s | ~0,55 s |
+| XL *(≈ "Config S")* | `--dim=128 --n_layers=6 --n_heads=8 --n_kv_heads=4` | ~1.3M | ~17 tok/s | ~1,3 s |
 
-Tokens stream to the face as they're generated, so perceived latency is the
-first token, not the full line — even XL feels responsive.
+Los tokens streamean a la cara según se generan, así que la latencia
+percibida es el primer token, no la frase entera — hasta XL se siente ágil.
 
-(Why S says ~280K when stories260K is 260K: `train.py`'s default rounds the
-hidden layer up to 192 where the original used 172. Same shape, ~7% more
-parameters — the measured 88 tok/s belongs to the original; recipe-trained
-S lands at ~81.)
+(Por qué S dice ~280K cuando stories260K son 260K: el default de `train.py`
+redondea la capa oculta a 192 donde el original usó 172. Misma forma, ~7%
+más parámetros — los 88 tok/s medidos son del original; la S entrenada con
+la receta cae en ~81.)
 
-## 5.5. Making runs fast (measure, don't guess)
+## 5.5. Hacer las corridas rápidas (mide, no adivines)
 
-`bench_train_config.py` (in this folder — copy it into your llama2.c clone)
-times a real forward+backward at every `(device, batch, accumulation)`
-combination for a given model shape. It predicted 258 ms/step where live
-training then measured 260, so its numbers transfer.
+`bench_train_config.py` (en esta carpeta — cópialo a tu clon de llama2.c)
+cronometra un forward+backward real en cada combinación de `(device, batch,
+accumulation)` para una forma de modelo dada. Predijo 258 ms/paso donde el
+entrenamiento en vivo midió luego 260, así que sus números se transfieren.
 
 ```bash
 cp path/to/desktop-buddy/docs/bench_train_config.py .
-python bench_train_config.py                          # XS size, seq 256
-python bench_train_config.py --max_seq_len=64         # what round 2 will use
-python bench_train_config.py --dim=64 --n_layers=5    # a different ladder rung
+python bench_train_config.py                          # tamaño XS, seq 256
+python bench_train_config.py --max_seq_len=64         # lo que usará la ronda 2
+python bench_train_config.py --dim=64 --n_layers=5    # otro escalón de la escalera
 ```
 
-Measured on an M-series Mac, XS size, effective batch 128:
+Medido en un Mac M-series, tamaño XS, batch efectivo 128:
 
-| what you change | effect |
+| qué cambias | efecto |
 |---|---|
-| `--max_seq_len` 256 → 128 → 64 | 251 → 89 → **43 ms/step** (attention is quadratic in context) |
-| batch/accumulation split | **under 7% across every split** — not worth tuning |
-| `mps` → `cpu` | ~1.4× slower at this size (closer than you'd expect; worth testing on your machine) |
+| `--max_seq_len` 256 → 128 → 64 | 251 → 89 → **43 ms/paso** (la atención es cuadrática en el contexto) |
+| reparto batch/accumulation | **menos de 7% entre todos los repartos** — no vale la pena ajustarlo |
+| `mps` → `cpu` | ~1,4× más lento a este tamaño (más cerca de lo que esperarías; vale probarlo en tu máquina) |
 
-**For round 2 this is the headline:** our utterances are ~20–30 word-pieces,
-so `--max_seq_len=64` is not a compromise, it is the correct setting — and it
-makes a full run ~6× faster. That's the difference between one experiment
-per evening and one per coffee break.
+**Para la ronda 2 este es el titular:** nuestras frases son ~20–30 piezas,
+así que `--max_seq_len=64` no es un compromiso, es el ajuste correcto — y
+hace la corrida completa ~6× más rápida. Es la diferencia entre un
+experimento por tarde y uno por pausa de café.
 
-Two habits worth borrowing from the rest of this project: **a single
-printed step time is noise** (thermal drift and data-loader jitter easily
-swing it 30%), so compare benchmark runs rather than individual log lines;
-and `mfu` in the training log is computed against an A100's peak FLOPS, so
-it is meaningless on anything else — ignore it.
+Dos hábitos que vale la pena copiar del resto de este proyecto: **un tiempo
+de paso impreso suelto es ruido** (la deriva térmica y el jitter del loader
+lo mueven un 30% fácil), así que compara corridas del benchmark, no líneas
+de log individuales; y el `mfu` del log se calcula contra los FLOPS pico de
+una A100, así que en cualquier otra máquina no significa nada — ignóralo.
 
-## 6. Putting a model on the buddy
+## 6. Poner un modelo en el buddy
 
-`train.py` writes `out/model.bin` (fp32, same format as stories260K).
-From the `spikes/tinylm-s3` directory on branch `spike/tinylm-s3`:
+`train.py` escribe `out/model.bin` (fp32, mismo formato que stories260K).
+Desde el directorio `spikes/tinylm-s3` en la rama `spike/tinylm-s3`:
 
 ```bash
 esptool.py --chip esp32s3 -p PORT write-flash 0x710000 model.bin
@@ -240,18 +247,18 @@ esptool.py --chip esp32s3 -p PORT write-flash 0x910000 model-rowq8.bin
 idf.py -p PORT flash monitor
 ```
 
-The benchmark reads the model's shape from the file headers, so it adapts to
-any ladder size unmodified. Two gotchas:
+El benchmark lee la forma del modelo de las cabeceras del archivo, así que
+se adapta a cualquier escalón sin modificar nada. Dos trampas:
 
-- **The fp32 file must stay under 2 MB** or it overlaps the int8 blob at
-  partition offset `+0x200000`. XS/S/M fit; **L (~2.1 MB) and XL (~5 MB) do
-  not — for those, skip the fp32 flash entirely** and flash only the int8
-  blob (the two fp32 benchmark passes will print garbage; ignore them, the
-  int8 passes are self-contained).
-- **A new tokenizer must be re-embedded.** Each `train_vocab` run produces
-  a different `tok512.bin`, and the firmware carries it inside `tok512.h`.
-  If you skip this, a perfectly healthy model decodes to gibberish.
-  Regenerate with:
+- **El archivo fp32 debe quedar por debajo de 2 MB** o pisa el blob int8 en
+  el offset `+0x200000` de la partición. XS/S/M caben; **L (~2,1 MB) y XL
+  (~5 MB) no — para esos, sáltate el flasheo fp32 del todo** y flashea solo
+  el blob int8 (las dos pasadas fp32 del benchmark imprimirán basura;
+  ignóralas, las pasadas int8 son autocontenidas).
+- **Un tokenizer nuevo hay que re-embeberlo.** Cada corrida de `train_vocab`
+  produce un `tok512.bin` distinto, y el firmware lo lleva dentro de
+  `tok512.h`. Si te lo saltas, un modelo perfectamente sano decodifica a
+  galimatías. Regenéralo con:
 
 ```bash
 python3 -c "
@@ -267,13 +274,14 @@ with open('tok512.h','w') as f:
 "
 ```
 
-then replace `spikes/tinylm-s3/main/tok512.h` with it and rebuild.
+y sustituye `spikes/tinylm-s3/main/tok512.h` y recompila.
 
-## 7. Part 2: the buddy corpus
+## 7. Parte 2: el corpus del buddy
 
-Once the group's **line bank** exists (the mood-labelled utterance file —
-which ships in a pack in its own right), it doubles as training data. The
-format is one utterance per line, mood as a plain-text prefix:
+Cuando exista el **banco de frases** del grupo (el archivo de frases
+etiquetadas por ánimo — que se entrega en un pack por derecho propio), hace
+doble función como datos de entrenamiento. El formato es una frase por
+línea, el ánimo como prefijo en texto plano:
 
 ```
 happy: Ooh, a friend! Today is officially the best day.
@@ -281,59 +289,63 @@ sleepy: Five more minutes. Maybe ten. Wake me for snacks.
 angry: I have logged this offense. There will be consequences.
 ```
 
-At generation time the firmware feeds `happy: ` as the prompt and the model
-completes it in that register. Plain-text prefixes (not special `<tokens>`)
-keep the tokenizer pipeline stock — the BPE learns them as ordinary frequent
-pieces.
+En generación, el firmware alimenta `happy: ` como prompt y el modelo lo
+completa en ese registro. Los prefijos en texto plano (no `<tokens>`
+especiales) mantienen el pipeline del tokenizer intacto — el BPE los aprende
+como piezas frecuentes normales.
 
-Session prep still to build (small, ~30 lines each, following
-`tinystories.py`'s pattern): a `pretokenize` script for our corpus file, and
-a sampling script that prompts with each mood. **Two expectations to set:**
+Prep de la sesión aún por construir (pequeño, ~30 líneas cada uno, siguiendo
+el patrón de `tinystories.py`): un script `pretokenize` para nuestro archivo
+de corpus, y un script de muestreo que pregunte con cada ánimo. **Dos
+expectativas que fijar:**
 
-- A 150K model on a few thousand lines will **memorise heavily** — it
-  behaves like a fuzzy, recombining line bank. That is not failure; it is
-  precisely the A/B the group should judge *by ear* against the plain line
-  bank (val loss stops being meaningful at this data size — read the
-  output instead).
-- **The mood prefixes are baked in at training time**, so the group's final
-  emotion set needs to be settled first. This is the same governance
-  dependency as moving `kEmotions` out of C++ into pack data: the moods are
-  shared vocabulary between the face, the packs, and now the model.
+- Un modelo de 150K con unos pocos miles de líneas va a **memorizar
+  fuerte** — se comporta como un banco de frases difuso que recombina. No es
+  fracaso; es precisamente el A/B que el grupo debe juzgar *de oído* contra
+  el banco a secas (el val loss deja de significar algo a este tamaño de
+  datos — lee la salida en su lugar).
+- **Los prefijos de ánimo quedan grabados al entrenar**, así que el set
+  final de emociones del grupo tiene que decidirse antes. Es la misma
+  dependencia de gobernanza que sacar `kEmotions` del C++ a datos de pack:
+  los ánimos son vocabulario compartido entre la cara, los packs y ahora el
+  modelo.
 
-## 8. Troubleshooting
+## 8. Resolución de problemas
 
-- **`pip install` explodes with `AttributeError: module 'pkgutil' has no
-  attribute 'ImpImporter'`** — you're on Python 3.13/3.14. The repo's
-  pinned `numpy==1.23.5` has no prebuilt wheel there, so pip tries to
-  compile it from source using build tooling that calls an API removed in
-  Python 3.12. Fix: recreate the venv with `python3.12 -m venv .venv` and
-  install unpinned as in §3. (Delete the old `.venv` first.)
-- **`torch` not found for your Python** — same cause, same fix: PyTorch
-  wheels trail the newest Python by months.
-- **Flashing from Linux:** the board shows up as `/dev/ttyACM0` (native
-  USB socket) or `/dev/ttyUSB0` (the CH343 socket) instead of macOS's
-  `/dev/cu.usbmodem*`. If esptool can't open it, add yourself to the
-  serial group and re-login: `sudo usermod -aG dialout $USER` (group is
-  `uucp` on Arch). Everything else — offsets, commands — is identical.
-- **Training looks frozen at 0 it/s on `mps`** — the very first step
-  compiles GPU kernels; give it a minute before judging.
-- **`sample.py` prints the exact same text every run** — not a stuck
-  model. Fixed `seed = 1337`; pass `--seed=N --num_samples=5`.
-- **Steps feel slow (200+ ms at XS size)** — check
-  `--gradient_accumulation_steps=1` and a real `--batch_size`. Also try
-  `--device=cpu`: at these sizes GPU dispatch overhead can exceed the
-  maths, and CPU sometimes wins. Ignore the `mfu` percentage entirely —
-  it's computed against an A100's peak FLOPS (`model.py`), so it is
-  meaningless on any other machine.
-- **Resuming**: `--init_from=resume` continues from `out/ckpt.pt` and
-  keeps the optimiser state. Changing `--max_iters` on resume re-fits the
-  decay curve to the new budget, which is the right way to rescue a run
-  started against the 100k default.
+- **`pip install` explota con `AttributeError: module 'pkgutil' has no
+  attribute 'ImpImporter'`** — estás en Python 3.13/3.14. El
+  `numpy==1.23.5` pineado del repo no tiene wheel para esas versiones, así
+  que pip intenta compilarlo desde fuente con tooling que llama a una API
+  eliminada en Python 3.12. Arreglo: recrea el venv con
+  `python3.12 -m venv .venv` e instala sin pinear como en §3. (Borra el
+  `.venv` viejo primero.)
+- **`torch` no existe para tu Python** — misma causa, mismo arreglo: los
+  wheels de PyTorch van meses por detrás del Python más nuevo.
+- **Flashear desde Linux:** la placa aparece como `/dev/ttyACM0` (USB
+  nativo) o `/dev/ttyUSB0` (el puente CH343) en vez del
+  `/dev/cu.usbmodem*` de macOS. Si esptool no puede abrirlo, añádete al
+  grupo serie y re-loguéate: `sudo usermod -aG dialout $USER` (el grupo es
+  `uucp` en Arch). Todo lo demás — offsets, comandos — es idéntico.
+- **El entrenamiento parece congelado a 0 it/s en `mps`** — el primer paso
+  compila kernels de GPU; dale un minuto antes de juzgar.
+- **`sample.py` imprime exactamente el mismo texto cada vez** — no es un
+  modelo atascado. `seed = 1337` fijo; pasa `--seed=N --num_samples=5`.
+- **Los pasos van lentos (200+ ms a tamaño XS)** — comprueba
+  `--gradient_accumulation_steps=1` y un `--batch_size` real. Prueba
+  también `--device=cpu`: a estos tamaños el overhead de despachar a la GPU
+  puede superar a las cuentas, y la CPU a veces gana. Ignora el porcentaje
+  `mfu` por completo — se calcula contra los FLOPS pico de una A100
+  (`model.py`), así que en cualquier otra máquina no significa nada.
+- **Reanudar**: `--init_from=resume` continúa desde `out/ckpt.pt` y
+  conserva el estado del optimizador. Cambiar `--max_iters` al reanudar
+  re-ajusta la curva de decaimiento al nuevo presupuesto, que es la forma
+  correcta de rescatar una corrida lanzada contra el default de 100k.
 
-## 9. Where this fits
+## 9. Dónde encaja esto
 
-- Kernel/speed work: done — `spikes/tinylm-s3/README.md` (Step 0 and 0.5).
-- This session: can a small model *sound right*? Decided by listening.
-- The decision it feeds: local model vs line bank vs hybrid — all three sit
-  behind the same `brain.ask` bus event, so whichever the group picks is a
-  pack/config choice, not an architecture change.
+- El trabajo de kernel/velocidad: hecho — `spikes/tinylm-s3/README.md`
+  (Pasos 0 y 0.5).
+- Esta sesión: ¿puede un modelo pequeño *sonar bien*? Se decide escuchando.
+- La decisión que alimenta: modelo local vs banco de frases vs híbrido —
+  los tres van detrás del mismo evento `brain.ask`, así que lo que el grupo
+  elija es una decisión de pack/config, no de arquitectura.
