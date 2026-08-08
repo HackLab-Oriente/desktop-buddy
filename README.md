@@ -64,6 +64,80 @@ idf.py build flash monitor
 
 Guía completa, cableado y la escalera de PoCs: [firmware/README.md](firmware/README.md).
 
+## Preparar el editor
+
+Todo compila desde la terminal con `idf.py` — el editor es comodidad, no
+requisito. Pero con el IDE bien puesto tienes autocompletado real sobre
+ESP-IDF, y un botón de flash/monitor.
+
+### VS Code, Cursor, Antigravity, Windsurf (todos son forks de VS Code)
+
+Abre `desktop-buddy.code-workspace` y acepta las extensiones recomendadas, o
+instálalas a mano:
+
+| Extensión | ID | Para qué |
+|---|---|---|
+| **ESP-IDF** | `espressif.esp-idf-extension` | Build, flash, monitor, menuconfig y depuración desde el editor. Su asistente instala también el toolchain si aún no lo tienes. |
+| **clangd** | `llvm-vs-code-extensions.vscode-clangd` | Autocompletado, ir-a-definición y errores en vivo, leyendo el `compile_commands.json` real del build. |
+| *(opcional)* Berry | `skiars.berry` | Resaltado de los reflejos `.be`. Si no la instalas, el repo los muestra como Python, que se parece bastante. |
+
+**No instales `ms-vscode.cpptools`** (la extensión C/C++ de Microsoft). Pelea
+con clangd por las mismas funciones y da resultados peores en proyectos
+ESP-IDF; además es propietaria y no está en Open VSX, así que en Cursor,
+Antigravity o Windsurf directamente no se instala. El workspace la marca como
+no recomendada por eso.
+
+Dos detalles que ahorran una tarde:
+
+- **Abre el workspace, no la carpeta suelta.** clangd necesita el
+  `compile_commands.json`, que lo genera el build en `firmware/build/` — no
+  en la raíz del repo. Apuntado a un sitio sin él, clangd *no falla*: adivina
+  los flags y parece que funciona hasta que discrepa del compilador.
+- **Compila una vez antes de esperar autocompletado.** Sin build no hay
+  `compile_commands.json` que leer.
+
+Los ajustes propios de cada máquina (ruta de ESP-IDF, puerto serie, binario
+de clangd) **no van en el repo**: la extensión de ESP-IDF reescribe
+`settings.json` con rutas absolutas de quien la ejecutó, así que esos
+archivos están en `.gitignore`. Copia las plantillas:
+
+```bash
+cp .vscode/settings.example.json .vscode/settings.json
+cp firmware/.vscode/settings.example.json firmware/.vscode/settings.json
+```
+
+### CLion (alternativa)
+
+Funciona bien y a algunos les resulta más cómodo para C++. El proyecto es
+CMake normal, así que se abre directamente — pero hay que darle el toolchain
+de ESP-IDF, no el del sistema:
+
+1. Abre la carpeta **`firmware/`** (no la raíz del repo): ahí está el
+   `CMakeLists.txt` de nivel superior.
+2. *Settings → Build, Execution, Deployment → Toolchains* → añade uno con el
+   compilador del toolchain de Xtensa
+   (`~/.espressif/tools/xtensa-esp-elf/…/bin/xtensa-esp32s3-elf-gcc`).
+3. En *CMake profiles*, añade a las opciones:
+   `-DCMAKE_TOOLCHAIN_FILE=$IDF_PATH/tools/cmake/toolchain-esp32s3.cmake
+   -DTARGET=esp32s3` (cambia `esp32s3` por `esp32` para la placa clásica), y
+   arranca CLion desde una terminal donde hayas hecho `source` del script de
+   activación de ESP-IDF, para que herede `IDF_PATH`.
+4. Flash y monitor siguen siendo `idf.py -p PUERTO flash monitor` en la
+   terminal integrada — el plugin oficial de Espressif es solo para VS Code.
+
+La ganancia real de CLion aquí es el indexador y el depurador; el ciclo de
+flasheo se queda en la terminal en cualquier caso.
+
+### Solo terminal
+
+Perfectamente válido, y es como se hicieron todas las mediciones de este
+repo:
+
+```bash
+source ~/.espressif/tools/activate_idf_v6.0.2.sh
+cd firmware && idf.py build flash monitor
+```
+
 ### ¿Qué placa tengo y qué me da?
 
 | | ESP32-S3 N16R8 | ESP32 clásico (DevKit V1) |

@@ -14,3 +14,11 @@ firmware/.cache
 !**/partitions*.bin
 
 .DS_Store
+
+# Editor settings are rewritten by the ESP-IDF extension with absolute paths
+# to whoever ran it last. Tracked templates live next to them as
+# settings.example.json — copy, do not commit back.
+.vscode/settings.json
+firmware/.vscode/settings.json
+.vscode/settings.local.json
+firmware/.vscode/settings.local.json

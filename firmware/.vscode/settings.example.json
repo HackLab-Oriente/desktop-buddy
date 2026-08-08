@@ -1,0 +1,14 @@
+{
+  "//": "Copy to firmware/.vscode/settings.json (gitignored). idf.espIdfPath and idf.port are per-machine; the ESP-IDF extension fills them in for you via its setup wizard.",
+
+  "clangd.arguments": [
+    "--background-index",
+    "--query-driver=**",
+    "--compile-commands-dir=${workspaceFolder}/build"
+  ],
+
+  "//target": "Both targets are supported; this is only the extension's default. Switch with `idf.py set-target esp32` or the status-bar target selector.",
+  "idf.customExtraVars": { "IDF_TARGET": "esp32s3" },
+  "idf.flashType": "UART",
+  "idf.openOcdConfigs": ["board/esp32s3-builtin.cfg"]
+}

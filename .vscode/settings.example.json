@@ -1,0 +1,18 @@
+{
+  "//": "Copy to .vscode/settings.json (gitignored) and adjust the two machine paths. The ESP-IDF extension will also write its own values in here — that is fine, nothing in this file is shared.",
+
+  "//clangd": "compile_commands.json is produced by the build and lives in firmware/build, NOT at the repo root. Point clangd anywhere without one and it silently falls back to guessed flags — which looks like working autocomplete right until it disagrees with the compiler.",
+  "clangd.arguments": [
+    "--background-index",
+    "--query-driver=**",
+    "--compile-commands-dir=${workspaceFolder}/firmware/build"
+  ],
+  "//clangd.path": "Optional. Leave unset to use the extension's bundled clangd; set it to the ESP-IDF one if you want it to understand the Xtensa target flags. Yours will have a different version string.",
+  "//clangd.path.example": "/Users/you/.espressif/tools/esp-clang/esp-<version>/esp-clang/bin/clangd",
+
+  "files.associations": { "*.be": "python", "Kconfig.projbuild": "kconfig" },
+  "files.trimTrailingWhitespace": true,
+  "files.insertFinalNewline": true,
+  "[c]": { "editor.tabSize": 2 },
+  "[cpp]": { "editor.tabSize": 2 }
+}
