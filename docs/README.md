@@ -18,7 +18,7 @@ directamente desde el disco, sin internet. Los `.md` se leen bien en GitHub.
 |---|---|
 | [reunion-equipos.html](reunion-equipos.html) | **La reunión de equipos**: frases locales (banco vs modelo), las 8 emociones y las capas, equipos y líderes, BOM y cableado |
 | [brief-presentacion.md](brief-presentacion.md) | El brief original de presentación al lab |
-| [ideas-exploration.html](ideas-exploration.html) | Registro de ideas exploradas: qué se descartó y por qué *(en inglés aún)* |
+| [ideas-exploration.html](ideas-exploration.html) | Registro de ideas exploradas: qué se descartó y por qué |
 
 ## Referencia técnica
 
@@ -29,7 +29,7 @@ directamente desde el disco, sin internet. Los `.md` se leen bien en GitHub.
 | [hardware.md](hardware.md) | BOM completa, pedidos, sensores, alimentación y montaje |
 | [../hardware/](../hardware/) | Guías de cableado por placa (S3 y clásico) |
 | [services.md](services.md) | Proveedores externos: LLM, STT, TTS — cuentas y costes |
-| [firmware-architecture.html](firmware-architecture.html) | Arquitectura del firmware, interactiva *(en inglés aún)* |
+| [firmware-architecture.html](firmware-architecture.html) | Arquitectura del firmware, interactiva |
 | [arquitectura.html](arquitectura.html) | Arquitectura general, interactiva |
 
 ## Modelo de IA local
