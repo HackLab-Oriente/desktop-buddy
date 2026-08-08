@@ -14,30 +14,44 @@ config BUDDY_ANTHROPIC_API_KEY
     string "Anthropic API key (PoC only — v1 stores this in NVS via web UI)"
     default ""
 
+# Display pins differ per chip because the "free" GPIO ranges differ:
+#   ESP32-S3: 7-12 are clear (33-37 are octal PSRAM, 19/20 USB, 26-32 flash).
+#   classic ESP32: 6-11 are FLASH and 12 is a strapping pin, so the S3
+#   defaults would crash at the first pixel. It gets the conventional VSPI
+#   pins instead (SCLK 18 / MOSI 23 / CS 5) plus 27/26/25.
 menu "GC9A01 round display pins (SPI)"
 config BUDDY_GC9A01_SCLK
     int "SCL / SCLK"
+    default 18 if IDF_TARGET_ESP32
     default 12
 config BUDDY_GC9A01_MOSI
     int "SDA / MOSI"
+    default 23 if IDF_TARGET_ESP32
     default 11
 config BUDDY_GC9A01_CS
     int "CS"
+    default 5 if IDF_TARGET_ESP32
     default 10
 config BUDDY_GC9A01_DC
     int "DC"
+    default 27 if IDF_TARGET_ESP32
     default 9
 config BUDDY_GC9A01_RST
     int "RST"
+    default 26 if IDF_TARGET_ESP32
     default 8
 config BUDDY_GC9A01_BL
     int "BL backlight (-1 = tie to 3V3, unused)"
+    default 25 if IDF_TARGET_ESP32
     default 7
 endmenu
 
 config BUDDY_PIN_TOUCH
-    int "Petting pad GPIO (touch-capable: ESP32-S3 GPIO 1-14)"
+    int "Petting pad GPIO (must be touch-capable on your chip)"
     default 4
+    help
+      GPIO 4 is touch-capable on both the ESP32-S3 (T1-T14 span GPIO 1-14)
+      and the classic ESP32 (T0 = GPIO 4).
 
 menu "WS2812 mood ring"
 config BUDDY_WS2812_PIN
@@ -56,22 +70,31 @@ config BUDDY_RC522_ENABLED
       to avoid the display bus, USB (19/20), flash (26-32), octal PSRAM
       (33-37) and the strapping pins (0/3/45/46). Feed it 3V3, never 5V.
 
+# The S3 defaults (38-42) do not exist on a 30-pin classic DevKit V1, so it
+# gets HSPI-flavoured defaults instead — with MISO moved off GPIO 12 (MTDI
+# strapping: an RC522 holding it high at boot selects the wrong flash
+# voltage) onto 34, which is input-only and therefore boot-safe.
 menu "RC522 pins (SPI3)"
     depends on BUDDY_RC522_ENABLED
 config BUDDY_RC522_SCK
     int "SCK"
+    default 14 if IDF_TARGET_ESP32
     default 39
 config BUDDY_RC522_MISO
     int "MISO"
+    default 34 if IDF_TARGET_ESP32
     default 40
 config BUDDY_RC522_MOSI
     int "MOSI"
+    default 13 if IDF_TARGET_ESP32
     default 41
 config BUDDY_RC522_CS
     int "SDA / CS"
+    default 15 if IDF_TARGET_ESP32
     default 42
 config BUDDY_RC522_RST
     int "RST"
+    default 32 if IDF_TARGET_ESP32
     default 38
 endmenu
 
