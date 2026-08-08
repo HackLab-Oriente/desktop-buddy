@@ -1,97 +1,102 @@
-# Third-Party Services: What We Need & Recommendations
+# Servicios de terceros: qué necesitamos y recomendaciones
 
-Prices verified 2026-07-13. The Brain contract keeps every one of these swappable —
-these are defaults, not commitments. All keys live in device NVS, entered via the
-web UI, never in packs.
+Precios verificados el 2026-07-13. El contrato de Brain mantiene todo esto
+intercambiable — son valores por defecto, no compromisos. Todas las claves
+viven en la NVS del dispositivo, se meten por la web UI y nunca van en packs.
 
-## Services the buddy needs
+## Servicios que necesita el buddy
 
-| Service | Needed for | When | Account required? |
+| Servicio | Para qué | Cuándo | ¿Cuenta? |
 |---|---|---|---|
-| **LLM** (the Brain) | Personality, conversation, emotion selection | v1 (M2) | Yes |
-| **STT** (speech-to-text) | Push-to-talk voice input | v1 (M3) | Yes |
-| **TTS** (text-to-speech) | Spoken replies | v1 (M3) | Yes |
-| NTP time | Clock, timers, idle behaviors | v1 | No (pool.ntp.org, free) |
-| Calendar/feeds via polling | Optional Senses (ICS, RSS) | v2 | No (public/tokened URLs) |
-| Webhook relay / tunnel | Inbound events without a public IP | v2 (hub era) | Free tiers (Cloudflare Tunnel, Tailscale) |
+| **LLM** (el Brain) | Personalidad, conversación, elección de emoción | v1 (M2) | Sí |
+| **STT** (voz a texto) | Entrada de voz push-to-talk | v1 (M3) | Sí |
+| **TTS** (texto a voz) | Respuestas habladas | v1 (M3) | Sí |
+| Hora NTP | Reloj, timers, comportamientos de reposo | v1 | No (pool.ntp.org, gratis) |
+| Calendario/feeds por polling | Senses opcionales (ICS, RSS) | v2 | No (URLs públicas o con token) |
+| Relay de webhooks / túnel | Eventos entrantes sin IP pública | v2 (era del hub) | Capas gratuitas (Cloudflare Tunnel, Tailscale) |
 
-## LLM — the Brain
+## LLM — el Brain
 
-| Provider / model | Price (in/out per MTok) | Why / why not |
+| Proveedor / modelo | Precio (in/out por MTok) | Por qué sí / por qué no |
 |---|---|---|
-| **Anthropic Claude Haiku 4.5** ⭐ | $1 / $5 | Fast, cheap, and characterful — personality quality is the product for a companion. Streaming + prompt caching (system prompt = personality is highly cacheable). |
-| OpenAI gpt-4o-mini class | ~$0.60 / $2.40 | Slightly cheaper; main draw is one-account convenience (see stacks below). |
-| Anthropic Claude Sonnet 5 | $3 / $15 ($2/$10 intro) | Overkill for chirpy small talk; nice later for Skills/tool use on the hub. |
+| **Anthropic Claude Haiku 4.5** ⭐ | $1 / $5 | Rápido, barato y con carácter — para un compañero, la calidad de la personalidad ES el producto. Streaming + prompt caching (el system prompt = personalidad se cachea de maravilla). |
+| OpenAI clase gpt-4o-mini | ~$0.60 / $2.40 | Algo más barato; su atractivo real es la comodidad de una sola cuenta (ver stacks abajo). |
+| Anthropic Claude Sonnet 5 | $3 / $15 ($2/$10 intro) | Sobredimensionado para charla ligera; interesante después para Skills/herramientas en el hub. |
 
-Typical interaction ≈ 1,200 input + 150 output tokens → **~$0.002 with Haiku**,
-and less with prompt caching on the personality prompt.
+Una interacción típica ≈ 1.200 tokens de entrada + 150 de salida →
+**~$0.002 con Haiku**, y menos con caché sobre el prompt de personalidad.
 
-## STT — speech-to-text
+## STT — de voz a texto
 
-Key insight: **push-to-talk removes the need for streaming STT in v1.** Release =
-end of utterance, so the device can simply HTTPS-POST the whole recorded clip
-(a few seconds of WAV) and get text back. That's radically simpler on the ESP32
-than a streaming WebSocket — plain `esp_http_client` multipart POST.
+La clave: **push-to-talk elimina la necesidad de STT en streaming en v1.**
+Soltar el botón = fin de la frase, así que el dispositivo puede hacer un POST
+HTTPS con el clip completo (unos segundos de WAV) y recibir el texto. Eso es
+radicalmente más simple en el ESP32 que un WebSocket de streaming — un POST
+multipart con `esp_http_client` y ya.
 
-| Provider | Price | Mode | ESP32 fit |
+| Proveedor | Precio | Modo | Encaje en ESP32 |
 |---|---|---|---|
-| **Groq Whisper large-v3-turbo** ⭐ | $0.04/hour (~$0.0007/min), 10s minimum billing | Batch POST, ~216× real-time (a 5s clip transcribes in well under a second) | Perfect for PTT: one multipart POST. Generous free tier — great for a hacklab. |
-| OpenAI gpt-4o-mini-transcribe | ~$0.003/min | Batch POST (realtime variant exists) | Same simplicity; ~4× Groq's price, one-account synergy. |
-| Deepgram Nova-3 | $0.0048/min streaming | WebSocket streaming, very simple protocol | The v2 upgrade path: needed when wake word arrives and utterance boundaries must be detected server-side. |
+| **Groq Whisper large-v3-turbo** ⭐ | $0.04/hora (~$0.0007/min), facturación mínima de 10 s | POST por lotes, ~216× tiempo real (un clip de 5 s se transcribe en mucho menos de un segundo) | Perfecto para PTT: un solo POST multipart. Capa gratuita generosa — ideal para un hacklab. |
+| OpenAI gpt-4o-mini-transcribe | ~$0.003/min | POST por lotes (existe variante realtime) | Misma simplicidad; ~4× el precio de Groq, sinergia de una sola cuenta. |
+| Deepgram Nova-3 | $0.0048/min streaming | Streaming por WebSocket, protocolo muy simple | La vía de mejora para v2: hará falta cuando llegue la wake word y los límites de frase se detecten en el servidor. |
 
-## TTS — text-to-speech
+## TTS — de texto a voz
 
-Constraint: the ESP32 wants **PCM or MP3 streamed back** (MP3 decode via
-libhelix/minimp3 is cheap; raw PCM 16k/22k is even easier). All three below can
-output both.
+Restricción: el ESP32 quiere **PCM o MP3 en streaming de vuelta** (decodificar
+MP3 con libhelix/minimp3 es barato; PCM crudo a 16k/22k es aún más fácil).
+Los tres de abajo pueden dar ambos.
 
-| Provider | Price | Why / why not |
+| Proveedor | Precio | Por qué sí / por qué no |
 |---|---|---|
-| **OpenAI gpt-4o-mini-tts** ⭐ | ~$0.015/min of audio ($0.60/MTok text in, $12/MTok audio out) | Cheap, good quality, ~13 voices, supports voice "instructions" (tone/character steering — useful for personality packs). |
-| ElevenLabs Flash v2.5 | $0.05/1k chars (≈$0.0075 per 150-char reply) | Best character voices + voice cloning — the "give your buddy a unique voice" option. ~3× the cost; worth it if voice identity becomes core to packs. |
-| Deepgram Aura-2 | ~$0.03–0.05/1k chars | Low latency, simple API; bundle appeal if already on Deepgram for STT. |
+| **OpenAI gpt-4o-mini-tts** ⭐ | ~$0.015/min de audio ($0.60/MTok texto de entrada, $12/MTok audio de salida) | Barato, buena calidad, ~13 voces, admite "instrucciones" de voz (tono/carácter — útil para packs de personalidad). |
+| ElevenLabs Flash v2.5 | $0.05/1k caracteres (≈$0.0075 por respuesta de 150) | Las mejores voces con carácter + clonado — la opción "dale a tu buddy una voz única". ~3× el coste; vale la pena si la identidad de voz se vuelve central en los packs. |
+| Deepgram Aura-2 | ~$0.03–0.05/1k caracteres | Baja latencia, API simple; atractivo de bundle si ya estás en Deepgram para STT. |
 
-## Cost per interaction (the number that matters)
+## Coste por interacción (el número que importa)
 
-One PTT exchange ≈ 8s of user speech + ~150-char spoken reply:
+Un intercambio PTT ≈ 8 s de voz del usuario + respuesta hablada de ~150
+caracteres:
 
-| Piece | Recommended stack | Cost |
+| Pieza | Stack recomendado | Coste |
 |---|---|---|
-| STT (Groq) | 8s @ $0.04/hr (10s min) | ~$0.0001 |
-| LLM (Haiku 4.5) | ~1.2k in / 150 out | ~$0.002 |
-| TTS (OpenAI mini-tts) | ~10s audio | ~$0.0025 |
-| **Total** | | **≈ half a cent** |
+| STT (Groq) | 8 s a $0.04/h (mín. 10 s) | ~$0.0001 |
+| LLM (Haiku 4.5) | ~1,2k in / 150 out | ~$0.002 |
+| TTS (OpenAI mini-tts) | ~10 s de audio | ~$0.0025 |
+| **Total** | | **≈ medio centavo** |
 
-At a heavy 50 interactions/day: **~$7/month per buddy**. Chirp-only interactions
-(reflexes, emotes) cost nothing; text-chat via web UI costs only the LLM slice.
+Con un uso intenso de 50 interacciones/día: **~$7/mes por buddy**. Las
+interacciones solo-chirp (reflejos, gestos) no cuestan nada; el chat de texto
+por web solo paga la parte del LLM.
 
-## Recommended stacks
+## Stacks recomendados
 
-- **Best quality/cost (recommended):** Claude Haiku 4.5 (brain) + Groq Whisper
-  (STT) + OpenAI mini-tts (TTS). Three free-tier-friendly accounts; each piece
-  is the best value in its column.
-- **Fewest accounts (friend-friendly):** OpenAI only — gpt-4o-mini (brain) +
-  gpt-4o-mini-transcribe + gpt-4o-mini-tts. One key to paste into the web UI.
-  The web UI should support both presets; the Brain contract makes the
-  provider a dropdown, not a fork.
-- **Character-voice upgrade:** swap TTS to ElevenLabs Flash v2.5 when a pack
-  wants a signature voice.
+- **Mejor calidad/precio (recomendado):** Claude Haiku 4.5 (cerebro) + Groq
+  Whisper (STT) + OpenAI mini-tts (TTS). Tres cuentas con capa gratuita; cada
+  pieza es la mejor de su columna.
+- **Menos cuentas (para amigos):** solo OpenAI — gpt-4o-mini (cerebro) +
+  gpt-4o-mini-transcribe + gpt-4o-mini-tts. Una sola clave que pegar en la
+  web UI. La web debería soportar ambos presets; el contrato de Brain hace
+  que el proveedor sea un desplegable, no un fork.
+- **Mejora de voz con carácter:** cambia el TTS a ElevenLabs Flash v2.5
+  cuando un pack quiera una voz distintiva.
 
-## Implementation notes
+## Notas de implementación
 
-- **Streaming LLM replies matter more than streaming STT.** Stream the Haiku
-  response so the buddy's face/emotion can react as text arrives, and TTS can
-  start on the first sentence — this is where perceived latency is won.
-- **Prompt caching:** keep the personality system prompt byte-stable so
-  Anthropic's cache cuts input cost ~90% on repeat interactions.
-- Every provider here is TLS + bearer token over plain HTTPS/WebSocket — all
-  ESP32-friendly; no OAuth dance needed for v1 (OAuth-y integrations are
-  exactly what the v2 hub is for).
+- **El streaming de la respuesta del LLM importa más que el del STT.**
+  Streamea la respuesta de Haiku para que la cara/emoción reaccione según
+  llega el texto, y el TTS pueda empezar con la primera frase — ahí se gana
+  la latencia percibida.
+- **Prompt caching:** mantén el system prompt de personalidad estable byte a
+  byte para que la caché de Anthropic recorte ~90% del coste de entrada en
+  interacciones repetidas.
+- Todos los proveedores de aquí son TLS + token bearer sobre HTTPS/WebSocket
+  — todo amigable para el ESP32; no hace falta baile OAuth en v1 (las
+  integraciones OAuth-osas son exactamente para lo que existe el hub de v2).
 
-### Sources
+### Fuentes
 
-- [Deepgram pricing](https://deepgram.com/pricing) · [Nova-3 rates breakdown](https://brasstranscripts.com/blog/deepgram-pricing-per-minute-2025-real-time-vs-batch)
-- [Groq Whisper large-v3-turbo](https://groq.com/blog/whisper-large-v3-turbo-now-available-on-groq-combining-speed-quality-for-speech-recognition) · [Groq pricing guide](https://www.eesel.ai/blog/groq-pricing)
-- [OpenAI transcription pricing](https://costgoat.com/pricing/openai-transcription) · [gpt-4o-mini-tts pricing](https://tokenmix.ai/blog/gpt-4o-mini-tts-cheapest-tts-api-2026)
-- [ElevenLabs API pricing](https://elevenlabs.io/pricing/api)
-- Anthropic model pricing: Claude API docs (Haiku 4.5 $1/$5, Sonnet 5 $3/$15 per MTok)
+- [Precios de Deepgram](https://deepgram.com/pricing) · [Desglose de tarifas Nova-3](https://brasstranscripts.com/blog/deepgram-pricing-per-minute-2025-real-time-vs-batch)
+- [Groq Whisper large-v3-turbo](https://groq.com/blog/whisper-large-v3-turbo-now-available-on-groq-combining-speed-quality-for-speech-recognition) · [Guía de precios de Groq](https://www.eesel.ai/blog/groq-pricing)
+- [Precios de transcripción de OpenAI](https://costgoat.com/pricing/openai-transcription) · [Precios de gpt-4o-mini-tts](https://tokenmix.ai/blog/gpt-4o-mini-tts-cheapest-tts-api-2026)
+- [Precios de la API de ElevenLabs](https://elevenlabs.io/pricing/api)
+- Precios de modelos Anthropic: docs de la Claude API (Haiku 4.5 $1/$5, Sonnet 5 $3/$15 por MTok)

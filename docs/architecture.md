@@ -1,227 +1,256 @@
-# Product & Architecture Definition
+# Definición de producto y arquitectura
 
-Status: proposal (pre-HackLab). Decisions marked **[decided]** reflect the
-current working position; everything else is open for the group.
+Estado: propuesta (pre-HackLab). Las decisiones marcadas **[decidido]**
+reflejan la posición de trabajo actual; todo lo demás está abierto al grupo.
 
-## 1. Product identity **[decided]**
+## 1. Identidad del producto **[decidido]**
 
-Companion first. The buddy is a desk creature with personality — think
-Tamagotchi / Anki Vector, not Alexa-with-a-face. The framework must make the
-*expressive* loop excellent (react, emote, chirp, converse). Usefulness is an
-extension surface, not a foundation deliverable: the framework ships the plug
-(Skills), the community ships the appliances.
+Compañero primero. El buddy es una criatura de escritorio con personalidad —
+piensa en Tamagotchi / Anki Vector, no en Alexa-con-cara. El framework tiene
+que hacer excelente el bucle *expresivo* (reaccionar, gesticular, piar,
+conversar). La utilidad es una superficie de extensión, no un entregable
+fundacional: el framework trae el enchufe (Skills), la comunidad trae los
+electrodomésticos.
 
-Consequence for scope: chirps and on-screen emotes (Animal Crossing-style) are
-the buddy's *native* expressive channel — they work offline, they're free, and
-they carry the personality. **Push-to-talk voice is a v1 goal on top of that**
-(see §7 for why PTT specifically is tractable in 4 sessions), and wake word is
-explicitly v2. When voice is unavailable (offline, no API key, pipeline broken)
-the buddy degrades to chirp + text — never a brick, and the workshop demo never
-depends on the riskiest subsystem.
+Consecuencia para el alcance: los chirps y los gestos en pantalla (estilo
+Animal Crossing) son el canal expresivo *nativo* del buddy — funcionan sin
+internet, son gratis y llevan la personalidad. **La voz push-to-talk es meta
+de v1 encima de eso** (ver §7 sobre por qué PTT en concreto es abordable en 4
+sesiones), y la wake word es explícitamente v2. Cuando la voz no está
+disponible (offline, sin API key, pipeline roto) el buddy degrada a chirp +
+texto — nunca un ladrillo, y la demo del taller nunca depende del subsistema
+más arriesgado.
 
-## 2. Where the brain lives: device-first, hub-optional **[decided]**
+## 2. Dónde vive el cerebro: primero el dispositivo, hub opcional **[decidido]**
 
-The single protocol rule: the firmware never talks to "OpenAI" or "Anthropic"
-or "the hub" — it talks to **a Brain endpoint** with one small contract:
+La regla del protocolo único: el firmware nunca habla con "OpenAI" ni
+"Anthropic" ni "el hub" — habla con **un endpoint de Brain** con un contrato
+pequeño:
 
 ```
 device → brain:  { event, personality_context, sensor_snapshot, user_input? }
 brain → device:  { utterance?, emotion, actions[] }        (streamed)
 ```
 
-Three interchangeable implementations of that contract:
+Tres implementaciones intercambiables de ese contrato:
 
-1. **On-device cloud adapter (default).** A thin C++ adapter formats the
-   request for an LLM provider API directly over TLS. Works with only WiFi +
-   an API key. This is v1.
-2. **Hub brain (optional, later).** Same contract served by a companion server
-   (any Pi/laptop). Pointing the device at a hub URL unlocks what a bare ESP32
-   genuinely cannot do: receiving webhooks (the device is behind NAT), OAuth
-   integrations (email/calendar), long-term memory, cheaper/local models.
-3. **No brain (offline).** Reflexes still run. The buddy is alive, just not
-   conversational. Never brick.
+1. **Adaptador cloud en el dispositivo (por defecto).** Un adaptador C++ fino
+   formatea la petición para la API de un proveedor LLM directamente sobre
+   TLS. Funciona solo con WiFi + una API key. Esto es v1.
+2. **Cerebro en hub (opcional, después).** El mismo contrato servido por un
+   servidor compañero (cualquier Pi/portátil). Apuntar el dispositivo a un
+   hub desbloquea lo que un ESP32 pelado genuinamente no puede: recibir
+   webhooks (el dispositivo está tras NAT), integraciones OAuth
+   (correo/calendario), memoria a largo plazo, modelos más baratos o locales.
+3. **Sin cerebro (offline).** Los reflejos siguen corriendo. El buddy está
+   vivo, solo que no conversa. Nunca un ladrillo.
 
-For "check external data" without a hub, the device can **poll** (calendar
-feeds, RSS, a serverless relay) — polling is a Sense, not a Skill, and needs no
-inbound connectivity.
+Para "consultar datos externos" sin hub, el dispositivo puede hacer
+**polling** (feeds de calendario, RSS, un relay serverless) — el polling es
+un Sense, no una Skill, y no necesita conectividad entrante.
 
-Secrets (API keys, WiFi) live in NVS on device, entered via the web UI, never
-in packs — packs must be shareable without leaking keys.
+Los secretos (API keys, WiFi) viven en la NVS del dispositivo, se meten por
+la web UI y nunca van en packs — los packs deben poder compartirse sin filtrar
+claves.
 
-## 3. Firmware stack **[decided]**
+## 3. Stack de firmware **[decidido]**
 
-- **ESP-IDF (C++) core** owns the hard/real-time layer: display driver + LVGL
-  rendering, I2S audio in/out, touch, WiFi + TLS, the event bus, OTA, the
-  embedded web server, and the Brain adapters.
-- **Berry scripting VM** (the Tasmota pattern) owns the behavior layer:
-  reflexes, expression mappings, idle behaviors. Scripts are uploaded /
-  hot-reloaded from the web UI — changing behavior never means reflashing.
-  (Lua is the fallback if Berry integration fights us; the decision criterion
-  is ESP-IDF integration friction, evaluated in session 2.)
-- **Why not MicroPython throughout:** lower contribution barrier, but it fights
-  the audio pipeline and takes over the whole firmware; the C++ core + small VM
-  split keeps a stable framework that lab members rarely touch, with all the
-  fun surface in scripts.
+- El **núcleo ESP-IDF (C++)** es dueño de la capa dura/tiempo-real: driver de
+  pantalla + renderizado, audio I2S entrada/salida, tacto, WiFi + TLS, el bus
+  de eventos, OTA, el servidor web embebido y los adaptadores de Brain.
+- La **VM de scripting Berry** (el patrón de Tasmota) es dueña de la capa de
+  comportamiento: reflejos, mapeos de expresión, comportamientos de reposo.
+  Los scripts se suben y recargan en caliente desde la web — cambiar el
+  comportamiento nunca significa reflashear. (Lua es el plan B si la
+  integración de Berry se nos resiste; el criterio de decisión es la fricción
+  con ESP-IDF, evaluada en la sesión 2.)
+- **Por qué no MicroPython para todo:** baja la barrera de contribución, pero
+  pelea con el pipeline de audio y se apodera del firmware entero; la
+  división núcleo C++ + VM pequeña mantiene un framework estable que los
+  miembros del lab raramente tocan, con toda la superficie divertida en
+  scripts.
 
-## 4. Event bus and primitives
+## 4. Bus de eventos y primitivas
 
-Everything is an event: `touch.pet`, `touch.poke`, `timer.idle_5m`,
-`sense.light.dark`, `brain.reply`, `webhook.*` (hub only). Behaviors subscribe
-to events and emit actions: `face.play(anim)`, `sound.chirp(mood)`,
-`say(text)`, `gpio.set(...)`, `brain.ask(...)`.
+Todo es un evento: `touch.pet`, `touch.poke`, `timer.idle_5m`,
+`sense.light.dark`, `brain.reply`, `webhook.*` (solo hub). Los comportamientos
+se suscriben a eventos y emiten acciones: `face.play(anim)`,
+`sound.chirp(mood)`, `say(text)`, `gpio.set(...)`, `brain.ask(...)`.
 
-- **Senses** are C++ drivers registered with the bus (touch, mic level, GPIO,
-  timers, pollers). Adding a *new kind* of sensor is a C++ contribution; using
-  an existing one is script-level.
-- **Expressions** likewise: face renderer, sound player, LED, and later motors.
-  The interface is designed so actuators slot in without core changes.
-- **Reflexes** are Berry handlers — this is where 90% of hacking happens.
-- **Skills** are tools exposed to the LLM by whichever Brain is active. The
-  device-cloud brain ships with none (v1); the hub brain hosts community ones.
+El registro completo de eventos, con dueños por prefijo y agujeros conocidos,
+es [event-registry.md](event-registry.md).
 
-## 5. Personality packs
+- Los **Senses** son drivers C++ registrados en el bus (tacto, nivel de
+  micro, GPIO, timers, pollers). Añadir un *nuevo tipo* de sensor es una
+  contribución C++; usar uno existente es nivel script.
+- Las **Expressions** igual: renderer de cara, reproductor de sonido, LED, y
+  después motores. La interfaz está diseñada para que los actuadores encajen
+  sin cambios del núcleo.
+- Los **Reflexes** son handlers Berry — aquí ocurre el 90% del hackeo.
+- Las **Skills** son herramientas expuestas al LLM por el Brain que esté
+  activo. El cerebro dispositivo-cloud no trae ninguna (v1); el del hub aloja
+  las de la comunidad.
 
-A pack is a directory (uploaded as zip via web UI, stored on flash/SD):
+## 5. Packs de personalidad
+
+Un pack es un directorio (subido como zip por la web, guardado en flash/SD):
 
 ```
-pack.json        name, author, version, system_prompt, voice/chirp config
-reflexes/*.be    Berry scripts
-faces/*          sprite sheets / animation definitions
-sounds/*         chirps, effects (PCM/MP3)
+pack.json        nombre, autor, versión, system_prompt, config de voz/chirp
+reflexes/*.be    scripts Berry
+faces/*          sprite sheets / definiciones de animación
+sounds/*         chirps, efectos (PCM/MP3)
 ```
 
-The framework ships one well-crafted `default` pack that doubles as the
-tutorial: every mechanism the framework offers, demonstrated in the pack.
+El framework trae un pack `default` bien hecho que a la vez es el tutorial:
+cada mecanismo que ofrece el framework, demostrado en el pack.
 
-**Content packs (SD storage tier).** Packs can reference a `media/` library
-stored on the micro SD card (VFS makes flash vs SD transparent — it's just a
-path). This enables media-heavy, *offline-first* packs; the canonical example
-is the **board-game explainer** (a member's coffee shop): an NFC sticker on
-each game box → tap → the buddy plays a pre-generated narration with images
-and face animations, entirely from SD. Live LLM/TTS is only for follow-up
-questions. Pre-generating the speech (one TTS call at authoring time, cached
-forever) means zero per-play cost, instant response, and no dependency on
-café WiFi — the demo works with the network down, honoring "never brick."
-Kiosk-style packs like this should also pin the Brain's system prompt to the
-job at hand (it's a public-facing device — topic guardrails are part of the
-pack, not an afterthought).
+**Packs de contenido (capa de almacenamiento SD).** Los packs pueden
+referenciar una biblioteca `media/` en la tarjeta micro SD (el VFS hace
+transparente flash vs SD — es solo una ruta). Esto habilita packs pesados en
+media y *offline-first*; el ejemplo canónico es el **explicador de juegos de
+mesa** (la cafetería de un miembro): una pegatina NFC en cada caja → tap → el
+buddy reproduce una narración pre-generada con imágenes y animaciones,
+enteramente desde SD. El LLM/TTS en vivo queda solo para las preguntas de
+seguimiento. Pre-generar la voz (una llamada TTS al crear el pack, cacheada
+para siempre) significa coste cero por reproducción, respuesta instantánea y
+ninguna dependencia del WiFi del café — la demo funciona con la red caída,
+honrando el "nunca un ladrillo". Los packs tipo kiosco como este deberían
+además fijar el system prompt del Brain a la tarea (es un dispositivo de cara
+al público — los guardarraíles de tema son parte del pack, no una ocurrencia
+tardía).
 
 ## 6. Web UI
 
-Served by the device itself (no app, no cloud account):
+Servida por el propio dispositivo (sin app, sin cuenta cloud):
 
-- first-boot WiFi provisioning — **AP mode → captive portal** (the guaranteed
-  baseline: works with no tag, no app, no working PN532)
-- settings: brain endpoint, API key, volume, name
-- pack manager: upload/switch/edit packs, live-reload Berry scripts
-- a chat/console tab: talk to the buddy by text, watch the event bus live
-  (this doubles as the debugging tool — hacker-enjoyable)
+- aprovisionamiento WiFi de primer arranque — **modo AP → portal cautivo**
+  (la base garantizada: funciona sin tag, sin app, sin PN532)
+- ajustes: endpoint del brain, API key, volumen, nombre
+- gestor de packs: subir/cambiar/editar packs, recarga en vivo de Berry
+- una pestaña de chat/consola: hablar con el buddy por texto y ver el bus de
+  eventos en directo (a la vez es la herramienta de depuración — disfrutable
+  para hackers)
 
-### WiFi provisioning via NFC (enhancement, not replacement)
+### Aprovisionamiento WiFi por NFC (mejora, no reemplazo)
 
-An NFC tag can carry WiFi credentials in the standard **Wi-Fi Simple Config
-NDEF record** (`application/vnd.wfa.wsc`, the WPS credential format) — writable
-by Android natively or the "NFC Tools" app (iOS via app; verify the exact iOS
-path before promising it). Flow: tap tag → screen shows
-`Connect to <SSID>? pet to confirm` → pet → connect + save to NVS. Deploying
-several buddies to one network (the café) becomes: write one tag, tap each.
+Un tag NFC puede llevar credenciales WiFi en el registro NDEF estándar
+**Wi-Fi Simple Config** (`application/vnd.wfa.wsc`, el formato de credencial
+WPS) — escribible nativamente en Android o con la app "NFC Tools" (iOS vía
+app; verificar la ruta exacta antes de prometerla). Flujo: tap del tag → la
+pantalla muestra `Connect to <SSID>? pet to confirm` → caricia → conecta y
+guarda en NVS. Desplegar varios buddies en una red (el café) se convierte en:
+escribir un tag, tap a cada uno.
 
-The captive portal remains the floor; this is a convenience layer on top.
+El portal cautivo sigue siendo el suelo; esto es una capa de comodidad
+encima.
 
-**Security model — WiFi tags are the one governed exception to "tags never do
-auth":**
+**Modelo de seguridad — los tags WiFi son la única excepción gobernada a
+"los tags nunca hacen auth":**
 
-1. WiFi credentials are parsed in the **framework layer and never enter the
-   Berry `nfc.tag` event** — packs get at most a content-free
-   `provision.wifi_seen` signal, never the SSID/password. This closes a
-   credential-exfiltration hole (a malicious pack waiting for a WiFi tap).
-2. **On-screen confirmation is mandatory** — changing the network is a
-   privileged action triggered by observed data (a tag), so it's never applied
-   silently. Optional stricter mode: only accept WiFi tags during a pairing
-   window (first boot / hold-to-pair).
-3. Caveat to state to users: the password sits on the tag in the clear
-   (readable with physical possession + a phone). Fine for home/café; keep the
-   tag off the buddy's exterior.
+1. Las credenciales WiFi se parsean en la **capa framework y nunca entran al
+   evento Berry `nfc.tag`** — los packs reciben como mucho una señal sin
+   contenido `provision.wifi_seen`, nunca el SSID/contraseña. Esto cierra un
+   agujero de exfiltración de credenciales (un pack malicioso esperando un
+   tap de WiFi).
+2. **La confirmación en pantalla es obligatoria** — cambiar de red es una
+   acción privilegiada disparada por datos observados (un tag), así que nunca
+   se aplica en silencio. Modo estricto opcional: aceptar tags WiFi solo
+   durante una ventana de emparejamiento (primer arranque / mantener para
+   emparejar).
+3. Advertencia que hay que decirle a la gente: la contraseña está en el tag
+   en claro (legible con posesión física + un móvil). Bien para casa/café;
+   el tag, fuera del exterior del buddy.
 
-Rule of thumb: exactly one privileged tag type (WiFi provisioning), privileged
-*because* the framework handles it with confirmation and zero credential
-exposure to scripts. All other tags stay under "whitelisted actions only."
+Regla general: exactamente un tipo de tag privilegiado (aprovisionamiento
+WiFi), privilegiado *porque* lo maneja el framework con confirmación y cero
+exposición de credenciales a los scripts. Todos los demás tags siguen bajo
+"solo acciones de lista blanca".
 
-## 7. Voice: push-to-talk in v1, wake word in v2 **[decided]**
+## 7. Voz: push-to-talk en v1, wake word en v2 **[decidido]**
 
-**Ground truth first: open-vocabulary STT cannot run on an ESP32-S3.**
-Whisper-class models need ~100× the S3's memory and compute. What ESP-SR runs
-locally is wake-word detection (WakeNet) and fixed ~200-phrase command sets
-(MultiNet) — not dictation. So the device's job is capturing and streaming
-clean audio; recognition happens in the cloud (or hub). The Brain contract
-already assumes this — voice adds an audio path, not a new architecture.
+**Primero la verdad de base: STT de vocabulario abierto no puede correr en un
+ESP32-S3.** Los modelos clase Whisper necesitan ~100× la memoria y cómputo
+del S3. Lo que ESP-SR corre localmente es detección de wake word (WakeNet) y
+sets fijos de ~200 comandos (MultiNet) — no dictado. Así que el trabajo del
+dispositivo es capturar y streamear audio limpio; el reconocimiento pasa en
+la nube (o el hub). El contrato de Brain ya lo asume — la voz añade una ruta
+de audio, no una arquitectura nueva.
 
-### v1: push-to-talk (in the workshops)
+### v1: push-to-talk (en los talleres)
 
-Hold the petting pad (or button) to talk. PTT is not just scope caution — it
-*deletes* the two hardest voice problems:
+Mantén la almohadilla (o un botón) para hablar. PTT no es solo prudencia de
+alcance — *borra* los dos problemas más difíciles de la voz:
 
-- **Echo/barge-in** → half-duplex. The speaker sits ~2 cm from the mic; real
-  echo cancellation needs a loopback reference channel the MAX98357A doesn't
-  provide. With PTT, "touching = listening" naturally mutes/ducks the buddy's
-  own audio. No AEC needed.
-- **Endpointing** → releasing the pad marks end-of-utterance. No VAD tuning,
-  no cutting the user off mid-sentence.
+- **Eco/interrupción** → half-duplex. El altavoz está a ~2 cm del micro; la
+  cancelación de eco real necesita un canal de referencia loopback que el
+  MAX98357A no da. Con PTT, "tocando = escuchando" silencia naturalmente el
+  audio del propio buddy. Sin AEC.
+- **Fin de frase** → soltar la almohadilla marca el fin. Sin ajustar VAD, sin
+  cortar a nadie a mitad de frase.
 
-Pipeline: hold → duck audio + record → stream 16 kHz/16-bit mono PCM
-(32 KB/s raw — no codec needed on WiFi) to a streaming STT API → transcript to
-Brain → TTS audio streamed back through the amp.
+Pipeline: mantener → silenciar audio + grabar → streamear PCM mono 16 kHz/16
+bits (32 KB/s crudo — no hace falta códec en WiFi) a una API de STT →
+transcripción al Brain → audio TTS de vuelta por el amplificador.
 
-Engineering notes (where the debugging hours go):
-- DMA and WiFi buffers must live in *internal* RAM (PSRAM won't do); a TLS
-  connection costs ~50 KB; LVGL framebuffers go to PSRAM.
-- Pin audio tasks to core 1, network/TLS to core 0.
-- Latency (upload → STT → LLM → TTS → download) is realistically 1.5–3 s and
-  can't be removed, only *masked*: on release, the buddy instantly emotes
-  "thinking" (a face + chirp). That masking lives in the personality pack.
+Notas de ingeniería (donde se van las horas de depuración):
+- Los buffers DMA y WiFi deben vivir en RAM *interna* (la PSRAM no vale); una
+  conexión TLS cuesta ~50 KB; los framebuffers van a PSRAM.
+- Audio fijado al core 1, red/TLS al core 0.
+- La latencia (subida → STT → LLM → TTS → bajada) es realistamente de 1,5–3 s
+  y no se puede eliminar, solo *enmascarar*: al soltar, el buddy gesticula
+  "pensando" al instante (cara + chirp). Ese enmascarado vive en el pack de
+  personalidad.
 
-### v2: wake word (post-workshops)
+### v2: wake word (post-talleres)
 
-On-device wake word via the S3's vector instructions. Caveat the lab should
-know upfront: Espressif's WakeNet only ships pre-trained words — a custom
-"Hey Buddy" means paying Espressif to train it. The open route is
-**microWakeWord** (what Home Assistant Voice PE uses): trainable ourselves,
-runs on the S3. v2 also reopens the problems PTT deleted: always-on VAD for
-endpointing, and half-duplex vs. barge-in tradeoffs while the buddy is
-speaking. Realtime/speech-to-speech APIs are a possible shortcut worth a
-spike. Chirp+text stays first-class throughout — voice is additive.
+Wake word en el dispositivo vía las instrucciones vectoriales del S3.
+Advertencia que el lab debe saber de entrada: WakeNet de Espressif solo trae
+palabras pre-entrenadas — un "Hey Buddy" a medida significa pagarle a
+Espressif el entrenamiento. La ruta abierta es **microWakeWord** (lo que usa
+Home Assistant Voice PE): entrenable por nosotros, corre en el S3. La v2
+también reabre los problemas que PTT borró: VAD siempre-encendido para el fin
+de frase, y el compromiso half-duplex vs interrupción mientras el buddy
+habla. Las APIs realtime/speech-to-speech son un posible atajo que merece un
+spike. Chirp+texto sigue siendo primera clase todo el tiempo — la voz es
+aditiva.
 
-## 8. Milestones
+## 8. Hitos
 
-- **M0 — It's alive:** board bring-up, animated face, touch reactions, WiFi
-  provisioning, web UI skeleton.
-- **M1 — It's hackable:** event bus + Berry reflexes hot-reloaded from web UI.
-- **M2 — It's a personality:** Brain contract + device-cloud adapter, chat via
-  web UI, LLM-driven emotions/chirps, personality packs.
-- **M3 — It listens:** push-to-talk voice loop — hold-to-talk → cloud STT →
-  Brain → TTS reply, latency masked by thinking emotes.
-- **M4 — It's yours:** custom case assembled, default pack polished, demo.
-- **v2+ (post-workshops):** wake word (microWakeWord), hub brain, Skills,
-  the **power base** module (18650 battery + IP5306-class charge/boost +
-  2× MG90S servo neck, bolting onto the v1 neck-ready case), NFC pack
-  cartridges (session-4 stretch if time allows), more boards.
+- **M0 — Está vivo:** placa despierta, cara animada, reacciones al tacto,
+  aprovisionamiento WiFi, esqueleto de web UI.
+- **M1 — Es hackeable:** bus de eventos + reflejos Berry recargados en
+  caliente desde la web.
+- **M2 — Es una personalidad:** contrato de Brain + adaptador
+  dispositivo-cloud, chat vía web, emociones/chirps movidos por el LLM,
+  packs de personalidad.
+- **M3 — Escucha:** bucle de voz push-to-talk — mantener para hablar → STT
+  cloud → Brain → respuesta TTS, latencia enmascarada con gestos de pensar.
+- **M4 — Es tuyo:** carcasa propia montada, pack por defecto pulido, demo.
+- **v2+ (post-talleres):** wake word (microWakeWord), cerebro en hub, Skills,
+  el módulo **base de potencia** (batería 18650 + carga/boost clase IP5306 +
+  cuello con 2× servos MG90S, acoplándose a la carcasa v1 preparada para
+  cuello), cartuchos de pack por NFC (stretch de la sesión 4 si da tiempo),
+  más placas.
 
-## 9. Prior art worth studying
+## 9. Referentes que vale la pena estudiar
 
-- **Tasmota** — Berry embedded scripting on ESP32 (the pattern for M1)
-- **ESPHome** — config-driven firmware, web provisioning UX
-- **wire-pod** (Anki Vector) — hub architecture for a companion robot
-- **Willow / Home Assistant Voice PE** — ESP32-S3 voice pipelines
-- **ElatoAI, OpenAI-realtime ESP32 demos** — direct device↔realtime-API voice
-- **Stack-chan** (meganetaaan) + official **M5StackChan** (ESP32-S3) — the
-  closest cousin: open case/board/firmware, TypeScript-on-Moddable host + fast
-  "MODs" (validates our C++ core + hot-reload script split). Its servo pan/tilt
-  neck and printed brackets are the reference for our v2 power base. Contrast
-  in sovereignty: M5StackChan configures via vendor app + account + XiaoZhi
-  cloud; we configure via device-hosted web UI + own API keys ("Stack-chan
-  with no landlord").
-- **m5stack-avatar** (MIT) — parametric face: expression states, blink timing,
-  saccades, and amplitude-driven **lip-sync** (mouth opening follows TTS
-  loudness). Not drop-in (M5GFX vs our LVGL) but the face model ports; our
-  face renderer should adopt amplitude lip-sync from day one — cheapest
-  charm-per-line in the genre.
+- **Tasmota** — scripting Berry embebido en ESP32 (el patrón para M1)
+- **ESPHome** — firmware guiado por configuración, UX de aprovisionamiento web
+- **wire-pod** (Anki Vector) — arquitectura de hub para un robot compañero
+- **Willow / Home Assistant Voice PE** — pipelines de voz en ESP32-S3
+- **ElatoAI, demos ESP32 de OpenAI realtime** — voz directa dispositivo↔API
+  realtime
+- **Stack-chan** (meganetaaan) + el oficial **M5StackChan** (ESP32-S3) — el
+  primo más cercano: carcasa/placa/firmware abiertos, host
+  TypeScript-en-Moddable + "MODs" rápidos (valida nuestra división núcleo
+  C++ + scripts con recarga). Su cuello servo pan/tilt y sus soportes
+  impresos son la referencia para nuestra base de potencia v2. Contraste en
+  soberanía: M5StackChan se configura vía app del fabricante + cuenta + nube
+  XiaoZhi; nosotros vía web servida por el dispositivo + claves propias
+  ("un Stack-chan sin casero").
+- **m5stack-avatar** (MIT) — cara paramétrica: estados de expresión, timing
+  de parpadeo, sacadas y **lip-sync por amplitud** (la boca se abre según el
+  volumen del TTS). No es drop-in (M5GFX vs nuestro stack) pero el modelo de
+  cara se porta; nuestro renderer debería adoptar el lip-sync por amplitud
+  desde el día uno — el encanto más barato por línea del género.
