@@ -1,41 +1,53 @@
-# Buddy Zero wiring — render with: wireviz buddy-zero.wireviz.yml
-# (pip install wireviz; requires graphviz)
+# Buddy Zero wiring (classic ESP32 + GC9A01) — render with:
+#   pip install wireviz && wireviz hardware/buddy-zero.wireviz.yml
+# Matches the esp32-target defaults in firmware/main/Kconfig.projbuild.
 
 connectors:
   ESP32_DEVKIT_V1:
     type: ESP32 DevKit V1 (30-pin)
     notes: Follow silkscreen labels — clone boards shuffle pin positions
-    pinlabels: [3V3, GND, GPIO21, GPIO22, GPIO4, GPIO5, GPIO18, GPIO19, GPIO23, GPIO27]
-  OLED_GME12864:
-    type: SSD1306 128x64 I2C OLED
-    pinlabels: [GND, VCC, SCL, SDA]
+    pinlabels: [3V3, GND, VIN_5V, GPIO4, GPIO5, GPIO18, GPIO21, GPIO23, GPIO25, GPIO26, GPIO27, GPIO13, GPIO14, GPIO15, GPIO32, GPIO34]
+  GC9A01:
+    type: GC9A01 1.28" round display, 240x240 SPI (3V3 ONLY)
+    pinlabels: [VCC, GND, SCL, SDA, RES, DC, CS, BLK]
+  WS2812_RING:
+    type: WS2812 12-LED ring (5V; brightness capped in firmware)
+    pinlabels: [VCC_5V, GND, DIN]
   RC522:
-    type: MFRC522 RFID reader (3V3 ONLY)
+    type: MFRC522 RFID reader (3V3 ONLY, optional — off by default)
     pinlabels: [SDA_CS, SCK, MOSI, MISO, GND, RST, 3V3]
   PETTING_PAD:
-    type: bare jumper wire (touch pad)
+    type: bare jumper wire (touch pad, T0)
     pincount: 1
 
 cables:
-  W_OLED:
-    wirecount: 4
-    colors: [BK, RD, YE, OG]
-    notes: I2C
+  W_LCD:
+    wirecount: 8
+    colors: [RD, BK, YE, OG, WH, GN, VT, GY]
+    notes: SPI — short, similar lengths
+  W_RING:
+    wirecount: 3
+    colors: [RD, BK, GN]
+    notes: VCC from VIN (5V) — 3V3 is dim and marginal
   W_RC522:
     wirecount: 7
     colors: [VT, VT, VT, VT, BK, WH, RD]
-    notes: SPI — keep short and even lengths
+    notes: SPI — MISO on GPIO34 (input-only, boot-safe), NOT the strapping pin 12
   W_TOUCH:
     wirecount: 1
     colors: [WH]
 
 connections:
   -
-    - ESP32_DEVKIT_V1: [GND, 3V3, GPIO22, GPIO21]
-    - W_OLED: [1-4]
-    - OLED_GME12864: [GND, VCC, SCL, SDA]
+    - ESP32_DEVKIT_V1: [3V3, GND, GPIO18, GPIO23, GPIO26, GPIO27, GPIO5, GPIO25]
+    - W_LCD: [1-8]
+    - GC9A01: [VCC, GND, SCL, SDA, RES, DC, CS, BLK]
   -
-    - ESP32_DEVKIT_V1: [GPIO5, GPIO18, GPIO23, GPIO19, GND, GPIO27, 3V3]
+    - ESP32_DEVKIT_V1: [VIN_5V, GND, GPIO21]
+    - W_RING: [1-3]
+    - WS2812_RING: [VCC_5V, GND, DIN]
+  -
+    - ESP32_DEVKIT_V1: [GPIO15, GPIO14, GPIO13, GPIO34, GND, GPIO32, 3V3]
     - W_RC522: [1-7]
     - RC522: [SDA_CS, SCK, MOSI, MISO, GND, RST, 3V3]
   -

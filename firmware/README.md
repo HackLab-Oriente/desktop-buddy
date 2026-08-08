@@ -1,124 +1,139 @@
-# Buddy Zero — framework seed & PoC testbed
+# Firmware — Buddy Zero
 
-The event bus, Berry host, and Sense/Expression drivers here are the real
-framework's first commit.
+El núcleo del framework: bus de eventos, host de Berry, drivers de Senses y
+Expressions, el adaptador de cerebro cloud y la web de recarga en caliente.
 
-## One target: ESP32-S3
+## Dos targets
 
-| Part | Hardware | Driver |
+| | `esp32s3` (referencia) | `esp32` (clásico, DevKit V1) |
 |---|---|---|
-| Face | GC9A01 1.28" round color 240×240 (SPI) | `round_face.cpp` (LovyanGFX) |
-| Mood | WS2812 12-LED ring | `led_ring.cpp` |
-| Petting | capacitive touch, GPIO 1–14 | `touch_sense.cpp` |
+| Bus, Berry, web UI, cerebro cloud, tacto, NFC | ✓ | ✓ |
+| Cara GC9A01 a color | ✓ 1 banda + caché PSRAM, ~30 fps | ✓ 5 bandas de 23 KB, ~13 fps |
+| Modelo local / voz | ✓ / planificado | ✗ (sin PSRAM) |
+| Verificado | en hardware, completo | **arranque sí; píxeles pendientes** |
 
-Both the face and the ring render the same `face_model.h` — 8 emotions, each
-carrying eye geometry *and* a mood color, so the eyes and the halo always
-agree. Wiring: [../hardware/buddy-s3-display.md](../hardware/buddy-s3-display.md).
+El truco que hace posible el clásico: los 460 KB de PSRAM que la cara parece
+necesitar son la **caché** de niveles de ojo, no el renderizado. Dibujar
+necesita un frame, y un frame se puede construir por bandas horizontales
+(240×48 = 23 KB). En el S3 `kBandH == H` — una sola banda, exactamente el
+código de siempre. Todo esto vive en `components/expressions/round_face.cpp`.
 
-### The graphics layer
+## La capa gráfica
 
-The eyes are drawn by **our own** signed-distance-field renderer, because the
-brow slant and the happy squint are carved out of the shape as *coverage* — no
-library primitive can express that. Everything else (panel driver, sprites,
-fonts, blitting) is **LovyanGFX**.
+Los ojos los dibuja **nuestro** renderer de campos de distancia (SDF), porque
+la ceja y el guiño de felicidad se recortan de la forma como *cobertura* —
+ninguna primitiva de librería expresa eso. Todo lo demás (driver del panel,
+sprites, fuentes, blitting) es **LovyanGFX**.
 
-The eyes are **cached**: the SDF costs 40–100 ms per frame, but the image only
-changes on a blink or an emotion change — a saccade is a *translation* of an
-unchanged image. Rendering once per (emotion, openness) into three PSRAM
-sprites and blitting at a gaze offset takes it from 13 fps to ~30, pixel for
-pixel identical. All of this was measured first in
-[../spikes/lovyangfx-gc9a01/](../spikes/lovyangfx-gc9a01/README.md), which also
-records the traps — chiefly that **LovyanGFX stores 16bpp sprites big-endian**,
-so writing native little-endian into `getBuffer()` renders gradients as
-horizontal rainbow stripes.
+En el S3 los ojos van **cacheados**: el SDF cuesta 40–100 ms por frame, pero
+la imagen solo cambia al parpadear o cambiar de emoción — una sacada es una
+*traslación* de una imagen que no cambió. Renderizar una vez por (emoción,
+apertura) en tres sprites PSRAM y blitear con offset de mirada lo lleva de 13
+a ~30 fps, píxel por píxel idéntico. Todo se midió primero en
+[../spikes/lovyangfx-gc9a01/](../spikes/lovyangfx-gc9a01/README.md), que
+registra las trampas — la principal: **LovyanGFX guarda los sprites de 16 bpp
+en big-endian**; escribir little-endian nativo en `getBuffer()` convierte los
+degradados en franjas arcoíris.
 
-### Boot
+## El arranque
 
-`face_start()` runs first in `app_main`, so the splash is on screen while the
-slow work happens behind it. The backlight stays off through panel init, so the
-uninitialised panel is never seen — the boot reads as dark → static → logo.
-The HackLab logo tunes in like a bad TV signal over ~1.6 s, and the status line
-under it is driven by `boot.status` events published by `app_main` as it works.
-`boot.ready` glitches the splash out into the face. On a typical boot the line
-sits on "connecting wifi" for ~4 s, which is the honest bottleneck.
-
-The classic-ESP32 + SSD1306 PoC that this grew out of was removed once the S3
-became the only target; it lives on in git at `4d7b12e` if you ever need it.
-
-## Status
-
-- **Verified**: `idf.py build` succeeds on **ESP-IDF v6.0.2**, Berry compiled
-  in. Written against v6 driver APIs (`esp_driver_touch_sens`, LovyanGFX,
-  `espressif/led_strip` 3.x, managed `espressif/cjson`) — **v5.x is NOT
-  supported**.
-- **Verified**: event bus passes its host tests (`host_test/`).
-- **Verified on hardware**: face, ring, touch, WiFi and the Claude brain all
-  run on the S3. Gotchas we already hit are written up in the hardware doc.
-- **Not yet wired**: RC522 (pin defaults are still classic-ESP32 values),
-  audio, SD card.
+`face_start()` corre primero en `app_main`, así el splash está en pantalla
+mientras lo lento pasa por detrás. La retroiluminación no se enciende hasta
+después del init del panel — el arranque se lee como oscuro → estática → logo.
+El logo del HackLab «sintoniza» como una tele estropeada (~1,6 s) y la línea
+de estado la publican los pasos reales de `app_main` vía `boot.status`.
+`boot.ready` hace glitch del splash a la cara. En un arranque típico la línea
+se queda ~4 s en "connecting wifi": ese es el cuello de botella honesto.
 
 ## Setup
 
 ```bash
-# 1. ESP-IDF v6.x installed (EIM installer puts the activation script at
-#    ~/.espressif/tools/activate_idf_v6.0.2.sh — source it, or use the
-#    ESP-IDF terminal profile).
-# 2. Submodules: Berry (the reflex VM) and LovyanGFX (the graphics layer).
+# 1. ESP-IDF v6.x (la v5 NO está soportada). El instalador EIM deja el script
+#    de activación en ~/.espressif/tools/activate_idf_v6.0.2.sh — haz source.
+# 2. Submódulos: Berry (VM de reflejos) y LovyanGFX (capa gráfica).
 git submodule update --init
 cd firmware/components/berry_host/berry
 mkdir -p generate && python3 tools/coc/coc -o generate src default -c default/berry_conf.h
-#    (Without the submodule/codegen the build still succeeds; reflexes fall
-#     back to C — main.cpp mirrors packs/zero/reflexes/main.be.)
+#    (Sin el submódulo/codegen el build compila igual; los reflejos caen al
+#     fallback en C — main.cpp replica packs/zero/reflexes/main.be.)
 
-cd firmware
-idf.py set-target esp32s3         # first time only
-idf.py menuconfig                 # "Buddy Zero": WiFi, API key, pins
+cd ../../..            # de vuelta a firmware/
+idf.py set-target esp32s3    # o: esp32 — elige tu placa
+idf.py menuconfig            # menú "Buddy Zero": WiFi, API key, pines
 idf.py build flash monitor
 ```
 
-## Wiring (ESP32-S3 N16R8)
+`set-target` regenera `sdkconfig` desde `sdkconfig.defaults` +
+`sdkconfig.defaults.<target>`, y elige la tabla de particiones (16 MB con
+partición de modelo en el S3; 4 MB sin ella en el clásico).
 
-| Peripheral | Pins |
-|---|---|
-| Petting pad | bare jumper wire on GPIO 4 (any of GPIO 1–14) |
-| GC9A01 round display | SCL 12, SDA 11, CS 10, DC 9, RST 8, BL 7, **VCC 3V3** |
-| WS2812 mood ring | DIN 21, **VCC 5V**, GND shared |
+## Cableado
 
-S3 landmines: **GPIO 33–37 are the octal PSRAM — never touch them.**
-GPIO 19/20 = USB, 26–32 = flash, 0/3/45/46 = strapping pins.
+Los pines por defecto **difieren por chip** — los rangos libres no coinciden
+(en el clásico, los pines de display del S3 son la flash). Siempre en
+`menuconfig`, nunca hardcodeados.
 
-## The PoC ladder
+| Periférico | ESP32-S3 | ESP32 clásico |
+|---|---|---|
+| GC9A01 (SPI, **3V3**) | SCL 12 · SDA 11 · CS 10 · DC 9 · RST 8 · BL 7 | SCL 18 · SDA 23 · CS 5 · DC 27 · RST 26 · BL 25 |
+| Almohadilla táctil | GPIO 4 | GPIO 4 |
+| Anillo WS2812 (**5V**) | DIN 21 | DIN 21 |
+| RC522 (opcional, **3V3**) | SCK 39 · MISO 40 · MOSI 41 · CS 42 · RST 38 | SCK 14 · MISO 34 · MOSI 13 · CS 15 · RST 32 |
 
-1. **Heartbeat** — flash, watch the serial log, touch the jumper wire:
-   `touch.pet` → the ring breathes excited. The bus works.
-2. **Proto-face** — the round display shows two parametric eyes: blinks,
-   saccades, gaze, emotions. `face.emotion` payloads: neutral, happy, curious,
+Guías paso a paso con checklist de primer arranque:
+[../hardware/buddy-s3-display.md](../hardware/buddy-s3-display.md) (S3) y
+[../hardware/buddy-zero-wiring.md](../hardware/buddy-zero-wiring.md) (clásico).
+
+Minas por chip — **S3**: 33–37 PSRAM octal, 19/20 USB, 26–32 flash, 0/3/45/46
+strapping. **Clásico**: 6–11 flash, 12 y 15 strapping, 34–39 solo entrada.
+
+## La escalera de PoCs
+
+1. **Latido** — flashea, mira el log serie, toca el jumper: `touch.pet` → el
+   anillo respira. El bus funciona.
+2. **Proto-cara** — la pantalla muestra dos ojos paramétricos: parpadeos,
+   sacadas, emociones. Payloads de `face.emotion`: neutral, happy, curious,
    sleepy, surprised, angry, sad, suspicious.
-3. **Cartridges** — tap an RFID fob: `nfc.tag` + UID in the log. Edit
-   `packs/zero/reflexes/main.be` with your UIDs, upload via web UI, tap again.
-4. **Brain** — with WiFi + API key configured: pet the wire, the buddy asks
-   Claude, the reply's emotion drives the face (utterance in the serial log).
-5. **Hot reload** — open `http://<device-ip>/`, edit reflexes in the browser,
-   upload — behavior changes without reflashing. This is the framework's
-   whole thesis in one button.
+3. **Cartuchos** — acerca un llavero RFID: `nfc.tag` + UID en el log. Pon tus
+   UIDs en `packs/zero/reflexes/main.be` vía web y repite.
+4. **Cerebro** — con WiFi + API key: acaricia el cable, el buddy pregunta a
+   Claude y la emoción de la respuesta mueve la cara.
+5. **Recarga en caliente** — abre `http://<ip-del-buddy>/`, edita reflejos en
+   el navegador, sube — el comportamiento cambia sin reflashear. La tesis
+   entera del framework en un botón.
 
-## Layout
+## Estructura
 
 ```
-components/bus/          event bus (host-testable — see host_test/)
-components/senses/       touch pad, RC522 → events
-components/expressions/  round color face, WS2812 mood ring ← actions
-components/brain/        Brain contract: cloud adapter (Claude)
-components/webui/        WiFi STA + reflex editor + hot reload
-components/berry_host/   Berry VM, buddy.* API, event dispatch
-main/                    wiring + the one framework-owned reflex (brain.reply)
-../packs/zero/           Buddy Zero's Berry reflexes
+components/bus/          bus de eventos (testeable en host — ver host_test/)
+components/senses/       tacto, RC522 → eventos
+components/expressions/  cara a color, anillo WS2812 ← acciones
+components/brain/        contrato de cerebro: adaptador cloud (Claude)
+components/webui/        WiFi STA + editor de reflejos + recarga en caliente
+components/berry_host/   VM Berry, API buddy.*, despacho de eventos
+main/                    arranque + el único reflejo del framework (brain.reply)
+../packs/zero/           los reflejos Berry de Buddy Zero
 ```
 
-## Host tests
+El contrato de eventos completo (con dueños por prefijo y agujeros conocidos):
+[../docs/event-registry.md](../docs/event-registry.md).
+
+## Tests de host
 
 ```bash
 cd host_test
 c++ -std=c++17 -Wall -I../components/bus/include test_bus.cpp ../components/bus/bus.cpp -o test_bus
-./test_bus   # expect: "bus: all tests passed"
+./test_bus   # se espera: "bus: all tests passed"
 ```
+
+## Estado
+
+- **Verificado**: ambos targets compilan en ESP-IDF v6.0.2; el bus pasa sus
+  tests de host; el S3 completo funciona en hardware (cara, anillo, tacto,
+  WiFi, cerebro Claude).
+- **Verificado en el clásico**: arranque completo en placa real — 5 bandas,
+  LittleFS, polaridad táctil V1 correcta. **Pendiente**: nadie ha conectado
+  aún una pantalla a un clásico — costuras entre bandas y fps reales sin
+  confirmar.
+- **Sin cablear todavía**: audio (INMP441/MAX98357A), tarjeta SD, sensores
+  I2C; RC522 sin probar en hardware.

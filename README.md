@@ -1,70 +1,118 @@
 # Desktop Buddy
 
-An open, hackable desktop companion built on the ESP32-S3 — by and for our HackLab.
+Un compañero de escritorio abierto y hackeable sobre ESP32 — hecho por y para
+nuestro HackLab.
 
-## What it is
+## Qué es
 
-A small creature that lives on your desk. It has a face, it reacts when you touch
-it, it chirps and emotes, and it has a personality — driven by an LLM. It is a
-**companion first**: the fun, the expressiveness, and the personality are the
-product. Usefulness (reminders, calendar, integrations) comes later as optional
-skills that anyone in the community can build.
+Una criatura pequeña que vive en tu escritorio. Tiene cara, reacciona cuando
+la tocas, emite sonidos y gestos, y tiene personalidad — impulsada por un LLM.
+Es un **compañero primero**: la gracia, la expresividad y la personalidad son
+el producto. La utilidad (recordatorios, calendario, integraciones) llega
+después, como *skills* opcionales que cualquiera de la comunidad puede
+construir.
 
-Two design commitments shape everything:
+Dos compromisos de diseño lo definen todo:
 
-1. **The behavior is data, not firmware.** The ESP32 runs a stable C++ core (the
-   framework). Everything that makes a buddy *your* buddy — its face, its moods,
-   its reactions, its voice, its system prompt — is a **personality pack**:
-   scripts and assets you edit from a web UI and hot-reload without recompiling.
-   Personalities are shareable, forkable, tradeable — like cartridges.
+1. **El comportamiento es datos, no firmware.** El ESP32 ejecuta un núcleo C++
+   estable (el framework). Todo lo que hace que un buddy sea *tu* buddy — su
+   cara, sus estados de ánimo, sus reacciones, su voz, su system prompt — es un
+   **pack de personalidad**: scripts y assets que editas desde una web y
+   recargas en caliente sin recompilar. Las personalidades se comparten, se
+   forkean y se intercambian — como cartuchos.
 
-2. **Device-first, hub-optional.** The buddy is fully alive standing alone: local
-   reflexes work offline, and it talks to an LLM provider directly over WiFi for
-   conversation. The device speaks to "a brain" through one small protocol — by
-   default that brain is a cloud LLM adapter on the device itself, but the same
-   endpoint can point at an optional hub server, which is where heavier tricks
-   (webhooks, email/calendar integrations, long-term memory) live if the lab
-   builds one. No hub, no problem: the buddy degrades gracefully, never bricks.
+2. **Primero el dispositivo, el hub es opcional.** El buddy está completamente
+   vivo por sí solo: los reflejos locales funcionan sin internet, y habla con
+   un proveedor de LLM directamente por WiFi para conversar. El dispositivo
+   habla con "un cerebro" a través de un protocolo pequeño — por defecto ese
+   cerebro es un adaptador cloud en el propio dispositivo, pero el mismo
+   endpoint puede apuntar a un servidor hub opcional para los trucos pesados
+   (webhooks, integraciones, memoria a largo plazo). Sin hub no pasa nada: el
+   buddy degrada con gracia, **nunca se rompe**.
 
-## Core concepts
+## Conceptos
 
-Everything in the framework is an event on a bus, and there are four extension
-primitives:
+Dentro del framework todo es un evento en un bus, y hay cuatro primitivas de
+extensión:
 
-| Primitive | What it is | Examples |
+| Primitiva | Qué es | Ejemplos |
 |---|---|---|
-| **Senses** | Inputs that emit events | touch, mic, GPIO sensors, timers, polled feeds |
-| **Expressions** | Outputs that consume actions | screen face, sounds/chirps, LEDs, motors |
-| **Reflexes** | Local scripted behaviors (event → action), zero-latency, offline | pet it → it purrs; dark room → it sleeps |
-| **Skills** | LLM-mediated capabilities exposed as tools | set a reminder, read calendar (community-built, hub or cloud) |
+| **Senses** | Entradas que emiten eventos | tacto, micro, sensores, timers |
+| **Expressions** | Salidas que consumen acciones | cara, sonidos, LEDs, motores |
+| **Reflexes** | Comportamiento local scriptado (evento → acción), sin latencia, offline | lo acaricias → ronronea; sala a oscuras → se duerme |
+| **Skills** | Capacidades mediadas por el LLM expuestas como herramientas | recordatorios, calendario (las construye la comunidad) |
 
-A **personality pack** bundles: a system prompt, expression mappings (emotional
-states → animations/sounds), idle reflexes, and voice/chirp config.
+Un **pack de personalidad** agrupa: system prompt, expresiones con nombre
+(estado → cara/color/animación), reflejos y frases. El contrato completo está
+en [docs/pack-format.md](docs/pack-format.md).
 
-## Repository layout
+## Arranque en 5 minutos
+
+Necesitas [ESP-IDF v6.x](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/)
+(la v5 **no** vale) y una placa: **ESP32-S3** (la de referencia) o un
+**ESP32 clásico** DevKit V1 (funciona casi todo — ver la tabla abajo).
+
+```bash
+# --recursive importa: sin los submódulos (Berry y LovyanGFX) no compila
+git clone --recursive <url-del-repo>
+cd desktop-buddy/firmware
+
+idf.py set-target esp32s3   # o: esp32
+idf.py menuconfig           # menú "Buddy Zero": WiFi, API key (opcional)
+idf.py build flash monitor
+```
+
+Guía completa, cableado y la escalera de PoCs: [firmware/README.md](firmware/README.md).
+
+### ¿Qué placa tengo y qué me da?
+
+| | ESP32-S3 N16R8 | ESP32 clásico (DevKit V1) |
+|---|---|---|
+| Bus de eventos, reflejos Berry, web UI, cerebro cloud, tacto, NFC | ✓ | ✓ |
+| Cara redonda a color | ✓ 30 fps (con caché en PSRAM) | ✓ por bandas, ~13 fps · **sin verificar en pantalla aún** |
+| Modelo de IA local | ✓ medido | ✗ necesita PSRAM |
+| Voz (v1) | ✓ planificado | ✗ sin RAM para audio+TLS |
+
+## ¿Dónde me meto?
+
+Según el equipo en el que estés (o quieras estar):
+
+- **Firmware y arquitectura** → [firmware/README.md](firmware/README.md) y
+  [docs/event-registry.md](docs/event-registry.md) — el contrato entre equipos.
+- **Web UI / PWA** → el servidor vive en `firmware/components/webui/`; la API
+  de configuración está por diseñar (es el bloqueo nº 1 — pregunta antes de
+  empezar).
+- **Voz** → [docs/services.md](docs/services.md) y los eventos `voice.*` que
+  aún no existen ([docs/event-registry.md](docs/event-registry.md), sección
+  «agujeros»).
+- **Electrónica** → [docs/hardware.md](docs/hardware.md) (BOM y pedidos) y
+  [hardware/](hardware/) (guías de cableado por placa).
+- **CAD y carcasa** → [docs/hardware.md](docs/hardware.md), sección de
+  alimentación y montaje.
+- **Personalidad y contenido** → [docs/pack-format.md](docs/pack-format.md) y
+  [packs/](packs/) — no hace falta saber programar para escribir frases.
+
+## Estructura del repo
 
 ```
-firmware/     ESP-IDF (C++) core: drivers, event bus, Berry VM, web server
-              ("Buddy Zero" seed — see firmware/README.md)
-packs/        Personality packs (scripts + assets); packs/zero is the seed
-webui/        The on-device configuration & pack editor UI
-hub/          (later, optional) companion server for integrations & webhooks
-hardware/     Schematics, wiring, BOM, 3D-printable case
-docs/         Architecture, decisions, workshop plans
+firmware/     núcleo ESP-IDF (C++): drivers, bus de eventos, VM Berry, web
+packs/        packs de personalidad (scripts + assets); packs/zero es la semilla
+hardware/     guías de cableado por placa, diagramas, máscaras imprimibles
+docs/         arquitectura, decisiones, talleres — índice en docs/README.md
+spikes/       experimentos desechables; solo sus conclusiones van a main
 ```
 
-## Documentation
+## Documentación
 
-- [Product & architecture definition](docs/architecture.md)
-- [Hardware: components & wiring](docs/hardware.md)
-- [Third-party services & providers](docs/services.md)
-- [Pack format (draft proposal)](docs/pack-format.md)
-- [Firmware architecture (interactive)](docs/firmware-architecture.html)
-- [Local model bring-up — Step 0](docs/local-model-bringup.md)
-- [Idea register: open threads & dead ends (interactive)](docs/ideas-exploration.html)
-- [Workshop plan (4 sessions)](docs/workshops.md)
+El índice completo está en [docs/README.md](docs/README.md). Si solo vas a
+leer tres cosas: [la arquitectura](docs/architecture.md), [el plan de
+talleres](docs/workshops.md) y [cómo contribuir](CONTRIBUTING.md).
 
-## Status
+> Idiomas: la documentación está en español; el código y sus comentarios, en
+> inglés. `CLAUDE.md` y `.kiro/` son configuración de las herramientas de IA
+> del proyecto y permanecen en inglés.
 
-Early ideation. This repo is the foundation being brought to the HackLab for
-collective definition and build. Everything here is a proposal — argue with it.
+## Estado
+
+En construcción activa antes de los talleres. Todo lo que hay aquí es una
+propuesta — discútela. Licencia: [MIT](LICENSE).

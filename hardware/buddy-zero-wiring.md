@@ -1,77 +1,106 @@
-# Buddy Zero — Wiring Guide (ESP32 DevKit V1, 30-pin)
+# Cableado — ESP32 clásico (DevKit V1, 30 pines)
 
-Matches the firmware defaults in `firmware/main/Kconfig.projbuild`.
-**Follow silkscreen labels, not pin positions** — DevKit V1 clones shuffle
-pin order between vendors.
+La misma cara a color que el S3, en la placa que muchos ya tienen en el cajón.
+Coincide con los defaults de `firmware/main/Kconfig.projbuild` para el target
+`esp32`. **Sigue las etiquetas de la serigrafía, no la posición del pin** —
+los clones del DevKit V1 barajan el orden entre fabricantes.
 
-## Power rails first
+> **Estado**: el arranque está verificado en placa real (5 bandas de 23 KB,
+> LittleFS, tacto V1). **Nadie ha conectado aún la pantalla a un clásico**:
+> si eres el primero, comprueba que no haya costuras entre bandas y cuéntalo.
 
-- Devkit `3V3` → breadboard **red** rail · Devkit `GND` → **blue** rail.
-- **Everything on this build is 3.3 V. The RC522 has no 5 V tolerance — 5 V
-  kills it.** Nothing connects to VIN/5V at all.
+## Primero los raíles
 
-## GME12864 OLED (SSD1306, I2C)
+- `3V3` del devkit → raíl **rojo** · `GND` → raíl **azul**.
+- La pantalla y el RC522 van a **3V3** (el RC522 muere a 5 V). Solo el anillo
+  LED usa el pin `VIN`/5V.
 
-| OLED pin | To | Wire color |
+## Pantalla GC9A01 (SPI, redonda 1,28″)
+
+| Pin GC9A01 | A | Color sugerido |
 |---|---|---|
-| GND | GND rail | black |
-| VCC | 3V3 rail | red |
-| SCL | GPIO **22** | yellow |
-| SDA | GPIO **21** | orange |
+| VCC | raíl 3V3 | rojo |
+| GND | raíl GND | negro |
+| SCL | GPIO **18** | amarillo |
+| SDA | GPIO **23** | naranja |
+| RES | GPIO **26** | blanco |
+| DC | GPIO **27** | verde |
+| CS | GPIO **5** | morado |
+| BLK | GPIO **25** | gris (o a 3V3 y BL=-1 en menuconfig) |
 
-## RC522 RFID reader (SPI) — 3V3 ONLY
+Son los pines VSPI de toda la vida (18/23/5) más tres GPIOs libres. Los pines
+del S3 (7–12) **no sirven aquí**: en el clásico 6–11 son la flash del chip.
 
-| RC522 pin | To | Wire color |
+## Almohadilla táctil
+
+- Un jumper macho pelado en GPIO **4** (T0). El extremo de metal expuesto es
+  la almohadilla; luego, pégalo a cinta de cobre para una de verdad.
+- En el clásico, tocar **baja** la lectura (en el S3 la sube). El firmware ya
+  lo sabe; se menciona porque es la trampa clásica al depurar.
+
+## Anillo WS2812 (12 LED)
+
+| Pin del anillo | A |
+|---|---|
+| VCC / 5V | **VIN (5V)** — a 3V3 se ve tenue y falla |
+| GND | raíl GND (compartido con la placa, obligatorio) |
+| DIN | GPIO **21** — el lado DIN, no DOUT |
+
+El brillo está capado en firmware (~35%): 12 LEDs a blanco pleno piden
+~700 mA, más de lo que le gusta al 5 V del devkit.
+
+## RC522 NFC (opcional, deshabilitado por defecto)
+
+Actívalo en `menuconfig → Buddy Zero → Enable RC522 RFID reader`.
+
+| Pin RC522 | A | Nota |
 |---|---|---|
-| SDA (=CS) | GPIO **5** | purple |
-| SCK | GPIO **18** | purple |
-| MOSI | GPIO **23** | purple |
-| MISO | GPIO **19** | purple |
-| IRQ | — not connected | |
-| GND | GND rail | black |
-| RST | GPIO **27** | white |
-| 3.3V | 3V3 rail | red |
+| 3.3V | raíl 3V3 | **nunca 5 V** |
+| GND | raíl GND | |
+| SCK | GPIO **14** | |
+| MISO | GPIO **34** | solo-entrada: perfecto para MISO y seguro en el arranque |
+| MOSI | GPIO **13** | |
+| SDA (=CS) | GPIO **15** | |
+| RST | GPIO **32** | |
+| IRQ | — sin conectar | |
 
-## Petting pad
+MISO va en 34 y no en el clásico 12 a propósito: GPIO 12 es strapping (MTDI),
+y un módulo que lo deje alto en el arranque selecciona el voltaje de flash
+equivocado. Estos pines están **sin probar en hardware** — mismo aviso que la
+pantalla.
 
-- One bare male jumper wire into GPIO **4**. That's it — the exposed metal
-  end is the pad. Later: tape it to a strip of copper tape for a real pad.
+## Consejos de protoboard
 
-## Mood LED
+- El DevKit V1 es ancho: ponlo a caballo entre **dos protoboards** (o deja
+  una fila de pines colgando del borde) para tener puntos libres a ambos
+  lados.
+- Los cuatro cables SPI de la pantalla, cortos y de largo parecido.
+- El cable del GPIO 4 (tacto) capta ruido: rútalo lejos del mazo SPI.
 
-- Zero wiring: firmware drives the **onboard LED (GPIO 2)**.
-- Optional external: GPIO 2 → 220 Ω resistor → LED anode(+), cathode(−) → GND.
+## Checklist de primer arranque (`idf.py monitor`)
 
-## Breadboard placement tips
+1. `face: frame 240x48 in 5 bands (23040 B), no cache (no PSRAM)` — el
+   renderizado por bandas está activo.
+2. `touch: baseline=NNN threshold=NNN (touch lowers)` — polaridad V1
+   correcta; al tocar el cable caen `touch.down` / `touch.pet` en el log.
+3. Ojos parpadeando en la pantalla. Sin imagen: revisa RES/DC/CS y 3V3;
+   colores raros: es un clon con otro orden de color (ver
+   [buddy-s3-display.md](buddy-s3-display.md), la sección de gotchas vale
+   igual aquí).
+4. Con RC522: `rc522: MFRC522 version 0x91` (o `0x92`). `0x00`/`0xFF` =
+   revisa CS/SCK/MISO/MOSI y alimentación.
 
-- The DevKit V1 is wide: straddle it across **two breadboards** (or hang one
-  pin row off the board's edge) so both sides have free tie-points.
-- Keep the four RC522 SPI wires short and similar in length; the reader is
-  the first suspect if tag reads are flaky.
-- GPIO 4 (touch) picks up noise from neighbors — route the pad wire away
-  from the SPI bundle.
+## Diagrama como código
 
-## First-boot checklist (idf.py monitor)
-
-1. `rc522: MFRC522 version 0x91` (or `0x92`) — SPI wiring is right.
-   `0x00`/`0xFF` = check CS/SCK/MISO/MOSI and power.
-2. `touch: baseline=NNN threshold=NNN` — then touching the wire fires
-   `touch.down` / `touch.pet` events in the log.
-3. Eyes blinking on the OLED. No display = swap SDA/SCL (the classic).
-4. Tap a fob: `rc522: tag <uid>` — copy that UID into
-   `packs/zero/reflexes/main.be` via the web UI.
-
-## Diagram as code
-
-`buddy-zero.wireviz.yml` next to this file renders a proper harness diagram:
+`buddy-zero.wireviz.yml` junto a este archivo genera el diagrama del mazo:
 
 ```bash
-pip install wireviz   # needs graphviz installed
-wireviz hardware/buddy-zero.wireviz.yml   # → SVG/PNG next to the file
+pip install wireviz && wireviz hardware/buddy-zero.wireviz.yml
 ```
 
-## v1 note
+## Qué NO da esta placa
 
-These pin choices are PoC-only (classic ESP32). The real buddy's pin map
-(ESP32-S3, GC9A01 + PN532 + I2S audio + sensors) gets frozen in workshop
-session 1 — see `docs/hardware.md`.
+Sin PSRAM no hay caché de ojos (≈13 fps en vez de 30), ni modelo de IA local,
+ni el bucle de voz v1. Todo lo demás — bus, reflejos Berry, web con recarga
+en caliente, cerebro cloud, NFC — funciona igual que en el S3. La tabla
+comparativa está en [../firmware/README.md](../firmware/README.md).
