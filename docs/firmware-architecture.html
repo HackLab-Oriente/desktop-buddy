@@ -1,4 +1,4 @@
-<title>Desktop Buddy · Firmware Architecture</title>
+<title>Desktop Buddy · Arquitectura del firmware</title>
 <style>
   :root{
     --paper:#EDEFF2; --paper-2:#F7F8FA; --paper-3:#FFFFFF;
@@ -187,13 +187,13 @@
     <div class="wrap">
       <div>
         <div class="kicker">Desktop Buddy</div>
-        <h1>Firmware architecture</h1>
+        <h1>Arquitectura del firmware</h1>
         <div class="specline">
-          ESP-IDF <b>v6.0.2</b> · targets <b>esp32s3</b> (default) / <b>esp32</b> ·
-          C++ core + Berry scripting · app <b>1.19 MB</b> of 2.5 MB
+          ESP-IDF <b>v6.0.2</b> · targets <b>esp32s3</b> (por defecto) / <b>esp32</b> ·
+          núcleo C++ + scripting Berry · app <b>1,29 MB</b> de 3 MB
         </div>
       </div>
-      <button class="tbtn" id="theme">theme</button>
+      <button class="tbtn" id="theme">tema</button>
     </div>
   </header>
 
@@ -201,34 +201,34 @@
     <!-- 1 -->
     <section>
       <div class="wrap">
-        <div class="snum"><b>§1</b> The one rule</div>
-        <h2>Everything is an event on the bus</h2>
-        <p class="lead">No driver ever calls another driver. A Sense <em>publishes</em>; anything that
-          cares <em>subscribes</em>. One task drains the queue, so handlers run in a single context and
-          never need their own locks. This single decision is why a new sensor can be added without
-          touching a line of existing code.</p>
-        <p>Subscriptions match an exact name (<code>touch.pet</code>), a family
-          (<code>touch.*</code>), or everything (<code>*</code> — how the debug tracer and the Berry
-          host listen). Events published <em>inside</em> a handler land in the next drain, not the
-          current one, which keeps cascades from recursing.</p>
+        <div class="snum"><b>§1</b> La única regla</div>
+        <h2>Todo es un evento en el bus</h2>
+        <p class="lead">Ningún driver llama nunca a otro driver. Un Sense <em>publica</em>; lo que le
+          importe <em>se suscribe</em>. Una sola tarea drena la cola, así que los handlers corren en un
+          único contexto y nunca necesitan locks propios. Esta única decisión es la razón de que se
+          pueda añadir un sensor nuevo sin tocar una línea del código existente.</p>
+        <p>Las suscripciones casan con un nombre exacto (<code>touch.pet</code>), una familia
+          (<code>touch.*</code>) o con todo (<code>*</code> — así escuchan el tracer de depuración y el
+          host de Berry). Los eventos publicados <em>dentro</em> de un handler caen en el siguiente
+          drenado, no en el actual, lo que evita que las cascadas recursen.</p>
 
         <div class="sim">
           <div class="sim-bar">
-            <span class="cap">Publish</span>
+            <span class="cap">Publicar</span>
             <button class="trig" data-c="pet">touch.pet</button>
-            <button class="trig" data-c="joy">joystick.move</button>
+            <button class="trig" data-c="poke">touch.poke</button>
             <button class="trig" data-c="nfc">nfc.tag</button>
             <button class="trig" data-c="reload">system.reload</button>
-            <button class="trig" data-c="offline">touch.pet <span style="opacity:.6">(offline)</span></button>
+            <button class="trig" data-c="offline">touch.pet <span style="opacity:.6">(sin red)</span></button>
           </div>
           <div class="sim-body">
             <div class="nodes" id="nodes"></div>
             <div class="trace">
-              <div class="th">Serial trace</div>
+              <div class="th">Traza serie</div>
               <div id="log"></div>
             </div>
           </div>
-          <div class="hint" id="hint">Pick an event above to watch it propagate. Left border marks the core the task runs on.</div>
+          <div class="hint" id="hint">Elige un evento arriba para verlo propagarse. El borde izquierdo marca el núcleo en el que corre la tarea.</div>
         </div>
       </div>
     </section>
@@ -236,213 +236,219 @@
     <!-- 2 -->
     <section>
       <div class="wrap">
-        <div class="snum"><b>§2</b> Components</div>
-        <h2>Four primitives, one component each</h2>
-        <p>Every feature must present itself as a <strong>Sense</strong> (input → events),
-          an <strong>Expression</strong> (actions → output), a <strong>Reflex</strong> (event → action
-          logic, in script), or a <strong>Skill</strong> (an LLM-mediated capability, v2+). The
-          directory layout follows the same split.</p>
+        <div class="snum"><b>§2</b> Componentes</div>
+        <h2>Cuatro primitivas, un componente cada una</h2>
+        <p>Cada funcionalidad tiene que presentarse como un <strong>Sense</strong> (entrada → eventos),
+          una <strong>Expression</strong> (acciones → salida), un <strong>Reflex</strong> (lógica
+          evento → acción, en script) o una <strong>Skill</strong> (capacidad mediada por el LLM, v2+).
+          La estructura de directorios sigue la misma división.</p>
         <div class="tw">
           <table>
-            <thead><tr><th>Component</th><th>Kind</th><th>Publishes</th><th>Subscribes</th></tr></thead>
+            <thead><tr><th>Componente</th><th>Tipo</th><th>Publica</th><th>Se suscribe a</th></tr></thead>
             <tbody>
-              <tr><td class="name">bus/</td><td>core</td><td class="m">—</td><td class="m">—</td></tr>
+              <tr><td class="name">bus/</td><td>núcleo</td><td class="m">—</td><td class="m">—</td></tr>
               <tr><td class="name">senses/touch_sense</td><td>Sense</td><td class="m">touch.down · touch.pet · touch.poke</td><td class="m">—</td></tr>
-              <tr><td class="name">senses/joystick</td><td>Sense</td><td class="m">joystick.move · joystick.press/release</td><td class="m">—</td></tr>
               <tr><td class="name">senses/rc522</td><td>Sense</td><td class="m">nfc.tag</td><td class="m">—</td></tr>
-              <tr><td class="name">expressions/round_face</td><td>Expression</td><td class="m">—</td><td class="m">face.emotion · face.say · face.look</td></tr>
+              <tr><td class="name">expressions/round_face</td><td>Expression</td><td class="m">—</td><td class="m">face.emotion · face.say · face.look · boot.*</td></tr>
               <tr><td class="name">expressions/led_ring</td><td>Expression</td><td class="m">—</td><td class="m">face.emotion · led.mood</td></tr>
               <tr><td class="name">brain/brain_cloud</td><td>Brain</td><td class="m">brain.reply · brain.error · led.mood</td><td class="m">brain.ask</td></tr>
-              <tr><td class="name">berry_host</td><td>Reflexes</td><td class="m">(whatever scripts emit)</td><td class="m">* · system.reload</td></tr>
-              <tr><td class="name">webui</td><td>core</td><td class="m">system.reload · time.synced</td><td class="m">—</td></tr>
-              <tr><td class="name">main</td><td>wiring</td><td class="m">face.* · led.mood</td><td class="m">brain.reply · *(trace)</td></tr>
+              <tr><td class="name">berry_host</td><td>Reflexes</td><td class="m">(lo que emitan los scripts)</td><td class="m">* · system.reload</td></tr>
+              <tr><td class="name">webui</td><td>núcleo</td><td class="m">system.reload · time.synced</td><td class="m">—</td></tr>
+              <tr><td class="name">main</td><td>cableado</td><td class="m">face.* · led.mood · boot.*</td><td class="m">brain.reply · *(traza)</td></tr>
             </tbody>
           </table>
         </div>
-        <p style="margin-top:.9rem">Note what <code>main</code> is: not a god object, just wiring plus
-          the single framework-owned reflex that turns a Brain reply into expressions. Everything else
-          is a component that could be deleted without breaking its neighbours.</p>
+        <p style="margin-top:.9rem">Fíjate en lo que <code>main</code> es: no un objeto-dios, solo
+          cableado más el único reflejo propiedad del framework, el que convierte una respuesta del
+          Brain en expresiones. Todo lo demás es un componente que se podría borrar sin romper a sus
+          vecinos. El contrato completo — con dueños por prefijo — está en
+          <code>docs/event-registry.md</code>.</p>
       </div>
     </section>
 
     <!-- 3 -->
     <section>
       <div class="wrap">
-        <div class="snum"><b>§3</b> Concurrency</div>
-        <h2>Nine tasks across two cores</h2>
-        <p>Network and TLS live on core 0 with the bus dispatcher; everything that must stay smooth —
-          rendering, sensing, the LED ring — lives on core 1. The rule of thumb: anything that can block
-          for seconds goes on core 0 and talks to the rest of the system only through the bus.</p>
+        <div class="snum"><b>§3</b> Concurrencia</div>
+        <h2>Siete tareas en dos núcleos</h2>
+        <p>La red y TLS viven en el núcleo 0 junto al despachador del bus; todo lo que debe ir fluido —
+          el renderizado, los sensores, el anillo LED — vive en el núcleo 1. La regla general:
+          cualquier cosa que pueda bloquear durante segundos va al núcleo 0 y habla con el resto del
+          sistema solo a través del bus.</p>
         <div class="tw">
           <table>
-            <thead><tr><th>Task</th><th class="m">Core</th><th class="m">Stack</th><th class="m">Prio</th><th class="m">Period</th><th>Why it exists</th></tr></thead>
+            <thead><tr><th>Tarea</th><th class="m">Núcleo</th><th class="m">Stack</th><th class="m">Prio</th><th class="m">Periodo</th><th>Por qué existe</th></tr></thead>
             <tbody>
-              <tr><td class="name">main</td><td><span class="pill p0">0</span></td><td class="m">8192</td><td class="m">1</td><td class="m">once</td><td>brings up every subsystem, then exits</td></tr>
-              <tr><td class="name">bus</td><td><span class="pill p0">0</span></td><td class="m">6144</td><td class="m">5</td><td class="m">10 ms idle</td><td>drains the queue; all handlers run here</td></tr>
-              <tr><td class="name">brain</td><td><span class="pill p0">0</span></td><td class="m">10240</td><td class="m">4</td><td class="m">blocking</td><td>TLS + HTTP to Claude; deep stack for mbedTLS</td></tr>
-              <tr><td class="name">face</td><td><span class="pill p1">1</span></td><td class="m">6144</td><td class="m">4</td><td class="m">40 ms</td><td>blink, saccade, render, push framebuffer</td></tr>
-              <tr><td class="name">ring</td><td><span class="pill p1">1</span></td><td class="m">3072</td><td class="m">3</td><td class="m">40 ms</td><td>breathe / comet animation on the WS2812</td></tr>
-              <tr><td class="name">touch</td><td><span class="pill p1">1</span></td><td class="m">3072</td><td class="m">4</td><td class="m">25 ms</td><td>capacitive pad, 2-sample debounce</td></tr>
-              <tr><td class="name">joystick</td><td><span class="pill p1">1</span></td><td class="m">3072</td><td class="m">4</td><td class="m">40 ms</td><td>two ADC axes + button</td></tr>
-              <tr><td class="name">rc522</td><td><span class="pill p1">1</span></td><td class="m">3072</td><td class="m">4</td><td class="m">200 ms</td><td>polls for an NFC tag over SPI</td></tr>
+              <tr><td class="name">main</td><td><span class="pill p0">0</span></td><td class="m">8192</td><td class="m">1</td><td class="m">una vez</td><td>levanta cada subsistema y termina</td></tr>
+              <tr><td class="name">bus</td><td><span class="pill p0">0</span></td><td class="m">6144</td><td class="m">5</td><td class="m">10 ms ocioso</td><td>drena la cola; todos los handlers corren aquí</td></tr>
+              <tr><td class="name">brain</td><td><span class="pill p0">0</span></td><td class="m">10240</td><td class="m">4</td><td class="m">bloqueante</td><td>TLS + HTTP a Claude; stack profundo para mbedTLS</td></tr>
+              <tr><td class="name">face</td><td><span class="pill p1">1</span></td><td class="m">6144</td><td class="m">4</td><td class="m">40 ms</td><td>parpadeo, sacada, render, push del frame</td></tr>
+              <tr><td class="name">ring</td><td><span class="pill p1">1</span></td><td class="m">3072</td><td class="m">3</td><td class="m">40 ms</td><td>animación de respiración / cometa en el WS2812</td></tr>
+              <tr><td class="name">touch</td><td><span class="pill p1">1</span></td><td class="m">3072</td><td class="m">4</td><td class="m">25 ms</td><td>almohadilla capacitiva, antirrebote de 2 muestras</td></tr>
+              <tr><td class="name">rc522</td><td><span class="pill p1">1</span></td><td class="m">3072</td><td class="m">4</td><td class="m">200 ms</td><td>sondea tags NFC por SPI</td></tr>
             </tbody>
           </table>
         </div>
-        <p style="margin-top:.9rem">The Brain never blocks the bus: <code>brain.ask</code> handlers just
-          <code>strdup</code> the prompt onto a 4-deep queue and return. If the queue is full the ask is
-          dropped rather than stalling the whole creature.</p>
+        <p style="margin-top:.9rem">El Brain nunca bloquea el bus: los handlers de
+          <code>brain.ask</code> solo hacen <code>strdup</code> del prompt a una cola de 4 y vuelven.
+          Si la cola está llena la pregunta se descarta, en vez de atascar a la criatura entera.</p>
       </div>
     </section>
 
     <!-- 4 -->
     <section>
       <div class="wrap">
-        <div class="snum"><b>§4</b> Portability</div>
-        <h2>Hardware is a build-time choice, not a code fork</h2>
-        <p>Each display and mood-indicator backend is a whole source file guarded by its Kconfig symbol.
-          Exactly one compiles in; the rest vanish. Every backend implements the same two entry points
-          (<code>face_start()</code>, <code>led_start()</code>) and consumes the same events — so a pack
-          written for the round colour face works unchanged on the monochrome OLED.</p>
+        <div class="snum"><b>§4</b> Portabilidad</div>
+        <h2>La placa es una opción de compilación, no un fork</h2>
+        <p>Dos targets soportados, un solo código. El ESP32-S3 es la referencia; el ESP32 clásico
+          corre <em>la misma cara a color</em>, pero sin PSRAM tiene que construir el frame por bandas
+          horizontales en vez de cachear los niveles de ojo. Lo que cambia son constantes y la tabla de
+          particiones — no hay una segunda ruta de renderizado que mantener.</p>
         <div class="sw">
           <div class="swgroup">
-            <div class="lbl">Face display backend</div>
-            <div class="opts" role="group" aria-label="Display backend">
-              <button class="opt" data-g="disp" data-v="gc" aria-pressed="true">GC9A01 round colour</button>
-              <button class="opt" data-g="disp" data-v="ssd" aria-pressed="false">SSD1306 mono</button>
-            </div>
-          </div>
-          <div class="swgroup">
-            <div class="lbl">Mood indicator backend</div>
-            <div class="opts" role="group" aria-label="LED backend">
-              <button class="opt" data-g="led" data-v="ws" aria-pressed="true">WS2812 ring</button>
-              <button class="opt" data-g="led" data-v="pwm" aria-pressed="false">Single PWM LED</button>
+            <div class="lbl">Target de compilación</div>
+            <div class="opts" role="group" aria-label="Target">
+              <button class="opt" data-g="tgt" data-v="s3" aria-pressed="true">ESP32-S3 N16R8</button>
+              <button class="opt" data-g="tgt" data-v="c3" aria-pressed="false">ESP32 clásico</button>
             </div>
           </div>
         </div>
         <div class="files" id="files"></div>
         <pre id="kcode"></pre>
+        <p style="margin-top:.9rem">El truco que hace posible el clásico: los 460 KB de PSRAM que la
+          cara parece necesitar son la <strong>caché</strong> de niveles de ojo, no el renderizado.
+          Dibujar necesita un frame, y un frame se puede construir por bandas. En el S3
+          <code>kBandH == H</code> — una sola banda, exactamente la ruta de siempre, para que el
+          bandeado no pueda regresionar el target que ya funciona.</p>
       </div>
     </section>
 
     <!-- 5 -->
     <section>
       <div class="wrap">
-        <div class="snum"><b>§5</b> The Brain</div>
-        <h2>One contract, three possible brains</h2>
-        <p>The firmware never names an AI vendor. It publishes <code>brain.ask</code> and waits for
-          <code>brain.reply</code>. Today a device-side adapter fills that contract by calling Claude
-          Haiku directly over TLS; tomorrow a hub server can serve the identical contract; with no
-          network at all, nothing fills it and the reflexes simply keep running.</p>
+        <div class="snum"><b>§5</b> El Brain</div>
+        <h2>Un contrato, tres cerebros posibles</h2>
+        <p>El firmware nunca nombra a un proveedor de IA. Publica <code>brain.ask</code> y espera
+          <code>brain.reply</code>. Hoy un adaptador en el dispositivo cumple ese contrato llamando a
+          Claude Haiku directamente por TLS; mañana un servidor hub puede servir el contrato idéntico;
+          sin red alguna, nadie lo cumple y los reflejos simplemente siguen corriendo.</p>
         <div class="grid g3" style="margin-top:1rem">
-          <div class="card"><div class="lbl">Default · today</div><h3>On-device adapter</h3>
-            <p>WiFi + an API key. One persistent TLS connection, reused across asks.</p></div>
-          <div class="card"><div class="lbl">Optional · v2</div><h3>Hub server</h3>
-            <p>Same contract over LAN. Unlocks webhooks, OAuth integrations, long-term memory.</p></div>
-          <div class="card"><div class="lbl">Always</div><h3>No brain</h3>
-            <p>Offline, reflexes still fire. The buddy is quieter, never bricked.</p></div>
+          <div class="card"><div class="lbl">Por defecto · hoy</div><h3>Adaptador en dispositivo</h3>
+            <p>WiFi + una API key. Una conexión TLS persistente, reutilizada entre preguntas.</p></div>
+          <div class="card"><div class="lbl">Opcional · v2</div><h3>Servidor hub</h3>
+            <p>Mismo contrato por LAN. Desbloquea webhooks, integraciones OAuth y memoria a largo plazo.</p></div>
+          <div class="card"><div class="lbl">Siempre</div><h3>Sin cerebro</h3>
+            <p>Sin red, los reflejos siguen disparando. El buddy está más callado, nunca roto.</p></div>
         </div>
         <pre><span class="c">// device → brain</span>
 { <span class="k">"event"</span>: "touch.pet", <span class="k">"personality"</span>: "…", <span class="k">"sensors"</span>: {…} }
 
-<span class="c">// brain → device (parsed defensively: the model loves ```json fences,</span>
-<span class="c">// so the framework extracts the outermost {…} rather than trusting framing)</span>
+<span class="c">// brain → device (se parsea a la defensiva: al modelo le encantan las vallas</span>
+<span class="c">// ```json, así que el framework extrae el {…} más exterior en vez de fiarse)</span>
 { <span class="w">"utterance"</span>: "All forgiven!", <span class="w">"emotion"</span>: "happy" }</pre>
-        <p>Two hard-won details live in this path: the reply parser tolerates markdown fences, and the
-          TLS connection is kept alive because on the classic ESP32 a fresh handshake costs 3–6 s of
-          software elliptic-curve maths — enough to trip the task watchdog.</p>
+        <p>En esta ruta viven dos detalles ganados a pulso: el parser de respuestas tolera vallas de
+          markdown, y la conexión TLS se mantiene viva porque en el ESP32 clásico un handshake nuevo
+          cuesta 3–6 s de matemática de curva elíptica por software — suficiente para disparar el
+          watchdog de tareas.</p>
       </div>
     </section>
 
     <!-- 6 -->
     <section>
       <div class="wrap">
-        <div class="snum"><b>§6</b> Behaviour is data</div>
-        <h2>Emotions are a table, not a code path</h2>
-        <p>An emotion is five integers, a blink temperament and a colour. The renderer and the LED ring
-          read the same row, which is why the eyes and the halo can never disagree. Click a row — the
-          eyes below are drawn by the same algorithm the firmware runs.</p>
+        <div class="snum"><b>§6</b> El comportamiento es datos</div>
+        <h2>Las emociones son una tabla, no una ruta de código</h2>
+        <p>Una emoción son cinco enteros, un temperamento de parpadeo y un color. El renderer y el
+          anillo LED leen la misma fila, y por eso los ojos y el halo no pueden discrepar nunca. Pulsa
+          una fila — los ojos de abajo los dibuja el mismo algoritmo que corre el firmware.</p>
         <div class="emo">
           <div class="tw" style="margin-top:0">
             <table>
-              <thead><tr><th>Emotion</th><th class="m">W</th><th class="m">H</th><th class="m">Open</th><th class="m">Lift</th><th class="m">Brow</th><th class="m">Blink</th></tr></thead>
+              <thead><tr><th>Emoción</th><th class="m">An</th><th class="m">Al</th><th class="m">Abre</th><th class="m">Guiño</th><th class="m">Ceja</th><th class="m">Parpadeo</th></tr></thead>
               <tbody id="erows"></tbody>
             </table>
           </div>
           <div class="eyewrap">
-            <canvas id="eyes" width="520" height="300" role="img" aria-label="Preview of the selected emotion"></canvas>
+            <canvas id="eyes" width="520" height="300" role="img" aria-label="Vista previa de la emoción seleccionada"></canvas>
             <div class="cap" id="ecap">neutral</div>
           </div>
         </div>
-        <p style="margin-top:1rem">Above the table sits the layer nobody recompiles: <strong>Berry
-          reflexes</strong>. Scripts are uploaded from the device's own web UI, which writes the file
-          and publishes <code>system.reload</code>; the host tears the VM down and rebuilds it in place.
-          Editing behaviour never involves a flash cable.</p>
-        <pre><span class="c"># packs/zero/reflexes/main.be — hot-reloaded, no rebuild</span>
+        <p style="margin-top:1rem">Por encima de la tabla está la capa que nadie recompila: los
+          <strong>reflejos Berry</strong>. Los scripts se suben desde la propia web del dispositivo,
+          que escribe el archivo y publica <code>system.reload</code>; el host derriba la VM y la
+          reconstruye en sitio. Editar comportamiento nunca implica un cable de flasheo.</p>
+        <pre><span class="c"># packs/zero/reflexes/main.be — recarga en caliente, sin recompilar</span>
 buddy.on(<span class="k">"touch.pet"</span>, def (ev)
   buddy.face.emotion(<span class="k">"happy"</span>)
   buddy.led.mood(<span class="k">"excited"</span>)
   buddy.say(<span class="k">"The user just petted you gently."</span>)   <span class="c"># → brain.ask</span>
 end)</pre>
-        <p>The VM lives entirely on the bus dispatch task, so scripts need no locking — and equally, a
-          script that loops forever freezes every reflex. That constraint is the price of the
-          simplicity.</p>
+        <p>La VM vive entera en la tarea de despacho del bus, así que los scripts no necesitan locks —
+          y, en igual medida, un script que entre en bucle infinito congela todos los reflejos. Esa
+          restricción es el precio de la simplicidad.</p>
       </div>
     </section>
 
     <!-- 7 -->
     <section>
       <div class="wrap">
-        <div class="snum"><b>§7</b> Budgets</div>
-        <h2>Where the memory goes</h2>
+        <div class="snum"><b>§7</b> Presupuestos</div>
+        <h2>A dónde se va la memoria</h2>
         <div class="grid g2" style="margin-top:1rem">
           <div class="card">
-            <div class="lbl">Application image</div>
-            <div class="bar"><i style="width:45.6%;background:var(--sig)"></i></div>
-            <div class="barlbl"><span>1.19 MB used</span><span>2.5 MB partition</span></div>
-            <p>Includes the Berry VM, mbedTLS and the LCD stack.</p>
+            <div class="lbl">Imagen de aplicación · ESP32-S3</div>
+            <div class="bar"><i style="width:41%;background:var(--sig)"></i></div>
+            <div class="barlbl"><span>1,29 MB usados</span><span>partición de 3 MB</span></div>
+            <p>Incluye la VM de Berry, mbedTLS y la pila gráfica. En el ESP32 clásico son 1,27 MB de
+              una partición de 1,87 MB (35% libre).</p>
           </div>
           <div class="card">
-            <div class="lbl">Internal RAM · task stacks</div>
+            <div class="lbl">RAM interna · stacks de tareas</div>
             <div class="bar">
               <i style="width:24%;background:var(--core0)"></i>
               <i style="width:14%;background:var(--core0);opacity:.6"></i>
               <i style="width:14%;background:var(--core1)"></i>
               <i style="width:21%;background:var(--core1);opacity:.6"></i>
             </div>
-            <div class="barlbl"><span>≈ 43 KB across 9 tasks</span><span>of 512 KB SRAM</span></div>
-            <p>Plus roughly 50 KB more while a TLS session is open.</p>
+            <div class="barlbl"><span>≈ 39 KB entre 7 tareas</span><span>de 512 KB de SRAM</span></div>
+            <p>Más unos 50 KB adicionales mientras hay una sesión TLS abierta.</p>
           </div>
         </div>
-        <p style="margin-top:1rem">The 240×240 framebuffer (112 KB) lives in <strong>PSRAM</strong>;
-          DMA and WiFi buffers must stay in internal RAM. Two crashes taught these limits the hard way:
-          <code>app_main</code> overflowing its default 3584-byte stack while bringing up the LCD and the
-          VM together, and a text-wrap buffer overrun that corrupted the heap on long replies. Both are
-          now fixed, and both are documented in the hardware notes so nobody re-learns them.</p>
+        <p style="margin-top:1rem">El frame de trabajo de 240×240 (115 KB) vive en <strong>RAM
+          interna</strong> — es ~2× más rápida de dibujar que la PSRAM y cabe; lo que va a PSRAM son
+          las tres cachés de nivel de ojo (3 × 115 KB). En el ESP32 clásico no hay PSRAM: el frame se
+          construye en bandas de 240×48 (23 KB) y no hay caché. Los buffers de DMA y WiFi deben
+          quedarse siempre en RAM interna. Dos crashes enseñaron estos límites por las malas:
+          <code>app_main</code> desbordando su stack por defecto de 3584 bytes al levantar la pantalla
+          y la VM a la vez, y un desbordamiento del buffer de ajuste de texto que corrompía el heap con
+          respuestas largas. Ambos están arreglados y documentados en las notas de hardware para que
+          nadie los reaprenda.</p>
       </div>
     </section>
 
     <!-- 8 -->
     <section>
       <div class="wrap">
-        <div class="snum"><b>§8</b> Extending</div>
-        <h2>Adding something new</h2>
+        <div class="snum"><b>§8</b> Extender</div>
+        <h2>Añadir algo nuevo</h2>
         <div class="grid g3" style="margin-top:1rem">
-          <div class="card"><div class="lbl">New behaviour</div><h3>Write a reflex</h3>
-            <p>A few lines of Berry in the web editor. No toolchain, no rebuild, live in seconds.</p></div>
-          <div class="card"><div class="lbl">New sensor</div><h3>Add a Sense</h3>
-            <p>One <code>.cpp</code>, a task, and <code>bus().publish(…)</code>. Nothing existing changes.</p></div>
-          <div class="card"><div class="lbl">New output</div><h3>Add an Expression</h3>
-            <p>Subscribe to an action event and drive the hardware. Same isolation.</p></div>
+          <div class="card"><div class="lbl">Comportamiento nuevo</div><h3>Escribe un reflejo</h3>
+            <p>Unas líneas de Berry en el editor web. Sin toolchain, sin recompilar, vivo en segundos.</p></div>
+          <div class="card"><div class="lbl">Sensor nuevo</div><h3>Añade un Sense</h3>
+            <p>Un <code>.cpp</code>, una tarea y <code>bus().publish(…)</code>. Nada existente cambia.</p></div>
+          <div class="card"><div class="lbl">Salida nueva</div><h3>Añade una Expression</h3>
+            <p>Suscríbete a un evento de acción y mueve el hardware. El mismo aislamiento.</p></div>
         </div>
-        <p style="margin-top:1rem">The honest limits of the current design, worth knowing before you
-          build on it: the emotion table is still compiled in rather than supplied by a pack; the Brain
-          call is non-streaming, so the face can't react mid-sentence; and there is no audio path yet —
-          chirps and the push-to-talk voice loop are the next milestone.</p>
+        <p style="margin-top:1rem">Los límites honestos del diseño actual, que conviene conocer antes
+          de construir encima: la tabla de emociones sigue compilada dentro en vez de venir de un pack;
+          la llamada al Brain no es en streaming, así que la cara no puede reaccionar a media frase; y
+          todavía no hay ruta de audio — los chirps y el bucle de voz push-to-talk son el siguiente
+          hito. Los agujeros conocidos del bus están listados en <code>docs/event-registry.md</code>.</p>
       </div>
     </section>
   </main>
 
-  <footer><div class="wrap">desktop_buddy · firmware reference · a living document</div></footer>
+  <footer><div class="wrap">desktop_buddy · referencia del firmware · un documento vivo</div></footer>
 </div>
 
 <script>
@@ -459,10 +465,9 @@ end)</pre>
 
   /* ---------- §1 bus simulator ---------- */
   var NODES = [
-    {id:"touch",  nm:"touch_sense", core:1, sub:"— (publishes)"},
-    {id:"joy",    nm:"joystick",    core:1, sub:"— (publishes)"},
-    {id:"rc522",  nm:"rc522",       core:1, sub:"— (publishes)"},
-    {id:"bus",    nm:"bus",         core:0, sub:"queue → pump()"},
+    {id:"touch",  nm:"touch_sense", core:1, sub:"— (publica)"},
+    {id:"rc522",  nm:"rc522",       core:1, sub:"— (publica)"},
+    {id:"bus",    nm:"bus",         core:0, sub:"cola → pump()"},
     {id:"berry",  nm:"berry_host",  core:0, sub:"* · system.reload"},
     {id:"main",   nm:"main",        core:0, sub:"brain.reply · *"},
     {id:"brain",  nm:"brain_cloud", core:0, sub:"brain.ask"},
@@ -482,7 +487,7 @@ end)</pre>
 
   // step: [ms, source, event, payload, targets[], warm?]
   var CHAINS = {
-    pet: {hint:"A pet with the network up: the reflex asks the Brain, and the reply drives the face and ring.", steps:[
+    pet: {hint:"Una caricia con la red levantada: el reflejo pregunta al Brain, y la respuesta mueve la cara y el anillo.", steps:[
       [0,   "touch",  "touch.pet",   "pad0",        ["bus","berry","main"]],
       [420, "berry",  "brain.ask",   "user petted you gently", ["bus","brain"], 1],
       [260, "brain",  "led.mood",    "thinking",    ["bus","ring"]],
@@ -491,23 +496,23 @@ end)</pre>
       [160, "main",   "face.say",    "ALL FORGIVEN!", ["bus","face"]],
       [160, "main",   "led.mood",    "calm",        ["bus","ring"]]
     ]},
-    joy: {hint:"Local reflex, no cloud: from stick to eyeball in about 40 ms.", steps:[
-      [0,   "joy",   "joystick.move", "40,-20", ["bus","berry","main"]],
-      [200, "main",  "face.look",     "40,-20", ["bus","face"]]
+    poke: {hint:"Reflejo local, sin nube: del dedo al ojo en unos 40 ms. El reflejo lleva la cuenta — al tercer toque se enfada.", steps:[
+      [0,   "touch", "touch.poke",   "pad0",      ["bus","berry","main"]],
+      [200, "berry", "face.emotion", "surprised", ["bus","face","ring"]]
     ]},
-    nfc: {hint:"A tag carries meaning, not instructions — the reflex decides what it means.", steps:[
+    nfc: {hint:"Un tag lleva significado, no instrucciones — el reflejo decide qué significa.", steps:[
       [0,   "rc522", "nfc.tag",     "04a1b2c9", ["bus","berry","main"]],
       [380, "berry", "face.emotion","curious",  ["bus","face","ring"]],
       [260, "berry", "brain.ask",   "user showed you a card", ["bus","brain"], 1]
     ]},
-    reload: {hint:"Uploading a script from the web UI rebuilds the VM in place. No reflash, no reboot.", steps:[
+    reload: {hint:"Subir un script desde la web reconstruye la VM en sitio. Sin reflashear, sin reiniciar.", steps:[
       [0,   "main",  "system.reload", "", ["bus","berry"]],
-      [500, "berry", "(vm rebuilt)",  "reflexes loaded", ["berry"], 1]
+      [500, "berry", "(vm reconstruida)",  "reflexes loaded", ["berry"], 1]
     ]},
-    offline: {hint:"Same pet with no network: the ask goes nowhere and the local reflex still runs. Never bricked.", steps:[
+    offline: {hint:"La misma caricia sin red: la pregunta no va a ningún sitio y el reflejo local sigue corriendo. Nunca roto.", steps:[
       [0,   "touch", "touch.pet",  "pad0",   ["bus","berry","main"]],
       [420, "berry", "face.emotion","happy", ["bus","face","ring"]],
-      [260, "berry", "brain.ask",  "(no brain configured — dropped)", ["bus"], 1]
+      [260, "berry", "brain.ask",  "(sin cerebro configurado — descartado)", ["bus"], 1]
     ]}
   };
 
@@ -561,14 +566,15 @@ end)</pre>
     b.addEventListener("click", function(){ run(b.dataset.c); });
   });
 
-  /* ---------- §4 backend switcher ---------- */
-  var sel = {disp:"gc", led:"ws"};
+  /* ---------- §4 target switcher ---------- */
+  var sel = {tgt:"s3"};
   var FILES = [
-    {f:"expressions/face_model.cpp", on:function(){ return true; },  why:"shared"},
-    {f:"expressions/round_face.cpp", on:function(){ return sel.disp==="gc"; }},
-    {f:"expressions/oled_face.cpp",  on:function(){ return sel.disp==="ssd"; }},
-    {f:"expressions/led_ring.cpp",   on:function(){ return sel.led==="ws"; }},
-    {f:"expressions/led_mood.cpp",   on:function(){ return sel.led==="pwm"; }}
+    {f:"partitions.csv  (16 MB · app 3 MB + packs 4 MB + modelo 4 MB)", on:function(){ return sel.tgt==="s3"; }},
+    {f:"partitions_4mb.csv  (4 MB · app 1,87 MB + packs 2,06 MB)",      on:function(){ return sel.tgt==="c3"; }},
+    {f:"sdkconfig.defaults.esp32s3  (PSRAM octal, flash 16 MB)",        on:function(){ return sel.tgt==="s3"; }},
+    {f:"sdkconfig.defaults.esp32  (sin PSRAM, flash 4 MB)",             on:function(){ return sel.tgt==="c3"; }},
+    {f:"expressions/round_face.cpp  (el mismo archivo en ambos)",       on:function(){ return true; }, why:"compartido"},
+    {f:"expressions/face_model.cpp  (las 8 emociones)",                 on:function(){ return true; }, why:"compartido"}
   ];
   var filesEl = document.getElementById("files"), kEl = document.getElementById("kcode");
   function renderFiles(){
@@ -579,18 +585,22 @@ end)</pre>
       d.className = "file" + (on ? "" : " out");
       var a = document.createElement("span"); a.textContent = x.f;
       var b = document.createElement("span"); b.className = "st";
-      b.textContent = on ? (x.why || "compiled") : "excluded";
+      b.textContent = on ? (x.why || "en uso") : "no aplica";
       d.appendChild(a); d.appendChild(b); filesEl.appendChild(d);
     });
-    var disp = sel.disp === "gc" ? "BUDDY_DISPLAY_GC9A01" : "BUDDY_DISPLAY_SSD1306";
-    var led  = sel.led  === "ws" ? "BUDDY_LED_WS2812"     : "BUDDY_LED_PWM";
+    var s3 = sel.tgt === "s3";
     kEl.innerHTML =
-      '<span class="c">// sdkconfig — set in menuconfig, read by #if guards</span>\n' +
-      'CONFIG_<span class="k">' + disp + '</span>=y\n' +
-      'CONFIG_<span class="k">' + led + '</span>=y\n\n' +
-      '<span class="c">// both backends expose the same entry point:</span>\n' +
-      'buddy::<span class="w">face_start</span>();   <span class="c">// main.cpp never knows which panel</span>\n' +
-      'buddy::<span class="w">led_start</span>();';
+      '<span class="c">// round_face.cpp — lo único que cambia entre placas</span>\n' +
+      '#if CONFIG_IDF_TARGET_ESP32S3\n' +
+      '  kBandH   = <span class="k">' + (s3 ? "240" : "240") + '</span>   <span class="c">// una banda: la pantalla entera</span>\n' +
+      '  kUseCache = <span class="k">true</span>    <span class="c">// 3 x 115 KB de caché en PSRAM</span>\n' +
+      '#else\n' +
+      '  kBandH   = <span class="k">48</span>    <span class="c">// 5 bandas de 23 KB</span>\n' +
+      '  kUseCache = <span class="k">false</span>   <span class="c">// no hay PSRAM donde cachear</span>\n' +
+      '#endif\n\n' +
+      '<span class="c">// en uso ahora: ' + (s3 ? "1 banda de 115200 B, con caché (~30 fps)"
+                                                : "5 bandas de 23040 B, sin caché (~13 fps)") + '</span>\n' +
+      'buddy::<span class="w">face_start</span>();   <span class="c">// main.cpp no sabe en qué placa está</span>';
   }
   document.querySelectorAll(".opt").forEach(function(btn){
     btn.addEventListener("click", function(){
@@ -658,7 +668,9 @@ end)</pre>
         ctx.fillRect(x0-2, top+open-e.l*S, eyeW+4, e.l*S+3);
       }
       if(e.b !== 0){
-        var depth = open*0.5;
+        // kBrowDepth = 0.24 en round_face.cpp. Estuvo en 0.5 mucho tiempo, que
+        // se comía media altura del ojo y dejaba cuñas en vez de cejas.
+        var depth = open*0.24;
         var deepRight = (e.b > 0) === (side === 0);
         ctx.fillStyle = "#05070A";
         ctx.beginPath();
