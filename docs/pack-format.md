@@ -1,49 +1,52 @@
-# Pack Format — Draft Proposal
+# Formato de packs — propuesta borrador
 
-Status: **draft for discussion** — this becomes the `pack-format` spec
-(`.kiro/specs/pack-format/`) once the team blesses the direction. It's one of
-the four contract-bearing pieces (two tracks depend on it: firmware loads
-packs, web UI edits them, pack authors write them).
+Estado: **borrador para discusión** — se convierte en la spec `pack-format`
+(`.kiro/specs/pack-format/`) cuando el equipo bendiga la dirección. Es una de
+las cuatro piezas con contrato (dos tracks dependen de ella: el firmware carga
+packs, la web los edita, los autores los escriben).
 
-## Principles
+## Principios
 
-1. **Convention over configuration.** Reserved directories with fixed
-   meanings; anything else in the pack is the author's business.
-2. **Paths are pack-relative, always.** Scripts never see `/flash` or `/sd`
-   mounts; the framework's asset resolver overlays both.
-3. **Bytes never enter the script VM.** Berry passes paths and decisions;
-   streaming, decoding, and buffers are C++'s job. The only content that
-   crosses into Berry is small structured data (`asset.json`, ≤ 4 KB).
-4. **Packs are shareable by construction**: no secrets, no device-specific
-   state, no absolute paths. Zip the directory, that's the cartridge.
-5. **Offline-first media.** Anything a pack needs at *runtime* ships in the
-   pack; live LLM/TTS is for the unscripted parts.
+1. **Convención antes que configuración.** Directorios reservados con
+   significado fijo; lo demás que haya en el pack es asunto del autor.
+2. **Las rutas son relativas al pack, siempre.** Los scripts nunca ven los
+   montajes `/flash` o `/sd`; el resolvedor de assets del framework
+   superpone ambos.
+3. **Los bytes nunca entran a la VM de scripts.** Berry pasa rutas y
+   decisiones; streaming, decodificación y buffers son trabajo de C++. Lo
+   único que cruza a Berry son datos estructurados pequeños (`asset.json`,
+   ≤ 4 KB).
+4. **Los packs son compartibles por construcción**: sin secretos, sin estado
+   específico del dispositivo, sin rutas absolutas. Comprime el directorio y
+   ese es el cartucho.
+5. **Media offline primero.** Todo lo que un pack necesita en *runtime* viaja
+   en el pack; el LLM/TTS en vivo es para las partes sin guion.
 
-## Directory layout
+## Estructura de directorios
 
 ```
 <pack-id>/
-  pack.json                 required manifest (schema below)
+  pack.json                 manifiesto obligatorio (esquema abajo)
   reflexes/
-    main.be                 required entry point; other .be files imported from it
+    main.be                 punto de entrada obligatorio; otros .be se importan desde él
   faces/
-    *.anim.json             animation definitions
-    sprites/                sprite sheets (PNG or RGB565 .bin)
-  sounds/                   small audio (chirps, effects) — flash-resident
-  media/                    optional large-content library — SD-resident
+    *.anim.json             definiciones de animación
+    sprites/                sprite sheets (PNG o RGB565 .bin)
+  sounds/                   audio pequeño (chirps, efectos) — residente en flash
+  media/                    biblioteca opcional de contenido grande — residente en SD
 ```
 
-### Storage tiers
+### Niveles de almacenamiento
 
 - `pack.json`, `reflexes/`, `faces/`, `sounds/` → **flash** (LittleFS,
-  `/flash/packs/<id>/`). Always present; the pack boots without SD.
-- `media/` → **SD card** (FAT, `/sd/packs/<id>/media/`). Optional; if the SD
-  is absent, `asset.*` calls under `media/` return nil and reflexes decide the
-  fallback.
-- Resolution order: flash first, then SD. Same relative path everywhere, so
-  content can migrate tiers without touching scripts.
+  `/flash/packs/<id>/`). Siempre presentes; el pack arranca sin SD.
+- `media/` → **tarjeta SD** (FAT, `/sd/packs/<id>/media/`). Opcional; si no
+  hay SD, las llamadas `asset.*` bajo `media/` devuelven nil y los reflejos
+  deciden el plan B.
+- Orden de resolución: flash primero, luego SD. La misma ruta relativa en
+  ambos, así el contenido puede migrar de nivel sin tocar scripts.
 
-## Manifest (`pack.json`)
+## Manifiesto (`pack.json`)
 
 ```json
 {
@@ -62,16 +65,17 @@ packs, web UI edits them, pack authors write them).
 }
 ```
 
-- `id`: kebab-case, matches the directory name.
-- `api_level`: the framework's script-API version this pack targets; the
-  loader refuses packs from the future, runs older ones in compat.
-- `brain.system_prompt` + `guardrails`: guardrails are concatenated
-  non-negotiably after the prompt — kiosk packs (public-facing) live and die
-  by this field.
-- `voice.mode`: `"live"` (always TTS), `"cached-first"` (play a media file if
-  the reflex names one, TTS otherwise).
+- `id`: kebab-case, igual al nombre del directorio.
+- `api_level`: la versión de la API de scripts del framework a la que apunta
+  el pack; el loader rechaza packs del futuro y corre los antiguos en modo
+  compatibilidad.
+- `brain.system_prompt` + `guardrails`: los guardarraíles se concatenan de
+  forma no negociable después del prompt — los packs tipo kiosco (de cara al
+  público) viven o mueren por este campo.
+- `voice.mode`: `"live"` (siempre TTS), `"cached-first"` (reproduce un
+  archivo de media si el reflejo lo nombra, TTS si no).
 
-## Script API surface (Berry)
+## Superficie de la API de scripts (Berry)
 
 ```berry
 import buddy
@@ -93,7 +97,7 @@ buddy.lang                        # active language code, from pack + device con
 buddy.pack.meta                   # own manifest as a map
 ```
 
-Example — the board-game explainer's entire core flow:
+Ejemplo — el flujo central completo del explicador de juegos de mesa:
 
 ```berry
 buddy.on("nfc.tag", def (ev)
@@ -114,49 +118,54 @@ buddy.on("nfc.tag", def (ev)
 end)
 ```
 
-## Framework responsibilities (C++)
+## Responsabilidades del framework (C++)
 
-- **Asset resolver**: overlay lookup (flash → SD), pack-scoped, no path
-  escapes (`..` rejected).
-- **Audio**: `sound.play` posts an action to the bus; the audio task (core 1)
-  opens the file, decodes (WAV/MP3 via helix), streams to I2S in ~8 KB chunks
-  under the shared SPI bus mutex (display flushes interleave). Emits
-  `sound.done` / `sound.error`. Feeds chunk RMS to the lip-sync module —
-  cached narration and live TTS animate the mouth identically.
-- **Images**: `screen.show` decodes PNG → LVGL canvas; oversized images are
-  letterboxed onto the 240×240 logical canvas.
-- **SD hygiene**: mounted read-only in normal operation; remounted rw only
-  during web-UI uploads. Card absence is an event (`storage.sd.gone`), not a
-  crash.
+- **Resolvedor de assets**: búsqueda superpuesta (flash → SD), acotada al
+  pack, sin escapes de ruta (`..` rechazado).
+- **Audio**: `sound.play` publica una acción al bus; la tarea de audio
+  (core 1) abre el archivo, decodifica (WAV/MP3 vía helix) y streamea a I2S
+  en trozos de ~8 KB bajo el mutex del bus SPI compartido (los flushes de
+  pantalla se intercalan). Emite `sound.done` / `sound.error`. Alimenta el
+  RMS de cada trozo al módulo de lip-sync — la narración cacheada y el TTS
+  en vivo animan la boca exactamente igual.
+- **Imágenes**: `screen.show` decodifica PNG al canvas; las imágenes grandes
+  se encajan con bandas negras en el canvas lógico de 240×240.
+- **Higiene de SD**: montada solo-lectura en operación normal; se remonta rw
+  solo durante subidas desde la web. La ausencia de tarjeta es un evento
+  (`storage.sd.gone`), no un crash.
 
-## NFC mapping: two layers
+## Mapeo NFC: dos capas
 
-1. **Semantic payloads** (preferred): the sticker's NDEF text carries meaning
-   (`game:catan`, `pack:pirate`, `mode:focus`). Written once with any phone;
-   works on every buddy running a pack that understands the prefix.
-2. **Device registry** (for blank/UID-only tags): web UI maps UID → synthetic
-   payload. Reflexes only ever see payloads.
+1. **Payloads semánticos** (preferido): el texto NDEF de la pegatina lleva el
+   significado (`game:catan`, `pack:pirate`, `mode:focus`). Se escribe una
+   vez con cualquier móvil; funciona en todo buddy cuyo pack entienda el
+   prefijo.
+2. **Registro del dispositivo** (para tags vírgenes/solo-UID): la web mapea
+   UID → payload sintético. Los reflejos solo ven payloads, siempre.
 
-Security rules (restated from hardware doc): tags trigger whitelisted actions
-only — never authentication, never raw text into the Brain.
+Reglas de seguridad (reiteradas del doc de hardware): los tags disparan solo
+acciones de lista blanca — nunca autenticación, nunca texto crudo al Brain.
 
-## Validation & authoring
+## Validación y autoría
 
-- The web UI (and a CLI for CI) validates on upload: manifest schema,
-  `main.be` parses, every `asset.*`/`sound.play`/`screen.show` literal
-  resolves to a file, total flash-tier size within budget.
-- **Narration authoring workflow** (content packs): write/edit the script
-  text → one TTS call per file at authoring time (nice voice, human-reviewed)
-  → drop into `media/`. The web UI can front this ("generate narration from
-  this text") so the café owner never touches a terminal.
+- La web (y un CLI para CI) valida al subir: esquema del manifiesto,
+  `main.be` parsea, cada literal de `asset.*`/`sound.play`/`screen.show`
+  resuelve a un archivo, el tamaño total del nivel flash dentro de
+  presupuesto.
+- **Flujo de autoría de narraciones** (packs de contenido): escribir/editar
+  el guion → una llamada TTS por archivo al crear (voz buena, revisada por
+  humanos) → soltar en `media/`. La web puede poner cara a esto ("generar
+  narración de este texto") para que el dueño del café nunca toque una
+  terminal.
 
-## Open questions for the spec
+## Preguntas abiertas para la spec
 
-- Sprite format: PNG (decode cost) vs pre-converted RGB565 (tooling cost).
-- Animation definition schema (`*.anim.json`) — parametric (m5stack-avatar
-  style) vs sprite-sheet, or both.
-- Pack switching semantics: what state survives (volume? language?), what
-  resets.
-- Multi-pack: one active personality + passive "content packs," or strictly
-  one pack at a time? (The café buddy suggests personality + content split
-  may be worth it.)
+- Formato de sprites: PNG (coste de decodificación) vs RGB565 pre-convertido
+  (coste de tooling).
+- Esquema de definición de animaciones (`*.anim.json`) — paramétrico (estilo
+  m5stack-avatar) vs sprite-sheet, o ambos.
+- Semántica del cambio de pack: qué estado sobrevive (¿volumen? ¿idioma?) y
+  qué se resetea.
+- Multi-pack: una personalidad activa + "packs de contenido" pasivos, ¿o
+  estrictamente un pack a la vez? (El buddy del café sugiere que la división
+  personalidad + contenido puede valer la pena.)

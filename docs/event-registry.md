@@ -1,142 +1,147 @@
-# Event registry — the bus contract
+# Registro de eventos — el contrato del bus
 
-Every event that exists, what it carries, who emits it, and who owns the name.
+Cada evento que existe, qué lleva, quién lo emite y de quién es el nombre.
 
-This is the **contract between teams**. It is the reason tracks can run in
-parallel: the Voice team can build against `voice.*` while Firmware is still
-writing the config API, as long as both sides agree on the names. Keep this
-file current — a wrong registry is worse than none.
+Esto es el **contrato entre equipos**. Es la razón de que los tracks puedan ir
+en paralelo: el equipo de voz puede construir sobre `voice.*` mientras
+firmware sigue con la API de configuración, siempre que ambos lados acuerden
+los nombres. Mantén este archivo al día — un registro equivocado es peor que
+ninguno.
 
-Owner: **Firmware & architecture** (the contract). Each team owns the events
-inside its own namespace — see [Namespaces](#namespaces).
+Dueño: **firmware y arquitectura** (el contrato). Cada equipo es dueño de los
+eventos dentro de su espacio de nombres — ver [Espacios](#espacios-de-nombres).
 
-## How the bus works
+Vista interactiva de este archivo — con buscador y los sitios reales de
+publicación y suscripción: [event-registry.html](event-registry.html).
 
-- `bus().publish(name, payload)` queues; delivery happens on `pump()`, run by
-  the bus task. **Handlers therefore never run concurrently** and need no
-  locking of their own.
-- `bus().subscribe(pattern, fn)` where `pattern` is an exact name, a prefix
-  wildcard (`touch.*`), or `*` for everything.
-- `Event` is `{ std::string name; std::string payload; }` —
-  [bus.h](../firmware/components/bus/include/bus.h). One string. Big data
-  never rides the bus; pass a path or an id instead.
-- Berry reflexes see the same events through `buddy.on(pattern, fn)`, with
-  `ev['name']` and `ev['payload']`.
+## Cómo funciona el bus
 
-## Conventions
+- `bus().publish(name, payload)` encola; la entrega ocurre en `pump()`,
+  ejecutado por la tarea del bus. **Los handlers por tanto nunca corren en
+  paralelo** y no necesitan locks propios.
+- `bus().subscribe(pattern, fn)` donde `pattern` es un nombre exacto, un
+  comodín de prefijo (`touch.*`) o `*` para todo.
+- `Event` es `{ std::string name; std::string payload; }` —
+  [bus.h](../firmware/components/bus/include/bus.h). Un string. Los datos
+  grandes nunca viajan en el bus; pasa una ruta o un id.
+- Los reflejos Berry ven los mismos eventos vía `buddy.on(pattern, fn)`, con
+  `ev['name']` y `ev['payload']`.
 
-1. **`namespace.thing`**, lowercase, dot-separated. The namespace is the
-   owning subsystem, not the destination.
-2. **Name facts, not commands, for inputs.** `touch.pet` is something that
-   happened. Outputs may be imperative (`face.emotion`, `led.mood`) because
-   they are requests to a subsystem.
-3. **Payload is one string.** Plain text where possible; JSON only where
-   structure is unavoidable (today: `brain.reply`). If you need a second
-   field, that is a signal to check with the contract owner first.
-4. **Never block in a handler.** The pump is single-threaded; a slow handler
-   stalls every other subscriber.
-5. **Additive by default.** Adding an event is cheap; renaming one breaks
-   every pack in the wild. Choose the name as if you cannot change it.
+## Convenciones
 
-## Current events
+1. **`espacio.cosa`**, minúsculas, separado por puntos. El espacio es el
+   subsistema dueño, no el destinatario.
+2. **Para entradas, nombra hechos, no órdenes.** `touch.pet` es algo que
+   pasó. Las salidas pueden ser imperativas (`face.emotion`, `led.mood`)
+   porque son peticiones a un subsistema.
+3. **El payload es un string.** Texto plano donde se pueda; JSON solo donde
+   la estructura sea inevitable (hoy: `brain.reply`). Si necesitas un segundo
+   campo, eso es señal de consultar antes con el dueño del contrato.
+4. **Nunca bloquees en un handler.** El pump es monohilo; un handler lento
+   atasca a todos los demás suscriptores.
+5. **Aditivo por defecto.** Añadir un evento es barato; renombrarlo rompe
+   todos los packs que existan. Elige el nombre como si no pudieras
+   cambiarlo.
 
-### Senses — things that happened
+## Eventos actuales
 
-| event | payload | emitted by | when |
+### Senses — cosas que pasaron
+
+| evento | payload | lo emite | cuándo |
 |---|---|---|---|
-| `touch.down` | `"pad0"` | [touch_sense.cpp](../firmware/components/senses/touch_sense.cpp) | finger makes contact |
-| `touch.poke` | `"pad0"` | touch_sense | released in **< 400 ms** |
-| `touch.pet` | `"pad0"` | touch_sense | released in **≥ 400 ms** |
-| `nfc.tag` | hex UID, e.g. `04A2B3C4` | rc522 | tag presented |
-| `time.synced` | — | wifi/SNTP | clock set after connect |
+| `touch.down` | `"pad0"` | [touch_sense.cpp](../firmware/components/senses/touch_sense.cpp) | el dedo hace contacto |
+| `touch.poke` | `"pad0"` | touch_sense | soltado en **< 400 ms** |
+| `touch.pet` | `"pad0"` | touch_sense | soltado en **≥ 400 ms** |
+| `nfc.tag` | UID hex, ej. `04A2B3C4` | rc522 | tarjeta presentada |
+| `time.synced` | — | wifi/SNTP | reloj puesto en hora tras conectar |
 
-### Brain — the thinking round trip
+### Brain — el viaje de pensar
 
-| event | payload | emitted by | when |
+| evento | payload | lo emite | cuándo |
 |---|---|---|---|
-| `brain.ask` | prompt text | reflexes | something wants a reply |
-| `brain.reply` | JSON `{"utterance": "...", "emotion": "..."}` | brain_cloud | model answered |
-| `brain.error` | `"no_reply"` | brain_cloud | request failed |
+| `brain.ask` | texto del prompt | reflejos | algo quiere una respuesta |
+| `brain.reply` | JSON `{"utterance": "...", "emotion": "..."}` | brain_cloud | el modelo contestó |
+| `brain.error` | `"no_reply"` | brain_cloud | la petición falló |
 
-`brain.reply` is parsed centrally in [main.cpp](../firmware/main/main.cpp) and
-fanned out to `face.emotion` + `face.say`; packs normally react to those, not
-to the raw reply.
+`brain.reply` se parsea centralmente en [main.cpp](../firmware/main/main.cpp)
+y se reparte en `face.emotion` + `face.say`; los packs normalmente reaccionan
+a esos dos, no a la respuesta cruda.
 
-### Expressions — requests to output subsystems
+### Expressions — peticiones a subsistemas de salida
 
-| event | payload | consumed by | notes |
+| evento | payload | lo consume | notas |
 |---|---|---|---|
-| `face.emotion` | emotion name (`happy`, `sad`…) | round_face, led_ring | the ring mirrors the face colour |
-| `face.say` | text | round_face | words on screen |
-| `face.look` | gaze target | round_face | **subscribed, never published** — see gaps |
-| `led.mood` | `calm` \| `excited` \| `thinking` \| `off` | led_ring | animation style, not colour |
+| `face.emotion` | nombre de emoción (`happy`, `sad`…) | round_face, led_ring | el anillo copia el color de la cara |
+| `face.say` | texto | round_face | palabras en pantalla |
+| `face.look` | objetivo de mirada | round_face | **suscrito, nunca publicado** — ver agujeros |
+| `led.mood` | `calm` \| `excited` \| `thinking` \| `off` | led_ring | estilo de animación, no color |
 
-### System
+### Sistema
 
-| event | payload | emitted by | when |
+| evento | payload | lo emite | cuándo |
 |---|---|---|---|
-| `boot.status` | short status text | main | each boot step; drives the splash line |
-| `boot.ready` | — | main | boot done; face glitches into the creature |
-| `system.reload` | — | web UI | reload the Berry VM (hot reload) |
+| `boot.status` | texto corto de estado | main | cada paso del arranque; mueve la línea del splash |
+| `boot.ready` | — | main | arranque terminado; la cara sale del splash con glitch |
+| `system.reload` | — | web UI | recargar la VM Berry (recarga en caliente) |
 
-## Namespaces
+## Espacios de nombres
 
-A team owns the names inside its prefix. **Adding an event in your own
-namespace needs no permission** — open a PR that changes the code *and this
-file* together. Changing or removing an event in someone else's namespace
-needs that team's leader.
+Un equipo es dueño de los nombres bajo su prefijo. **Añadir un evento en tu
+propio espacio no pide permiso** — un PR que cambia el código *y este archivo*
+a la vez. Cambiar o quitar un evento del espacio de otro equipo necesita al
+responsable de ese equipo.
 
-| prefix | owner | status |
+| prefijo | dueño | estado |
 |---|---|---|
-| `touch.*`, `nfc.*`, `sense.*` | Electronics | `touch.*`, `nfc.tag` live |
-| `voice.*`, `sound.*` | Voice | none yet — the track defines them |
-| `face.*`, `led.*` | Personality + Firmware | live |
-| `config.*` | Web UI | none yet |
-| `brain.*`, `boot.*`, `system.*`, `timer.*`, `storage.*` | Firmware & architecture | partly live |
+| `touch.*`, `nfc.*`, `sense.*` | Electrónica | `touch.*`, `nfc.tag` vivos |
+| `voice.*`, `sound.*` | Voz | ninguno aún — los define el track |
+| `face.*`, `led.*` | Personalidad + Firmware | vivos |
+| `config.*` | Web UI | ninguno aún |
+| `brain.*`, `boot.*`, `system.*`, `timer.*`, `storage.*` | Firmware y arquitectura | parcialmente vivos |
 
-Why split it this way: if Firmware has to name every event, the other tracks
-block waiting on one person. If everyone invents freely, the same idea shows
-up three times under three names. Namespace ownership gives autonomy inside a
-boundary, which is the only version that survives four parallel tracks.
+Por qué esta división: si firmware tiene que nombrar cada evento, los demás
+tracks se bloquean esperando a una persona. Si cada uno inventa libremente,
+la misma idea aparece tres veces con tres nombres. La propiedad por espacios
+da autonomía dentro de un límite, que es la única versión que sobrevive a
+cuatro tracks en paralelo.
 
-## Known gaps
+## Agujeros conocidos
 
-Real inconsistencies, listed so nobody rediscovers them:
+Inconsistencias reales, listadas para que nadie las redescubra:
 
-1. **`face.look` is dead.** `round_face.cpp` subscribes; nothing publishes it.
-   Left over from the logo-following experiment. Either wire it to gaze or
-   delete the subscriber.
-2. **Documented but not implemented.** `architecture.md` mentions
-   `timer.idle_5m`, `sense.light.dark` and `webhook.*`; `pack-format.md`
-   promises `sound.done` and `storage.sd.gone`. None exist in code. They are
-   reasonable designs — they just are not real yet, and docs that describe
-   absent events cost someone an afternoon.
-3. **The voice loop needs events that do not exist**: at minimum
-   `voice.listening` and `voice.thinking`, so a pack can cover the 1.5–3 s
-   round trip with an emote. First job for the Voice team.
-4. **No payload schema.** `brain.reply` already carries JSON inside the string
-   field. Tolerable now; it will hurt once the web UI consumes events. If a
-   second structured payload appears, revisit before a third does.
-5. **The emotion vocabulary is duplicated.** `face.emotion` accepts the eight
-   names in `face_model.cpp`, while `led.mood` accepts only
-   `calm|excited|thinking|off`. Two overlapping vocabularies for one concept —
-   whatever the group settles on for expressions has to reconcile them.
-6. **`brain.error` has no subscriber.** The cloud brain publishes it on
-   failure and nothing reacts, so a failed request is silent: the buddy just
-   never answers. That is the one gap here that contradicts a stated
-   principle ("never brick") — it should at minimum drive a face.
-7. **`time.synced` has no subscriber.** Harmless today, but it means nothing
-   is waiting on the clock; anything time-based will need it.
+1. **`face.look` está muerto.** `round_face.cpp` se suscribe; nadie lo
+   publica. Resto del experimento del logo flotante. O se conecta a la
+   mirada o se borra el suscriptor.
+2. **Documentado pero no implementado.** `architecture.md` menciona
+   `timer.idle_5m`, `sense.light.dark` y `webhook.*`; `pack-format.md`
+   promete `sound.done` y `storage.sd.gone`. Ninguno existe en código. Son
+   diseños razonables — solo que aún no son reales, y un doc que describe
+   eventos ausentes le cuesta una tarde a alguien.
+3. **El bucle de voz necesita eventos que no existen**: como mínimo
+   `voice.listening` y `voice.thinking`, para que un pack tape el viaje de
+   1,5–3 s con un gesto. Primer encargo del equipo de voz.
+4. **El payload no tiene esquema.** `brain.reply` ya lleva JSON dentro del
+   string. Tolerable hoy; dolerá cuando la web consuma eventos. Si aparece
+   un segundo payload estructurado, revisar antes de que haya un tercero.
+5. **El vocabulario de emociones está duplicado.** `face.emotion` acepta los
+   ocho nombres de `face_model.cpp`, mientras `led.mood` acepta solo
+   `calm|excited|thinking|off`. Dos vocabularios solapados para un concepto —
+   lo que el grupo decida sobre expresiones tiene que reconciliarlos.
+6. **`brain.error` no tiene suscriptor.** El cerebro cloud lo publica al
+   fallar y nada reacciona, así que una petición fallida es silenciosa: el
+   buddy simplemente no contesta nunca. Es el único agujero que contradice
+   un principio declarado ("nunca un ladrillo") — como mínimo debería mover
+   una cara.
+7. **`time.synced` no tiene suscriptor.** Inofensivo hoy, pero significa que
+   nada espera al reloj; cualquier cosa basada en la hora lo necesitará.
 
-An interactive view of this file — searchable, with the real publisher and
-subscriber call sites — is [event-registry.html](event-registry.html).
+## Añadir un evento — checklist
 
-## Adding an event — checklist
-
-1. Is it a **fact** (a sense) or a **request** (an output)? That picks the
-   namespace.
-2. Is your namespace yours? If not, talk to that leader first.
-3. Add the row to this file **in the same PR** as the code.
-4. Payload: the smallest string that works. A path or an id, never bytes.
-5. If a pack should react to it, say so in
-   [pack-format.md](pack-format.md) too — packs are a public API.
+1. ¿Es un **hecho** (un sense) o una **petición** (una salida)? Eso elige el
+   espacio de nombres.
+2. ¿El espacio es tuyo? Si no, habla antes con su responsable.
+3. Añade la fila a este archivo **en el mismo PR** que el código.
+4. Payload: el string más pequeño que funcione. Una ruta o un id, nunca
+   bytes.
+5. Si un pack debería reaccionar a él, dilo también en
+   [pack-format.md](pack-format.md) — los packs son API pública.

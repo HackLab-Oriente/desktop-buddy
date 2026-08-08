@@ -1,189 +1,186 @@
-# Hardware: Components & Wiring (v1 reference build)
+# Hardware: componentes y cableado (build de referencia v1)
 
-We build from scratch: pick components, wire them, design and print our own
-case. This is the proposed v1 bill of materials — final choices are a session 1
-group decision, but **components must be ordered before session 1**.
+Construimos desde cero: elegimos componentes, los cableamos, y diseñamos e
+imprimimos nuestra propia carcasa. Esta es la BOM propuesta para v1 — la
+elección final es decisión de grupo en la sesión 1, pero **los componentes
+deben pedirse antes de la sesión 1**.
 
-## Core
+## Núcleo
 
+| Pieza | Sugerencia | Notas |
+|---|---|---|
+| MCU | **Devkit ESP32-S3, N16R8** (16 MB flash / 8 MB PSRAM) | El S3 es necesario para el roadmap de voz (instrucciones vectoriales de ESP-SR); la PSRAM para gráficos + buffers de audio. Pilla el devkit con ambos puertos USB expuestos. *(El ESP32 clásico también está soportado como target secundario — sin PSRAM pierde la caché de ojos, el modelo local y la voz; ver `firmware/README.md`.)* |
+| Pantalla | **A elección de cada uno:** GC9A01 redonda 1,28″ o ST7789 cuadrada 1,54″ — ambas 240×240, SPI | Misma resolución, mismo cableado, mismo stack gráfico — solo cambia la secuencia de init (un flag, no un fork). Regla: las caras se crean en un canvas de 240×240 con ojos/boca dentro del círculo inscrito ("zona segura redonda"). Evita los OLED I2C clase SSD1306: monocromos, 128×64, e I2C demasiado lento para animación. Rectangulares más grandes (ST7789 2″ / ILI9341 2,4–2,8″, 320×240) son post-v1 — rompen la paridad de resolución. |
+| Tacto (caricias) | Pines capacitivos **nativos del ESP32** + cinta de cobre bajo la carcasa | Gratis (sin componente), y "acariciar la carcasa" gana a "tocar la pantalla" para una criatura. Una pantalla táctil es extra opcional. |
+| Micrófono | **INMP441** (MEMS I2S) | Digital, sin líos analógicos. v1 lo usa para nivel de sonido (un Sense) y streaming STT del push-to-talk; el uso de sobremesa no necesita array de micros. |
+| Salida de audio | **MAX98357A** (ampli I2S) + altavoz 4Ω 3W (~28 mm) | Chirps, efectos y reproducción TTS para el bucle PTT de v1. Sin canal de loopback → sin AEC → half-duplex por diseño. |
+| Extras | LED RGB WS2812 (luz de ánimo), un botón de repuesto | Barato, expresivo, buen material de relleno para talleres. |
 
-| Part            | Suggestion                                                                                 | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| --------------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| MCU             | **ESP32-S3 devkit, N16R8** (16 MB flash / 8 MB PSRAM)                                      | S3 is required for the voice roadmap (ESP-SR vector instructions); PSRAM is required for LVGL + audio buffers. Get the devkit with both USB ports exposed.                                                                                                                                                                                                                                                                                                   |
-| Display         | **Member's choice:** 1.28" round **GC9A01** or 1.54" square **ST7789** — both 240×240, SPI | Same resolution, same wiring, same LVGL/`esp_lcd` stack — only the init sequence differs (a config flag, not a code fork), so all packs/animations work on both. Rule: author faces on a 240×240 canvas with eyes/mouth inside the inscribed circle ("round-safe area"). Avoid SSD1306-class I2C OLEDs: monochrome, 128×64, and I2C too slow for animation. Bigger rects (ST7789 2" / ILI9341 2.4–2.8", 320×240) are post-v1 — they break resolution parity. |
-| Touch (petting) | ESP32-S3 **native capacitive touch pins** + copper tape/pads under the shell               | Free (no component), and "pet the shell" beats "tap the screen" for a creature. A touch-capable display is optional extra.                                                                                                                                                                                                                                                                                                                                   |
-| Microphone      | **INMP441** (I2S MEMS)                                                                     | Digital, no analog fuss. v1 uses it for sound-level sensing (a Sense) and push-to-talk STT streaming; near-field desk use needs no mic array.                                                                                                                                                                                                                                                                                                                |
-| Audio out       | **MAX98357A** (I2S amp) + 4Ω 3W speaker (~28mm)                                            | Chirps, effects, and TTS playback for the v1 push-to-talk loop. No loopback channel → no AEC → half-duplex by design.                                                                                                                                                                                                                                                                                                                                        |
-| Extras          | WS2812 RGB LED (mood light), a spare button                                                | Cheap, expressive, good workshop filler tasks.                                                                                                                                                                                                                                                                                                                                                                                                               |
+Coste estimado por buddy: **≈ 20–30 €** en cantidades unitarias. Pide al menos
+un repuesto de todo; los micros MEMS y las pantallas baratas tienen bajas.
 
+## Lista de compra y seguimiento de pedidos
 
-Estimated cost per buddy: **≈ €20–30** in single quantities. Order at least
-one spare of everything; MEMS mics and cheap displays have casualties.
+Marca los items al pedirlos. **Decisión del lab (2026-07): construir 2–3
+prototipos, no uno por miembro** — el pedido actual cubre exactamente eso (3
+builds con repuestos). Cuando v1 esté sólida, el camino a un producto pulido
+es un **lote de PCB portadora fabricada** (ver Alimentación y montaje), no más
+protoboards.
 
-## Shopping list & order tracking
+### Componentes de núcleo (verificados 2026-07-13, pedidos)
 
-Check items off as they're ordered. **Lab decision (2026-07): build 2–3
-prototypes, not one per member** — the current order covers exactly that (3
-builds with spares). Once v1 is solid, the path to a polished product is a
-**fabbed carrier PCB batch** (see Power & assembly), not more breadboards.
-
-### Core components (verified 2026-07-13, ordered)
-
-- [x] ESP32-S3 devkit N16R8, dual USB-C, 3-pack (Hosyond) — [B0F5QCK6X5](https://www.amazon.com/dp/B0F5QCK6X5)
-- [x] 1.28" round GC9A01 display, 240×240 SPI, 5-pack (D-FLIFE) — [B0DCBM8KV1](https://www.amazon.com/dp/B0DCBM8KV1)
-- [x] INMP441 I2S MEMS microphone, 5-pack — [B0C1C64R8S](https://www.amazon.com/dp/B0C1C64R8S)
-- [x] MAX98357A I2S 3W amp breakout, 6-pack — [B0FHWB5VFW](https://www.amazon.com/dp/B0FHWB5VFW)
-- [x] WS2812 12-LED ring, 5-pack — [B0C77WMM7B](https://www.amazon.com/dp/B0C77WMM7B)
-  (cap brightness in firmware: 12 LEDs full-white ≈ 700 mA @ 5 V)
-- [x] Speaker 4Ω 3W ultra-thin 35×25×6.8 mm, JST 1.25 pigtail, 5-pack (DWEII) — [B0F3CY5ZD2](https://www.amazon.com/dp/B0F3CY5ZD2)
-  (assembly note: flush-cut the JST, strip 5 mm, tin, screw into the MAX98357A output terminal)
-
-
+- [x] Devkit ESP32-S3 N16R8, doble USB-C, pack de 3 (Hosyond) — [B0F5QCK6X5](https://www.amazon.com/dp/B0F5QCK6X5)
+- [x] Pantalla GC9A01 redonda 1,28″, 240×240 SPI, pack de 5 (D-FLIFE) — [B0DCBM8KV1](https://www.amazon.com/dp/B0DCBM8KV1)
+- [x] Micrófono MEMS I2S INMP441, pack de 5 — [B0C1C64R8S](https://www.amazon.com/dp/B0C1C64R8S)
+- [x] Breakout ampli I2S MAX98357A 3 W, pack de 6 — [B0FHWB5VFW](https://www.amazon.com/dp/B0FHWB5VFW)
+- [x] Anillo WS2812 de 12 LED, pack de 5 — [B0C77WMM7B](https://www.amazon.com/dp/B0C77WMM7B)
+  (capar el brillo en firmware: 12 LEDs a blanco pleno ≈ 700 mA a 5 V)
+- [x] Altavoz 4Ω 3W ultrafino 35×25×6,8 mm, coleta JST 1.25, pack de 5 (DWEII) — [B0F3CY5ZD2](https://www.amazon.com/dp/B0F3CY5ZD2)
+  (nota de montaje: cortar el JST a ras, pelar 5 mm, estañar, atornillar al terminal de salida del MAX98357A)
 
 ### Extras
 
-- [ ] Breadboard kit, 2×830 + 2×400 tie-points + 126 jumpers (BOJACK) — [B08Y59P6D1](https://www.amazon.com/dp/B08Y59P6D1) — sessions 1–3 prototyping
-- [ ] Dupont wires 120pc M-M/M-F/F-F (ELEGOO) — [B01EV70C78](https://www.amazon.com/dp/B01EV70C78) — F-F wires the display module straight to devkit pins
-- [x] Copper foil tape 2"×33 ft, conductive adhesive (LOVIMAG) — [B07C6YLNYL](https://www.amazon.com/dp/B07C6YLNYL) — the capacitive petting pads
-- [x] Tactile pushbuttons 6 mm, 20-pack, breadboard-friendly — [B07WF76VHT](https://www.amazon.com/dp/B07WF76VHT) — spare input / boot-mode button
-- [x] Solderable breadboard (ElectroCookie) — [B07ZYNWJ1S](https://www.amazon.com/dp/B07ZYNWJ1S) — final assembly mirrors the breadboard layout 1:1
-- [x] M3 heat-set inserts + screws kit, 361pc with iron tips — [B0G8JLX1HR](https://www.amazon.com/dp/B0G8JLX1HR) — screw the case together; you'll reopen it constantly
-- [x] 22 AWG silicone hookup wire, 6 colors ×10 ft (Fermerry) — [B089CQHRDT](https://www.amazon.com/dp/B089CQHRDT) — touch pads, speaker runs, case-mounted parts
+- [ ] Kit de protoboards, 2×830 + 2×400 puntos + 126 jumpers (BOJACK) — [B08Y59P6D1](https://www.amazon.com/dp/B08Y59P6D1) — prototipado sesiones 1–3
+- [ ] Cables Dupont 120 uds M-M/M-H/H-H (ELEGOO) — [B01EV70C78](https://www.amazon.com/dp/B01EV70C78) — los H-H conectan el módulo de pantalla directo a los pines del devkit
+- [x] Cinta de cobre 2″×33 ft, adhesivo conductor (LOVIMAG) — [B07C6YLNYL](https://www.amazon.com/dp/B07C6YLNYL) — las almohadillas capacitivas
+- [x] Pulsadores táctiles 6 mm, pack de 20, para protoboard — [B07WF76VHT](https://www.amazon.com/dp/B07WF76VHT) — entrada de repuesto / botón de boot
+- [x] Protoboard soldable (ElectroCookie) — [B07ZYNWJ1S](https://www.amazon.com/dp/B07ZYNWJ1S) — el montaje final replica el layout de protoboard 1:1
+- [x] Kit de insertos M3 + tornillos, 361 uds con puntas para soldador — [B0G8JLX1HR](https://www.amazon.com/dp/B0G8JLX1HR) — atornillar la carcasa; la vas a reabrir constantemente
+- [x] Cable de silicona 22 AWG, 6 colores ×10 ft (Fermerry) — [B089CQHRDT](https://www.amazon.com/dp/B089CQHRDT) — almohadillas, tiradas de altavoz, piezas montadas en carcasa
 
+### Hardware del hack port (por pedir)
 
+El hack port del panel trasero necesita conectores de verdad, no solo un
+recorte en la carcasa:
 
-### Hack port hardware (to order)
+- [ ] Surtido de tiras de pines, macho + hembra, fila simple/doble 2,54 mm, 138 uds — [B0GLHJ3DXH](https://www.amazon.com/dp/B0GLHJ3DXH) (~$10) — el puerto en sí es un zócalo **hembra** 2×4 (compatible Dupont) pegado al recorte; el kit además cubre reparaciones de headers en todas partes
+- [ ] Kit de cables Qwiic/Stemma QT, JST-SH 1,0 mm a Dupont — [B08HQ1VSVL](https://www.amazon.com/dp/B08HQ1VSVL) (~$8) — adapta el enorme ecosistema de sensores I2C Qwiic/Stemma directo al hack port, sin crimpar, sin conector SH de panel
 
-The back-panel hack port needs real connector hardware, not just a case cutout:
-
-- [ ] Pin header assortment, male + female, single/double row 2.54 mm, 138pc — [B0GLHJ3DXH](https://www.amazon.com/dp/B0GLHJ3DXH) (~$10) — the port itself is a 2×4 **female** socket (Dupont-compatible) glued into the case cutout; kit also covers header repairs everywhere else
-- [ ] Qwiic/Stemma QT cable kit, JST-SH 1.0 mm to Dupont — [B08HQ1VSVL](https://www.amazon.com/dp/B08HQ1VSVL) (~$8) — adapts the huge Qwiic/Stemma I2C sensor ecosystem straight into the hack port, no crimping, no panel-mount SH connector needed
-
-**Proposed 2×4 pin map** (freeze in session 1):
+**Mapa 2×4 propuesto** (congelar en la sesión 1):
 
 ```
 3V3   SDA
 5V    SCL
-GND   GPIO A  (ADC + touch capable)
-GND   GPIO B  (ADC + touch capable)
+GND   GPIO A  (ADC + táctil)
+GND   GPIO B  (ADC + táctil)
 ```
 
-I2C is the extension bus (address-based, powered, and the whole Qwiic catalog
-plugs in via the adapter cables); the two raw GPIOs cover buttons, analog
-sensors, or an extra touch pad. Firmware side: hack port pins are owned by the
-Berry layer — digital/analog read-write and touch from scripts with zero C++;
-I2C devices use driver-backed Senses.
+I2C es el bus de extensión (por direcciones, alimentado, y todo el catálogo
+Qwiic entra con los cables adaptadores); los dos GPIO crudos cubren botones,
+sensores analógicos o una almohadilla táctil extra. En firmware: los pines
+del hack port son de la capa Berry — lectura/escritura digital/analógica y
+tacto desde scripts con cero C++; los dispositivos I2C usan Senses con
+driver.
 
-### v1 built-in sensors (to order)
+### Sensores integrados v1 (por pedir)
 
-Awareness kit, built into every buddy (not hack-port add-ons). All feed the
-Brain's `sensor_snapshot` (free conversational awareness) and emit bus events
-for reflexes. AI agents write the drivers/state machines; the human costs are
-placement, mounting, and tuning — noted per sensor.
+Kit de consciencia, integrado en cada buddy (no son accesorios del hack
+port). Todos alimentan el `sensor_snapshot` del Brain (consciencia
+conversacional gratis) y emiten eventos del bus para los reflejos. Los
+drivers/máquinas de estados los escriben agentes de IA; los costes humanos
+son colocación, montaje y ajuste — anotados por sensor.
 
-- [ ] AHT20 + BMP280 temp/humidity/pressure combo, I2C, 5-pack — [B0G1RDY1Y8](https://www.amazon.com/dp/B0G1RDY1Y8) (~$8)
-  — placement: at the intake vent, low in the shell (enclosure self-heating reads 3–5 °C high). Pressure trend = weather small talk.
-- [ ] BH1750 (GY-302) ambient light, I2C, 3-pack (HiLetgo) — [B00M0F29OS](https://www.amazon.com/dp/B00M0F29OS) (~$6)
-  — placement: pinhole window or peeking through the vent slots. Events: `sense.light.dark` → sleep reflex.
-- [ ] MPU6050 (GY-521) accelerometer + gyro, I2C, 5-pack (AITRIP) — [B07RXQGGJX](https://www.amazon.com/dp/B07RXQGGJX) (~$10)
-  — mounting: rigid, screwed or firmly glued to the shell (not floating on wires). Gesture layer (`motion.pickup`, `motion.shake`, `motion.tilt`) is AI-written but needs human play-testing to tune thresholds — budget a fun hour.
-- [ ] LD2410C mmWave presence radar, UART/GPIO, 3-pack — [B0FKBF3CT4](https://www.amazon.com/dp/B0FKBF3CT4) ($19)
-  — the awareness king: detects you arriving/sitting/leaving *through the PLA shell* — zero case holes. Mount facing front behind the shell wall. Uses UART, not I2C.
-- [ ] VL53L0X ToF distance (laser ranging), I2C, 5-pack (Starry) — [B0DZWS6WC5](https://www.amazon.com/dp/B0DZWS6WC5) ($15) — *optional*
-  — anticipation: hand approaching → excited before touch. Needs a real opening or clear window (IR laser won't shoot through PLA).
+- [ ] Combo AHT20 + BMP280 temp/humedad/presión, I2C, pack de 5 — [B0G1RDY1Y8](https://www.amazon.com/dp/B0G1RDY1Y8) (~$8)
+  — colocación: en la rejilla de entrada, bajo en la carcasa (el autocalentamiento del recinto lee 3–5 °C de más). La tendencia de presión = charla del tiempo.
+- [ ] BH1750 (GY-302) luz ambiente, I2C, pack de 3 (HiLetgo) — [B00M0F29OS](https://www.amazon.com/dp/B00M0F29OS) (~$6)
+  — colocación: ventanita de alfiler o asomando por las rejillas. Eventos: `sense.light.dark` → reflejo de dormir.
+- [ ] MPU6050 (GY-521) acelerómetro + giroscopio, I2C, pack de 5 (AITRIP) — [B07RXQGGJX](https://www.amazon.com/dp/B07RXQGGJX) (~$10)
+  — montaje: rígido, atornillado o bien pegado a la carcasa (no flotando de los cables). La capa de gestos (`motion.pickup`, `motion.shake`, `motion.tilt`) la escribe la IA pero necesita play-testing humano para ajustar umbrales — presupuesta una hora divertida.
+- [ ] Radar de presencia mmWave LD2410C, UART/GPIO, pack de 3 — [B0FKBF3CT4](https://www.amazon.com/dp/B0FKBF3CT4) ($19)
+  — el rey de la consciencia: detecta que llegas/te sientas/te vas *a través de la carcasa de PLA* — cero agujeros. Montar mirando al frente tras la pared. Usa UART, no I2C.
+- [ ] VL53L0X distancia ToF (láser), I2C, pack de 5 (Starry) — [B0DZWS6WC5](https://www.amazon.com/dp/B0DZWS6WC5) ($15) — *opcional*
+  — anticipación: mano acercándose → emocionado antes del contacto. Necesita apertura real o ventana transparente (el láser IR no atraviesa el PLA).
 
-~$58 total, covers 3 builds with spares. All I2C sensors share the one bus
-(one `Wire` pair, distinct addresses — no pin cost per sensor). Skipped for
-now: ENS160-class air quality (needs burn-in, drifts — fine lab experiment
-later), PIR (blunt instrument; the radar outclasses it).
+~$58 en total, cubre 3 builds con repuestos. Todos los sensores I2C comparten
+el único bus (un par `Wire`, direcciones distintas — sin coste de pines por
+sensor). Descartados por ahora: calidad de aire clase ENS160 (necesita
+rodaje, deriva — buen experimento de lab más adelante), PIR (instrumento
+romo; el radar lo supera en todo).
 
-### Power, servo prep & NFC (to order)
+### Alimentación, prep de servos y NFC (por pedir)
 
-Power architecture parts (see *Power & assembly* below) plus the two approved
-future-facing additions:
+Piezas de la arquitectura de alimentación (ver *Alimentación y montaje*) más
+las dos adiciones aprobadas con vistas al futuro:
 
-- [ ] Panel-mount USB-C extension, male→female, screw mount, 2-pack — [B0G43JGJRX](https://www.amazon.com/dp/B0G43JGJRX) ($10; **order ×2** for 3 builds + spare)
-  — the case's power inlet; feeds the 5 V rail directly, devkit USB becomes debug-only
-- [ ] MG90S metal-gear micro servos, 6-pack — [B0DRHX1L5Q](https://www.amazon.com/dp/B0DRHX1L5Q) ($18)
-  — 2 per buddy for the v2 pan/tilt neck; bench prototyping can start right after session 4. v1 only *reserves* their pins + power headroom
-- [ ] PN532 NFC reader module (I2C mode), 3-pack — [B0DTHPL3GG](https://www.amazon.com/dp/B0DTHPL3GG) ($19)
-  — one more device on the shared I2C bus; reads through the PLA shell, zero holes. Session-4 stretch: tap a tag to switch personality
-- [x] NTAG215 NFC stickers, 50-pack — [B0CHVWTRGC](https://www.amazon.com/dp/B0CHVWTRGC) ($13)
-  — pack cartridges, mode tokens, printed totems. Rule: tags trigger whitelisted actions only — never auth, never raw Brain input
-- [x] Micro SD card module, 3.3 V SPI (no level shifter), 6-pack (WWZMDiB) — [B0BV8ZQ81F](https://www.amazon.com/dp/B0BV8ZQ81F) ($7)
-  — media storage for content packs (pre-generated speech, images, sounds — e.g. the board-game explainer). Shares the display's SPI bus with its own CS pin; mount read-only in normal operation, writes only during web-UI uploads. Avoid the "3.3V/5V logic converter" variants — the shifter causes the classic SD-on-ESP32 failures
+- [ ] Extensión USB-C de panel, macho→hembra, montaje a tornillo, pack de 2 — [B0G43JGJRX](https://www.amazon.com/dp/B0G43JGJRX) ($10; **pedir ×2** para 3 builds + repuesto)
+  — la entrada de energía de la carcasa; alimenta el raíl de 5 V directo, el USB del devkit queda solo para depurar
+- [ ] Micro servos MG90S de engranaje metálico, pack de 6 — [B0DRHX1L5Q](https://www.amazon.com/dp/B0DRHX1L5Q) ($18)
+  — 2 por buddy para el cuello pan/tilt de v2; el prototipado en banco puede empezar justo tras la sesión 4. v1 solo *reserva* sus pines y margen de potencia
+- [ ] Módulo lector NFC PN532 (modo I2C), pack de 3 — [B0DTHPL3GG](https://www.amazon.com/dp/B0DTHPL3GG) ($19)
+  — un dispositivo más en el bus I2C compartido; lee a través de la carcasa de PLA, cero agujeros. Stretch de la sesión 4: tap a un tag para cambiar de personalidad
+- [x] Pegatinas NFC NTAG215, pack de 50 — [B0CHVWTRGC](https://www.amazon.com/dp/B0CHVWTRGC) ($13)
+  — cartuchos de pack, tokens de modo, tótems impresos. Regla: los tags disparan solo acciones de lista blanca — nunca auth, nunca entrada cruda al Brain
+- [x] Módulo micro SD, SPI 3,3 V (sin conversor de nivel), pack de 6 (WWZMDiB) — [B0BV8ZQ81F](https://www.amazon.com/dp/B0BV8ZQ81F) ($7)
+  — almacenamiento de media para packs de contenido (voz pre-generada, imágenes, sonidos — ej. el explicador de juegos de mesa). Comparte el bus SPI de la pantalla con su propio CS; montado solo-lectura en operación normal, escrituras solo en subidas desde la web. Evita las variantes con "conversor lógico 3.3V/5V" — el conversor causa los fallos clásicos de SD-en-ESP32
 
+### Confirmar que alguien ya tiene (no pedir a ciegas)
 
+- [ ] Soldador + estaño + flux (el soldador también instala los insertos)
+- [ ] Pelacables, alicates de corte a ras
+- [ ] Pistola de silicona caliente
+- [ ] Multímetro
+- [ ] Cables USB-C **de datos** (los de solo-carga son el clásico sumidero de tiempo en talleres)
+- [ ] **Cargadores de pared USB-C, 15 W+ (5 V/3 A)** — uno por buddy; cualquier cargador de móvil moderno vale
+- [ ] Tarjetas micro SD, 8–32 GB (clase A1 vale) — una por buddy; hay en cualquier cajón
+- [ ] Polyfuse ~500 mA (protección del hack port) + condensadores electrolíticos de 1000 µF (raíl de 5 V) — piezas clásicas de cajón de lab
+- [ ] Filamento PLA/PETG para la carcasa
 
-### Confirm someone already has (don't order blind)
+## Alimentación y montaje
 
-- [ ] Soldering iron + solder + flux (the iron also installs the heat-set inserts)
-- [ ] Wire strippers, flush cutters
-- [ ] Hot glue gun
-- [ ] Multimeter
-- [ ] USB-C **data** cables (charge-only cables are a classic workshop time-sink)
-- [ ] **USB-C wall chargers, 15 W+ (5 V/3 A)** — one per buddy; any modern phone charger qualifies
-- [ ] Micro SD cards, 8–32 GB (A1 class fine) — one per buddy; every drawer has these
-- [ ] Polyfuse ~500 mA (hack port protection) + 1000 µF electrolytic capacitors (5 V rail) — classic lab-bin parts
-- [ ] PLA/PETG filament for the case
+**Regla de arquitectura: las cargas nunca pasan por el devkit.** El consumo
+pico de v1 es ~1,1–1,5 A a 5 V (ráfagas WiFi + altavoz + anillo capado +
+radar), que excede el conector USB y las pistas de 5 V del devkit — la fuente
+clásica de fantasmas tipo "se reinicia cuando suena el altavoz".
 
+- **Entrada de energía**: USB-C de panel en la carcasa → **raíl de
+  distribución de 5 V** en la protoboard (topología en estrella) con un
+  electrolítico de 1000 µF. Devkit, ampli, anillo, radar y hack port beben
+  todos del raíl. El USB del devkit queda solo para programar/depurar.
+- **Fuente**: cargador USB-C de 5 V/3 A (15 W+) por buddy. El margen ya cubre
+  los servos de v2 (~1–1,5 A de picos de bloqueo) sin rehacer nada.
+- **El 5 V del hack port** pasa por un polyfuse de ~500 mA — un accesorio en
+  corto apaga el experimento, no el buddy.
+- **Gobernador de potencia en firmware**: cap de brillo del LED, volumen
+  máximo del altavoz y (después) los movimientos de servo se coordinan en la
+  capa Expression para que los peores casos no se apilen. ~20 líneas;
+  política, no conocimiento tribal.
+- **La batería = el módulo "base de potencia" de v2, no la cabeza.** Una
+  18650 + placa de carga/boost (clase IP5306: carga, boost a 5 V y load
+  sharing en un chip) vive en la misma base atornillable que el cuello servo:
+  la masa de la batería hace de lastre para la cabeza móvil, el calor queda
+  lejos del sensor de temperatura, y la base alimenta la cabeza por la
+  costura USB-C existente — la cabeza no distingue pared, power bank o
+  batería. Hack de portabilidad v1.5: cualquier power bank USB-C (el consumo
+  en reposo de ~200 mA queda por encima del umbral de autoapagado de los
+  power banks baratos).
+- Protoboard para las sesiones 1–2; pasar a protoboard soldada o PCB
+  portadora simple para el montaje final en la sesión 4. Una PCB portadora
+  diseñada en paralelo por quien le interese es un side-track estupendo pero
+  no puede bloquear el montaje.
 
+## Carcasa
 
-## Power & assembly
+- Impresa en 3D, carcasa de dos piezas alrededor de la pantalla ("cabeza")
+  con rejilla de altavoz, agujero de micro y una **entrada USB-C de panel**
+  (desacoplada del puerto del devkit — se acabó alinear recortes con una
+  placa). Almohadillas capacitivas pegadas por dentro donde la acariciarías
+  naturalmente (encima de la cabeza).
+- **Base preparada para cuello**: interfaz inferior plana con torres de
+  tornillo M3 y canal de cables, para que la base de potencia v2 (servos +
+  batería) se atornille sin reimprimir la cabeza.
+- **Zona de tap NFC**: el PN532 se monta tras la carcasa (lee a través de
+  2–3 mm de PLA); imprime un pequeño icono de tap en la superficie. El radar
+  igualmente ve a través de la carcasa — montarlo mirando al frente.
+- El diseño de la carcasa empieza en la sesión 1 (medir componentes reales),
+  primera impresión de prueba en la sesión 2, impresión final entre las
+  sesiones 3 y 4.
 
-**Architecture rule: loads never flow through the devkit.** Worst-case v1 draw
-is ~1.1–1.5 A at 5 V (WiFi bursts + speaker + capped LED ring + radar), which
-exceeds the devkit's USB connector and 5 V traces — the classic source of
-"reboots when the speaker plays" ghosts.
+## Presupuesto de pines (comprobación, ESP32-S3)
 
-- **Power inlet**: panel-mount USB-C on the case shell → **5 V distribution
-rail** on the protoboard (star topology) with a 1000 µF electrolytic. The
-devkit, amp, LED ring, radar, and hack port all tap the rail. The devkit's
-own USB port is programming/debug only.
-- **Supply**: 5 V/3 A (15 W+) USB-C charger per buddy. Headroom now covers the
-v2 servos (~1–1.5 A stall spikes) without rework.
-- **Hack port 5 V** goes through a ~500 mA polyfuse — a shorted accessory
-browns out the experiment, not the buddy.
-- **Firmware power governor**: LED brightness cap, max speaker volume, and
-(later) servo moves are coordinated in the Expression layer so worst cases
-don't stack. ~20 lines; policy, not tribal knowledge.
-- **Battery = the v2 "power base" module, not the head.** An 18650 +
-charge/boost board (IP5306-class: charging, 5 V boost, and load sharing in
-one chip) lives in the same bolt-on base as the servo neck: battery mass
-becomes ballast for the moving head, heat stays away from the temp sensor,
-and the base feeds the head through the existing USB-C seam — the head can't
-tell wall, power bank, or battery apart. v1.5 portability hack: any USB-C
-power bank (idle draw ~200 mA sits safely above cheap power banks'
-auto-shutoff threshold).
-- Breadboard for sessions 1–2; move to a soldered protoboard or simple carrier
-PCB for final assembly in session 4. A carrier PCB designed in parallel by
-interested members is a great side-track but must not block assembly.
-
-
-
-## Case
-
-- 3D-printed, two-part shell around the display ("head") with speaker grille,
-mic hole, and a **panel-mount USB-C inlet** (decoupled from the devkit's port —
-no more aligning cutouts to a board). Capacitive pads glued inside the shell
-where you'd naturally pet it (top of head).
-- **Neck-ready base**: flat bottom interface with M3 screw bosses and a wire
-channel, so the v2 power base (servos + battery) bolts on without reprinting
-the head.
-- **NFC tap zone**: PN532 mounts behind the shell (reads through 2–3 mm PLA);
-print a small tap icon on the surface. Radar likewise sees through the shell —
-mount facing front.
-- Case design starts session 1 (measure real components), first test print by
-session 2, final print between sessions 3 and 4.
-
-
-
-## Pin budget (sanity check, ESP32-S3)
-
-SPI display (5–6 pins), I2S mic (3), I2S amp (3), touch pads (2–4), LED (1),
-button (1), I2C bus (2 — shared by all built-in sensors *and* the hack port),
-radar UART (2) — comfortably within the S3's GPIO count, leaving plenty of free
-GPIO broken out to a header on the case ("hack port") for member sensors and
-future actuators. Breaking unused GPIO + 3V3/GND out to an external connector
-is part of the v1 case design on purpose: it's the extensibility promise made
-physical.
+Pantalla SPI (5–6 pines), micro I2S (3), ampli I2S (3), almohadillas táctiles
+(2–4), LED (1), botón (1), bus I2C (2 — compartido por todos los sensores
+integrados *y* el hack port), UART del radar (2) — cómodamente dentro del
+número de GPIO del S3, dejando de sobra GPIO libres sacados a un conector en
+la carcasa (el "hack port") para sensores de miembros y actuadores futuros.
+Sacar GPIO sin usar + 3V3/GND a un conector externo es parte del diseño v1 de
+la carcasa a propósito: es la promesa de extensibilidad hecha física.
