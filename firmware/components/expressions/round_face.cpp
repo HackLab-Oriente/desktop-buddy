@@ -171,7 +171,13 @@ void draw_eye(int cxi, int side, const Emotion& em, int open_pct, int gx, int gy
 
   const int gm = 10;  // glow margin
   const int x0 = static_cast<int>(cx - hw) - gm, x1 = static_cast<int>(cx + hw) + gm;
-  const int y0 = static_cast<int>(top) - gm, y1 = static_cast<int>(cy + hh) + gm;
+  // Clip the SCAN to the band, not just the writes. Letting the loop run the
+  // whole eye and discarding out-of-band pixels in put_at/blend_at means the
+  // per-pixel SDF maths runs once per band — measured at 251 ms/frame on a
+  // classic ESP32 (4 fps) before this line existed.
+  int y0 = static_cast<int>(top) - gm, y1 = static_cast<int>(cy + hh) + gm;
+  if (y0 < band_y0) y0 = band_y0;
+  if (y1 > band_y0 + kBandH - 1) y1 = band_y0 + kBandH - 1;
   const float span = open < 1.f ? 1.f : open;
   const uint16_t glow_col = rgb(em.r / 4, em.g / 4, em.b / 4);
   const float ihw = hw - r, ihh = hh - r;
@@ -241,7 +247,26 @@ void build_cache(int emo) {
            (esp_timer_get_time() - t0) / 1000.0);
 }
 
-void draw_eyes(int open_pct, int gx, int gy) {
+// How long a full eye frame costs, averaged over a window. Cheap enough to
+// leave in (two timer reads per frame) and it is the first number anyone
+// bringing up a new board wants: the cached and banded paths differ by an
+// order of magnitude, so "is this board slow?" has an answer in the log.
+#if CONFIG_BUDDY_DEBUG
+void report_frame(int64_t us) {
+  static int64_t sum = 0;
+  static int n = 0;
+  sum += us;
+  if (++n < 40) return;
+  const float ms = sum / 1000.0f / n;
+  ESP_LOGI(TAG, "render %.1f ms/frame (%.1f fps) · %d band%s, cache %s",
+           ms, 1000.0f / ms, kBands, kBands == 1 ? "" : "s",
+           kUseCache ? "on" : "off");
+  sum = 0;
+  n = 0;
+}
+#endif
+
+void draw_eyes_inner(int open_pct, int gx, int gy) {
   if (kUseCache) {
     // build_cache uses spr as scratch, so it must run BEFORE the clear —
     // otherwise its last level survives under the transparent blit and shows
@@ -261,6 +286,16 @@ void draw_eyes(int open_pct, int gx, int gy) {
     draw_eye(CX - GAP, 0, kEmotions[s_emotion], open_pct, gx, gy);
     draw_eye(CX + GAP, 1, kEmotions[s_emotion], open_pct, gx, gy);
   });
+}
+
+void draw_eyes(int open_pct, int gx, int gy) {
+#if CONFIG_BUDDY_DEBUG
+  const int64_t t0 = esp_timer_get_time();
+  draw_eyes_inner(open_pct, gx, gy);
+  report_frame(esp_timer_get_time() - t0);
+#else
+  draw_eyes_inner(open_pct, gx, gy);
+#endif
 }
 
 // ===== speech =====
@@ -335,7 +370,12 @@ volatile bool s_boot_ready = false;
 std::mutex s_status_mu;
 
 void draw_logo(int ox, int oy) {
-  for (int y = 0; y < kLogoH; y++)
+  // Same band clip as draw_eye: skip whole rows rather than testing every
+  // pixel of them.
+  int y0 = 0, y1 = kLogoH - 1;
+  if (oy + y0 < band_y0) y0 = band_y0 - oy;
+  if (oy + y1 > band_y0 + kBandH - 1) y1 = band_y0 + kBandH - 1 - oy;
+  for (int y = y0; y <= y1; y++)
     for (int x = 0; x < kLogoW; x++) {
       const uint8_t a = kLogoA[y * kLogoW + x];
       if (a) blend_at(ox + x, oy + y, kLogoRGB[y * kLogoW + x], a / 255.f);

@@ -1,0 +1,111 @@
+# Enforces the rule CONTRIBUTING states: main builds BOTH targets.
+# Until now that was an honour system; a PR that broke the classic ESP32 while
+# the author only ever built the S3 would have gone unnoticed.
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# A new push to the same PR cancels the previous run — nobody waits on a
+# build for a commit that has already been replaced.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  firmware:
+    name: firmware · ${{ matrix.target }}
+    runs-on: ubuntu-latest
+    strategy:
+      # Both targets always report. Knowing "S3 fine, classic broken" on the
+      # first run beats finding out after fixing the S3.
+      fail-fast: false
+      matrix:
+        target: [esp32s3, esp32]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Berry and LovyanGFX are submodules; without them nothing compiles.
+          submodules: recursive
+
+      - name: Generate Berry sources
+        # The build succeeds without this (berry_host falls back to the C
+        # reflexes in main.cpp), so skipping it would still go green while
+        # silently never compiling the Berry VM. Generate it so CI exercises
+        # the path the real device runs.
+        working-directory: firmware/components/berry_host/berry
+        run: |
+          mkdir -p generate
+          python3 tools/coc/coc -o generate src default -c default/berry_conf.h
+          test -f generate/be_const_strtab.h
+
+      - name: Build
+        uses: espressif/esp-idf-ci-action@v1
+        with:
+          # v5.x is not supported by this project — see firmware/README.md.
+          esp_idf_version: v6.0.2
+          target: ${{ matrix.target }}
+          path: firmware
+
+      - name: Report size
+        # Turns each run into a size trend you can read from the log, which is
+        # how "the app no longer fits the 4 MB partition" gets noticed early
+        # rather than at flash time.
+        working-directory: firmware
+        run: |
+          ls -l build/buddy.bin
+          python3 -c "
+          import os
+          n = os.path.getsize('build/buddy.bin')
+          part = 0x300000 if '${{ matrix.target }}' == 'esp32s3' else 0x1E0000
+          print(f'${{ matrix.target }}: {n:,} B of {part:,} B  ({100*n/part:.1f}% used)')
+          assert n < part, 'binary does not fit its app partition'
+          "
+
+  host-tests:
+    name: host tests · event bus
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and run
+        # No toolchain, no hardware: the bus is deliberately platform-neutral
+        # so its behaviour can be tested in seconds on any machine.
+        working-directory: firmware/host_test
+        run: |
+          c++ -std=c++17 -Wall -Wextra -Wno-unused-parameter \
+            -I../components/bus/include \
+            test_bus.cpp ../components/bus/bus.cpp -o test_bus
+          ./test_bus
+
+  docs:
+    name: docs · links resolve
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check relative links in markdown
+        # Docs rot quietly. This only checks repo-relative links (not the web),
+        # which is exactly the class that breaks when a file is renamed.
+        run: |
+          python3 - <<'PY'
+          import os, re, sys
+          bad = []
+          skip = {'.git', 'build', 'managed_components', 'components', '.claude', '.kiro'}
+          for root, dirs, files in os.walk('.'):
+              dirs[:] = [d for d in dirs if d not in skip]
+              for f in files:
+                  if not f.endswith('.md'):
+                      continue
+                  p = os.path.join(root, f)
+                  text = open(p, encoding='utf-8').read()
+                  for m in re.finditer(r'\[[^\]]*\]\(([^)#]+?)(?:#[^)]*)?\)', text):
+                      t = m.group(1)
+                      if t.startswith(('http', 'mailto')):
+                          continue
+                      if not os.path.exists(os.path.normpath(os.path.join(os.path.dirname(p), t))):
+                          bad.append(f'{p} -> {t}')
+          print('\n'.join(bad) if bad else 'all relative links resolve')
+          sys.exit(1 if bad else 0)
+          PY

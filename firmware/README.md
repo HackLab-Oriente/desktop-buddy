@@ -8,9 +8,9 @@ Expressions, el adaptador de cerebro cloud y la web de recarga en caliente.
 | | `esp32s3` (referencia) | `esp32` (clásico, DevKit V1) |
 |---|---|---|
 | Bus, Berry, web UI, cerebro cloud, tacto, NFC | ✓ | ✓ |
-| Cara GC9A01 a color | ✓ 1 banda + caché PSRAM, ~30 fps | ✓ 5 bandas de 23 KB, ~13 fps |
+| Cara GC9A01 a color | ✓ 1 banda + caché PSRAM, ~30 fps | ✓ 5 bandas de 23 KB, **14,4 fps medidos** |
 | Modelo local / voz | ✓ / planificado | ✗ (sin PSRAM) |
-| Verificado | en hardware, completo | **arranque sí; píxeles pendientes** |
+| Verificado | en hardware, completo | en hardware, completo |
 
 El truco que hace posible el clásico: los 460 KB de PSRAM que la cara parece
 necesitar son la **caché** de niveles de ojo, no el renderizado. Dibujar
@@ -131,9 +131,8 @@ c++ -std=c++17 -Wall -I../components/bus/include test_bus.cpp ../components/bus/
 - **Verificado**: ambos targets compilan en ESP-IDF v6.0.2; el bus pasa sus
   tests de host; el S3 completo funciona en hardware (cara, anillo, tacto,
   WiFi, cerebro Claude).
-- **Verificado en el clásico**: arranque completo en placa real — 5 bandas,
-  LittleFS, polaridad táctil V1 correcta. **Pendiente**: nadie ha conectado
-  aún una pantalla a un clásico — costuras entre bandas y fps reales sin
-  confirmar.
+- **Verificado en el clásico**: con pantalla cableada — arranque, animación de
+  boot, ojos, 5 bandas sin costuras visibles, LittleFS, polaridad táctil V1.
+  Render medido: **69 ms/frame (14,4 fps)**.
 - **Sin cablear todavía**: audio (INMP441/MAX98357A), tarjeta SD, sensores
   I2C; RC522 sin probar en hardware.

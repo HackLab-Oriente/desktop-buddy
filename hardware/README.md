@@ -7,7 +7,7 @@ por placa:
 | Guía | Placa | Estado |
 |---|---|---|
 | [buddy-s3-display.md](buddy-s3-display.md) | **ESP32-S3 N16R8** — la de referencia | verificada en hardware |
-| [buddy-zero-wiring.md](buddy-zero-wiring.md) | **ESP32 clásico** DevKit V1 | arranque verificado; píxeles pendientes |
+| [buddy-zero-wiring.md](buddy-zero-wiring.md) | **ESP32 clásico** DevKit V1 | verificada en hardware |
 
 También: `buddy-zero.wireviz.yml` (diagrama-como-código del cableado clásico,
 se renderiza con [WireViz](https://github.com/wireviz/WireViz)) y la máscara

@@ -5,9 +5,10 @@ Coincide con los defaults de `firmware/main/Kconfig.projbuild` para el target
 `esp32`. **Sigue las etiquetas de la serigrafía, no la posición del pin** —
 los clones del DevKit V1 barajan el orden entre fabricantes.
 
-> **Estado**: el arranque está verificado en placa real (5 bandas de 23 KB,
-> LittleFS, tacto V1). **Nadie ha conectado aún la pantalla a un clásico**:
-> si eres el primero, comprueba que no haya costuras entre bandas y cuéntalo.
+> **Estado**: verificado en placa real con pantalla cableada — arranque,
+> animación de boot, ojos, 5 bandas de 23 KB sin costuras visibles, LittleFS y
+> tacto V1. Render medido: **69 ms/frame (14,4 fps)**. Lo único aún sin probar
+> aquí es el RC522.
 
 ## Primero los raíles
 
@@ -100,7 +101,7 @@ pip install wireviz && wireviz hardware/buddy-zero.wireviz.yml
 
 ## Qué NO da esta placa
 
-Sin PSRAM no hay caché de ojos (≈13 fps en vez de 30), ni modelo de IA local,
+Sin PSRAM no hay caché de ojos (14,4 fps medidos en vez de 30), ni modelo de IA local,
 ni el bucle de voz v1. Todo lo demás — bus, reflejos Berry, web con recarga
 en caliente, cerebro cloud, NFC — funciona igual que en el S3. La tabla
 comparativa está en [../firmware/README.md](../firmware/README.md).
