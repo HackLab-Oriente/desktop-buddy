@@ -1,2 +1,2 @@
 dependencies:
-  espressif/cjson: "*"
+  espressif/cjson: "~1.7.19"   # keep in step with firmware/main/idf_component.yml

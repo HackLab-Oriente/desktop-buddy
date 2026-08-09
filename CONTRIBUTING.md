@@ -110,6 +110,13 @@ Lo que Dependabot **no** cubre: los componentes de ESP-IDF
 CI. Esos se suben a mano y a conciencia. El razonamiento completo está
 comentado en [`.github/dependabot.yml`](.github/dependabot.yml).
 
+Por eso los rangos de `idf_component.yml` están **acotados** (`^1.22.3`,
+`~1.7.19`, `^3.0.0`) y no abiertos (`*`, `>=1.14.0`). No los aflojes: como
+`dependencies.lock` está en el `.gitignore` — guarda el target y la versión de
+ESP-IDF, así que commitearlo enfrentaría a la mitad del equipo con S3 contra la
+mitad con clásico — esos rangos son lo único que impide que un clon limpio se
+traiga un major nuevo sin avisar.
+
 ## Hardware
 
 - El RC522 muere a 5 V. La pantalla va a 3V3. El anillo LED va a 5 V con el
