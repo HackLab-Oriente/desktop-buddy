@@ -26,7 +26,7 @@ jobs:
       matrix:
         target: [esp32s3, esp32]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # Berry and LovyanGFX are submodules; without them nothing compiles.
           submodules: recursive
@@ -69,7 +69,7 @@ jobs:
     name: host tests · event bus
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Build and run
         # No toolchain, no hardware: the bus is deliberately platform-neutral
         # so its behaviour can be tested in seconds on any machine.
@@ -84,7 +84,7 @@ jobs:
     name: docs · links resolve
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Check relative links in markdown
         # Docs rot quietly. This only checks repo-relative links (not the web),
         # which is exactly the class that breaks when a file is renamed.
