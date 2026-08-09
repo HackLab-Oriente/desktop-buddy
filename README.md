@@ -49,12 +49,12 @@ en [docs/pack-format.md](docs/pack-format.md).
 ## Arranque en 5 minutos
 
 Necesitas [ESP-IDF v6.x](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/)
-(la v5 **no** vale) y una placa: **ESP32-S3** (la de referencia) o un
+(la v5 **no** sirve para este proyecto) y una placa: **ESP32-S3** (la de referencia) o un
 **ESP32 clásico** DevKit V1 (funciona casi todo — ver la tabla abajo).
 
 ```bash
 # --recursive importa: sin los submódulos (Berry y LovyanGFX) no compila
-git clone --recursive <url-del-repo>
+git clone --recursive git@github.com:HackLab-Oriente/desktop-buddy.git
 cd desktop-buddy/firmware
 
 idf.py set-target esp32s3   # o: esp32
@@ -178,9 +178,16 @@ spikes/       experimentos desechables; solo sus conclusiones van a main
 
 ## Documentación
 
-El índice completo está en [docs/README.md](docs/README.md). Si solo vas a
-leer tres cosas: [la arquitectura](docs/architecture.md), [el plan de
-talleres](docs/workshops.md) y [cómo contribuir](CONTRIBUTING.md).
+Índice completo: [docs/README.md](docs/README.md) — o abre
+[docs/index.html](docs/index.html) en el navegador, que es la misma lista con
+los documentos interactivos enlazados para leerse de verdad.
+
+Si solo vas a leer tres cosas: [la arquitectura](docs/architecture.md), [el
+plan de talleres](docs/workshops.md) y [cómo contribuir](CONTRIBUTING.md).
+
+> Los `.html` de `docs/` son interactivos y autocontenidos. **GitHub los
+> muestra como código fuente, no como página** — clónalos y ábrelos, o usa la
+> web publicada si el repo llega a tener GitHub Pages.
 
 > Idiomas: la documentación está en español; el código y sus comentarios, en
 > inglés. `CLAUDE.md` y `.kiro/` son configuración de las herramientas de IA

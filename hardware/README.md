@@ -10,8 +10,9 @@ por placa:
 | [buddy-zero-wiring.md](buddy-zero-wiring.md) | **ESP32 clásico** DevKit V1 | arranque verificado; píxeles pendientes |
 
 También: `buddy-zero.wireviz.yml` (diagrama-como-código del cableado clásico,
-se renderiza con [WireViz](https://github.com/wireviz/WireViz)), y las
-máscaras imprimibles `oled-mask/` y `round-mask/`.
+se renderiza con [WireViz](https://github.com/wireviz/WireViz)) y la máscara
+imprimible [`round-mask/`](round-mask/). [`oled-mask/`](oled-mask/) es
+**histórica**: la máscara de la PoC monocroma, cuyo backend ya no existe.
 
 Regla que lo explica casi todo: **cada chip tiene minas distintas**. En el S3,
 GPIO 33–37 son la PSRAM, 19/20 el USB, 26–32 la flash y 0/3/45/46 strapping.

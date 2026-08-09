@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Desktop Buddy · Documentación</title>
+<style>
+  :root{
+    --bg:#f7f5f0; --card:#fff; --ink:#1e2126; --ink2:#5a6068; --muted:#8a9098;
+    --line:#e3e0d8; --accent:#2563a8; --soft:#eef1f6;
+    --good-bg:#e3efe5; --good-ink:#1e6b34; --warn-bg:#f5eedd; --warn-ink:#8a6410;
+  }
+  [data-theme="dark"]{
+    --bg:#14161a; --card:#1e2126; --ink:#eceae4; --ink2:#b9bec6; --muted:#7d838c;
+    --line:#2e323a; --accent:#6aa7e0; --soft:#232830;
+    --good-bg:#1c3324; --good-ink:#7fd096; --warn-bg:#35301e; --warn-ink:#e0bd62;
+  }
+  *{box-sizing:border-box;margin:0}
+  body{background:var(--bg);color:var(--ink);padding:30px 24px 70px;max-width:1080px;
+    margin:0 auto;font:19px/1.55 -apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif}
+  header{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:6px}
+  h1{font-size:34px;letter-spacing:-.02em}
+  .sub{color:var(--ink2);font-size:18px}
+  #theme{margin-left:auto;background:var(--card);color:var(--ink);border:1px solid var(--line);
+    border-radius:10px;padding:7px 15px;font-size:16px;cursor:pointer}
+  .lede{color:var(--ink2);font-size:18.5px;margin:10px 0 6px;max-width:760px}
+  h2{font-size:22px;margin:34px 0 12px;padding-top:16px;border-top:1px solid var(--line)}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:860px){.grid{grid-template-columns:1fr}}
+  a.card{display:block;background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:16px 18px;text-decoration:none;color:inherit;transition:border-color .15s,transform .15s}
+  a.card:hover{border-color:var(--accent);transform:translateY(-1px)}
+  a.card .t{font-size:19.5px;font-weight:700;display:flex;align-items:center;gap:9px}
+  a.card .d{color:var(--ink2);font-size:16.5px;margin-top:5px}
+  .pill{font-size:13px;font-weight:700;border-radius:7px;padding:2px 8px;
+    text-transform:uppercase;letter-spacing:.05em;flex:none}
+  .p-live{background:var(--good-bg);color:var(--good-ink)}
+  .p-md{background:var(--soft);color:var(--accent)}
+  .note{color:var(--muted);font-size:16px;margin-top:14px;max-width:820px}
+  code{font:15px ui-monospace,Menlo,monospace;background:var(--soft);border-radius:5px;padding:1px 5px}
+  footer{margin-top:40px;padding-top:16px;border-top:1px solid var(--line);
+    color:var(--muted);font-size:15.5px}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Desktop Buddy</h1>
+  <span class="sub">documentación del proyecto</span>
+  <button id="theme">◐</button>
+</header>
+<p class="lede">
+  Un compañero de escritorio abierto y hackeable sobre ESP32, hecho por y para
+  nuestro HackLab. Todo lo que hay aquí es una propuesta — discútela.
+</p>
+<p class="note">
+  Las tarjetas marcadas <span class="pill p-live">interactiva</span> se abren aquí
+  mismo. Las marcadas <span class="pill p-md">markdown</span> se leen mejor en
+  GitHub, así que apuntan allí.
+</p>
+
+<h2>Empezar</h2>
+<div class="grid">
+  <a class="card" href="https://github.com/HackLab-Oriente/desktop-buddy#readme">
+    <div class="t"><span class="pill p-md">markdown</span>README</div>
+    <div class="d">Qué es el buddy, arranque en 5 minutos, qué placa te da qué, y dónde se mete cada equipo.</div></a>
+  <a class="card" href="https://github.com/HackLab-Oriente/desktop-buddy/blob/main/CONTRIBUTING.md">
+    <div class="t"><span class="pill p-md">markdown</span>Cómo contribuir</div>
+    <div class="d">Ramas y spikes, commits, idiomas, cómo añadir un evento al bus, reglas del firmware.</div></a>
+  <a class="card" href="https://github.com/HackLab-Oriente/desktop-buddy/blob/main/docs/architecture.md">
+    <div class="t"><span class="pill p-md">markdown</span>Arquitectura y producto</div>
+    <div class="d">El documento fundacional: identidad, contrato de Brain, packs, voz, hitos.</div></a>
+  <a class="card" href="https://github.com/HackLab-Oriente/desktop-buddy/blob/main/docs/workshops.md">
+    <div class="t"><span class="pill p-md">markdown</span>Plan de talleres</div>
+    <div class="d">Las 4 sesiones, los tres tracks en paralelo y las notas de riesgo.</div></a>
+</div>
+
+<h2>Decisiones y reuniones</h2>
+<div class="grid">
+  <a class="card" href="reunion-equipos.html">
+    <div class="t"><span class="pill p-live">interactiva</span>Reunión de equipos</div>
+    <div class="d">Banco de frases vs modelo local, las 8 emociones con sus caras reales, equipos y líderes, BOM y diagrama de cableado.</div></a>
+  <a class="card" href="ideas-exploration.html">
+    <div class="t"><span class="pill p-live">interactiva</span>Registro de ideas</div>
+    <div class="d">15 hilos abiertos y callejones sin salida, con el número exacto que mató a cada uno. Filtrable.</div></a>
+  <a class="card" href="arquitectura.html">
+    <div class="t"><span class="pill p-live">interactiva</span>Arquitectura, visual</div>
+    <div class="d">La misma arquitectura del documento fundacional, explorable.</div></a>
+  <a class="card" href="https://github.com/HackLab-Oriente/desktop-buddy/blob/main/docs/brief-presentacion.md">
+    <div class="t"><span class="pill p-md">markdown</span>Brief de presentación</div>
+    <div class="d">El brief original con el que se presentó la idea al lab.</div></a>
+</div>
+
+<h2>Referencia técnica</h2>
+<div class="grid">
+  <a class="card" href="event-registry.html">
+    <div class="t"><span class="pill p-live">interactiva</span>Registro de eventos</div>
+    <div class="d">El contrato entre equipos: los 15 eventos del bus con sus sitios reales de publicación y suscripción, dueños por prefijo y agujeros conocidos.</div></a>
+  <a class="card" href="https://github.com/HackLab-Oriente/desktop-buddy/blob/main/docs/event-registry.md">
+    <div class="t"><span class="pill p-md">markdown</span>Registro de eventos, en texto</div>
+    <div class="d">La misma lista, greppable y diffable — es la versión que se edita en el PR cuando añades un evento.</div></a>
+  <a class="card" href="firmware-architecture.html">
+    <div class="t"><span class="pill p-live">interactiva</span>Arquitectura del firmware</div>
+    <div class="d">El bus en marcha, las tareas por núcleo, los dos targets y la tabla de emociones dibujándose en vivo.</div></a>
+  <a class="card" href="https://github.com/HackLab-Oriente/desktop-buddy/blob/main/docs/hardware.md">
+    <div class="t"><span class="pill p-md">markdown</span>Hardware y BOM</div>
+    <div class="d">Componentes, pedidos, sensores, alimentación, carcasa y presupuesto de pines.</div></a>
+  <a class="card" href="https://github.com/HackLab-Oriente/desktop-buddy/tree/main/hardware">
+    <div class="t"><span class="pill p-md">markdown</span>Guías de cableado</div>
+    <div class="d">Paso a paso por placa: ESP32-S3 y ESP32 clásico, con checklist de primer arranque.</div></a>
+  <a class="card" href="https://github.com/HackLab-Oriente/desktop-buddy/blob/main/docs/pack-format.md">
+    <div class="t"><span class="pill p-md">markdown</span>Formato de packs</div>
+    <div class="d">El contrato de los packs de personalidad. Borrador para discusión.</div></a>
+  <a class="card" href="https://github.com/HackLab-Oriente/desktop-buddy/blob/main/docs/services.md">
+    <div class="t"><span class="pill p-md">markdown</span>Servicios externos</div>
+    <div class="d">LLM, STT y TTS: proveedores, precios y el coste real por interacción.</div></a>
+</div>
+
+<h2>Modelo de IA local</h2>
+<div class="grid">
+  <a class="card" href="param-explorer.html">
+    <div class="t"><span class="pill p-live">interactiva</span>Explorador de parámetros</div>
+    <div class="d">Mueve los mandos del modelo y mira cómo cambian tamaño, velocidad en la placa y memoria. Para el proyector.</div></a>
+  <a class="card" href="https://github.com/HackLab-Oriente/desktop-buddy/blob/main/docs/training-workshop.md">
+    <div class="t"><span class="pill p-md">markdown</span>Taller de entrenamiento</div>
+    <div class="d">De cero experiencia en ML a un modelo propio corriendo en el buddy. Receta completa.</div></a>
+  <a class="card" href="https://github.com/HackLab-Oriente/desktop-buddy/blob/main/docs/local-model-bringup.md">
+    <div class="t"><span class="pill p-md">markdown</span>Paso 0: ¿corre el modelo?</div>
+    <div class="d">La medición que abrió la puerta: sí, y a qué velocidad.</div></a>
+  <a class="card" href="https://github.com/HackLab-Oriente/desktop-buddy/blob/spike/tinylm-s3/spikes/tinylm-s3/README.md">
+    <div class="t"><span class="pill p-md">markdown</span>Spike del kernel</div>
+    <div class="d">De 31 a 152 tok/s, con cada paso medido. Vive en la rama <code>spike/tinylm-s3</code>.</div></a>
+</div>
+
+<footer>
+  Desktop Buddy · <a href="https://github.com/HackLab-Oriente/desktop-buddy" style="color:var(--accent)">HackLab-Oriente/desktop-buddy</a> ·
+  licencia MIT. La documentación está en español; el código y sus comentarios, en inglés.
+</footer>
+
+<script>
+document.getElementById("theme").addEventListener("click", () => {
+  const r = document.documentElement;
+  r.dataset.theme = r.dataset.theme === "dark" ? "" : "dark";
+});
+if (matchMedia("(prefers-color-scheme: dark)").matches)
+  document.documentElement.dataset.theme = "dark";
+</script>
+</body>
+</html>
