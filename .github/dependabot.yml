@@ -1,0 +1,77 @@
+version: 2
+
+# What Dependabot can and cannot see in this repo:
+#
+#   ✓ .github/workflows/*.yml   — the actions CI runs on
+#   ✓ .gitmodules               — Berry and LovyanGFX
+#   ✗ */idf_component.yml       — littlefs, cJSON, led_strip. The ESP-IDF
+#                                 Component Manager is not a Dependabot
+#                                 ecosystem; those are updated by hand.
+#                                 See the note at the bottom of this file.
+#   ✗ esp_idf_version: v6.0.2   — an input value in build.yml, not an action
+#                                 reference, so nothing tracks it. Bumping
+#                                 ESP-IDF stays a deliberate decision.
+
+updates:
+  # ---------------------------------------------------------------- actions
+  # Only four action references, all pinned to floating major tags (@v4, @v1),
+  # so this is quiet by construction: a PR appears on a major bump, or when a
+  # major line is retagged for a security fix. The real value is catching
+  # runner-runtime deprecations (node20 -> node24 and the like) as a PR that
+  # fails loudly in CI, months before GitHub force-migrates and every workflow
+  # in the org breaks on the same morning.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "ci"
+    groups:
+      # One PR for all of them. They are checked out together and verified by
+      # the same run; four separate PRs would be four identical reviews.
+      actions:
+        patterns:
+          - "*"
+
+  # ------------------------------------------------------------- submodules
+  # Berry (the reflex VM) and LovyanGFX (the graphics layer).
+  #
+  # Read this before merging one of these. Dependabot's submodule updater
+  # tracks the submodule's *default branch HEAD*, not its releases — so a PR
+  # here converts a deliberate pin (LovyanGFX is parked on the 1.2.26 tag)
+  # into whatever is on master that day, with no changelog and often many
+  # unreleased commits of drift.
+  #
+  # CI proves it still compiles for both targets. CI cannot see the screen.
+  # LovyanGFX owns sprite memory layout, and this project already has a scar
+  # there — 16 bpp sprites are stored big-endian, and getting that wrong turns
+  # gradients into rainbow banding while compiling perfectly clean. A green
+  # check on one of these PRs means "it builds", not "the face is right".
+  #
+  # So: monthly, ungrouped (each one is its own hardware check), and flash a
+  # board before merging. If that turns out to be more ceremony than the
+  # updates are worth, delete this whole block — the actions updater above is
+  # the part that earns its keep.
+  - package-ecosystem: gitsubmodule
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 2
+    commit-message:
+      prefix: "deps"
+    labels:
+      - dependencies
+      - needs-hardware-check
+
+# ---------------------------------------------------------------------------
+# The gap worth knowing about: firmware/main/idf_component.yml asks for
+# `espressif/cjson: "*"` and `joltwallet/littlefs: ">=1.14.0"`, and
+# firmware/.gitignore excludes `dependencies.lock`. Those two facts together
+# mean the ESP-IDF components already float — a clean clone today and a clean
+# clone next month can resolve to different versions of cJSON, and nothing in
+# the repo records which one built a given binary. That is a bigger
+# reproducibility hole than anything this file closes, and Dependabot cannot
+# close it. Committing dependencies.lock is the fix; it is a separate
+# decision, so it is written down here rather than done quietly.

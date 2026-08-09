@@ -89,6 +89,27 @@ cd firmware && idf.py set-target esp32 && idf.py build
   promete eventos inexistentes le cuesta una tarde a alguien (nos pasó; está
   en la lista de agujeros del registro).
 
+## PRs de Dependabot
+
+Dependabot vigila dos cosas: las actions del CI (semanal, agrupadas en un solo
+PR) y los submódulos Berry y LovyanGFX (mensual, uno por PR).
+
+Los de actions se mergean con el CI en verde y ya está.
+
+Los de submódulos **no**. Llevan la etiqueta `needs-hardware-check` por un
+motivo concreto: Dependabot sigue la rama por defecto del submódulo, no sus
+releases — así que el PR cambia un pin deliberado (LovyanGFX está parado en el
+tag 1.2.26) por lo que haya hoy en master, sin changelog. Y el CI compila para
+los dos targets, pero **el CI no ve la pantalla**. LovyanGFX es la capa
+gráfica; ya nos mordió una vez con el endianness de los sprites de 16 bpp, que
+compila perfecto y pinta franjas arcoíris. Verde significa "compila", no "la
+cara está bien". Flashea una placa antes de mergear.
+
+Lo que Dependabot **no** cubre: los componentes de ESP-IDF
+(`idf_component.yml` — littlefs, cJSON, led_strip) y la versión de ESP-IDF del
+CI. Esos se suben a mano y a conciencia. El razonamiento completo está
+comentado en [`.github/dependabot.yml`](.github/dependabot.yml).
+
 ## Hardware
 
 - El RC522 muere a 5 V. La pantalla va a 3V3. El anillo LED va a 5 V con el
