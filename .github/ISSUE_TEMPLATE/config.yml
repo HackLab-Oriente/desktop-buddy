@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Documentación del proyecto
+    url: https://hacklaboriente.org/desktop-buddy/
+    about: Arquitectura, registro de eventos, plan de talleres y guías de cableado.
+  - name: Cómo contribuir
+    url: https://github.com/HackLab-Oriente/desktop-buddy/blob/main/CONTRIBUTING.md
+    about: Ramas, commits, idiomas y las reglas de la casa del firmware.
+  - name: Registro de eventos
+    url: https://github.com/HackLab-Oriente/desktop-buddy/blob/main/docs/event-registry.md
+    about: Antes de inventar un evento nuevo, mira si ya existe y quién es su dueño.

@@ -1,0 +1,50 @@
+name: Tarea
+description: Algo concreto que hay que hacer
+labels: []
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Área
+      description: Elige una. Sirve para que la tarea llegue al equipo correcto.
+      options:
+        - Firmware y arquitectura
+        - Voz
+        - Web UI / PWA
+        - Electrónica
+        - CAD y carcasa
+        - Personalidad y contenido
+    validations:
+      required: true
+
+  - type: textarea
+    id: que
+    attributes:
+      label: Qué hay que hacer
+      description: Una o dos frases. Si no cabe en dos frases, probablemente son dos tareas.
+    validations:
+      required: true
+
+  - type: textarea
+    id: hecho
+    attributes:
+      label: Cómo sabemos que está hecho
+      description: >
+        Lo que alguien tendría que ver para creerte. "El log imprime X", "la
+        cara cambia al tocar el pad", "el PR compila para los dos targets".
+        Sin esto la tarea se queda abierta para siempre porque nadie sabe
+        cuándo cerrarla.
+      placeholder: |
+        - [ ] ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: contexto
+    attributes:
+      label: Contexto
+      description: >
+        Enlaces al doc, al evento del registro o al archivo. Opcional, pero
+        es la diferencia entre que alguien empiece hoy o pregunte primero.
+    validations:
+      required: false

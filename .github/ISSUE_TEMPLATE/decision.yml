@@ -1,0 +1,59 @@
+name: Decisión del grupo
+description: Un punto abierto que decide el grupo, no una persona
+labels: ["needs-decision"]
+body:
+  - type: markdown
+    attributes:
+      value: >
+        Para lo que **no** es una tarea: cómo se llaman las emociones, qué
+        forma tiene la carcasa, banco de frases o modelo. Se abre, se discute
+        en el hilo, se decide en una reunión y se cierra con la decisión
+        escrita — para que dentro de tres meses nadie tenga que reconstruir
+        por qué se hizo así.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Área
+      options:
+        - Firmware y arquitectura
+        - Voz
+        - Web UI / PWA
+        - Electrónica
+        - CAD y carcasa
+        - Personalidad y contenido
+        - Transversal
+    validations:
+      required: true
+
+  - type: textarea
+    id: pregunta
+    attributes:
+      label: La pregunta
+      description: Formúlala de modo que se pueda responder, no debatir sin fin.
+    validations:
+      required: true
+
+  - type: textarea
+    id: opciones
+    attributes:
+      label: Opciones sobre la mesa
+      description: Con su pro y su contra. Si solo hay una opción, no es una decisión.
+      value: |
+        **A.** …
+        - a favor:
+        - en contra:
+
+        **B.** …
+        - a favor:
+        - en contra:
+    validations:
+      required: true
+
+  - type: input
+    id: cuando
+    attributes:
+      label: Para cuándo hace falta
+      description: Qué se bloquea si no se decide. P. ej. "antes de la sesión 2".
+    validations:
+      required: false

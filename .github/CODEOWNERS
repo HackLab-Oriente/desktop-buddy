@@ -1,0 +1,44 @@
+# Quién revisa qué. GitHub pide review automáticamente al dueño cuando un PR
+# toca su zona — así "quién manda aquí" es una propiedad del repo y no algo
+# que haya que recordar o preguntar en el grupo.
+#
+# Gana la ÚLTIMA regla que coincide, así que el orden importa: lo general
+# arriba, lo específico abajo.
+#
+# Ser dueño no es tener el monopolio: es que nadie cambie tu zona sin que te
+# enteres. Cualquiera puede abrir PRs en cualquier carpeta.
+#
+# Cuando existan los equipos de la organización esto puede pasar a
+# @HackLab-Oriente/firmware y compañía; con handles personales funciona ya y
+# no depende de permisos de admin.
+
+# Por defecto, firmware/arquitectura
+*                                   @dapanas
+
+# --- Firmware y arquitectura — Daniel Pérez
+/firmware/                          @dapanas
+/.github/                           @dapanas
+/docs/event-registry.md             @dapanas
+
+# --- Web UI / PWA — Juan Esteban Londoño
+/firmware/components/webui/         @jelondoca
+
+# --- Voz — Elkin Botero
+# La carpeta aún no existe: el track de voz arranca con eventos que tampoco
+# existen (voice.listening, voice.thinking — agujero nº 3 del registro).
+/firmware/components/voice/         @cybux
+/docs/services.md                   @cybux
+
+# --- Personalidad y contenido — Luis Palacios
+# El comportamiento es datos: los packs son suyos aunque vivan junto al firmware.
+/packs/                             @LuisGuillemoPalaciosGiraldo
+/docs/pack-format.md                @LuisGuillemoPalaciosGiraldo
+
+# --- Electrónica — Diego Isaza
+/hardware/                          @Dsaoro
+/docs/hardware.md                   @Dsaoro
+/hardware/buddy-zero.wireviz.yml    @Dsaoro
+
+# --- CAD y carcasa — Juan Sebastián Carrasquilla
+/hardware/round-mask/               @Juansess
+/hardware/oled-mask/                @Juansess
