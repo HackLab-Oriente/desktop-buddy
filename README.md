@@ -178,16 +178,19 @@ spikes/       experimentos desechables; solo sus conclusiones van a main
 
 ## Documentación
 
-Índice completo: [docs/README.md](docs/README.md) — o abre
-[docs/index.html](docs/index.html) en el navegador, que es la misma lista con
-los documentos interactivos enlazados para leerse de verdad.
+### 📖 **[hacklaboriente.org/desktop-buddy](https://hacklaboriente.org/desktop-buddy/)**
+
+Ahí está todo, con los documentos interactivos funcionando de verdad: la
+reunión de equipos, el registro de eventos, el explorador de parámetros y las
+dos arquitecturas.
 
 Si solo vas a leer tres cosas: [la arquitectura](docs/architecture.md), [el
 plan de talleres](docs/workshops.md) y [cómo contribuir](CONTRIBUTING.md).
 
-> Los `.html` de `docs/` son interactivos y autocontenidos. **GitHub los
-> muestra como código fuente, no como página** — clónalos y ábrelos, o usa la
-> web publicada si el repo llega a tener GitHub Pages.
+> **Ojo:** los `.html` de `docs/` son páginas interactivas. Si los abres desde
+> el navegador de archivos de GitHub verás el código fuente, no la página —
+> usa el enlace de arriba. El índice en texto plano está en
+> [docs/README.md](docs/README.md).
 
 > Idiomas: la documentación está en español; el código y sus comentarios, en
 > inglés. `CLAUDE.md` y `.kiro/` son configuración de las herramientas de IA

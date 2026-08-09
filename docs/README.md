@@ -1,7 +1,11 @@
 # Documentación — índice
 
-Los `.html` son interactivos y autocontenidos: se abren en el navegador
-directamente desde el disco, sin internet. Los `.md` se leen bien en GitHub.
+**Publicado en → [hacklaboriente.org/desktop-buddy](https://hacklaboriente.org/desktop-buddy/)**
+
+Los `.html` son interactivos y autocontenidos: funcionan en la web publicada y
+también abriéndolos desde el disco sin internet. Lo que **no** funciona es
+verlos desde el navegador de archivos de GitHub — ahí sale el código fuente.
+Los `.md` se leen bien en GitHub.
 
 ## Para empezar
 
