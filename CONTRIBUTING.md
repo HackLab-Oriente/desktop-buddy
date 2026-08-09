@@ -13,6 +13,34 @@ todo el trabajo ni decidir en solitario. Nadie está casado con un equipo.
 Las decisiones de producto se discuten en las sesiones; lo que se propone en
 este repo es un punto de partida, no un decreto.
 
+| Equipo | Lidera | Etiqueta |
+|---|---|---|
+| Firmware y arquitectura | Daniel Pérez ([@dapanas](https://github.com/dapanas)) | `area:firmware` |
+| Voz | Elkin Botero ([@cybux](https://github.com/cybux)) | `area:voice` |
+| Web UI / PWA | Juan Esteban Londoño ([@jelondoca](https://github.com/jelondoca)) | `area:web` |
+| Electrónica | Diego Isaza ([@Dsaoro](https://github.com/Dsaoro)) | `area:electronics` |
+| CAD y carcasa | Juan Sebastián Carrasquilla ([@Juansess](https://github.com/Juansess)) | `area:cad` |
+| Personalidad y contenido | Luis Palacios ([@LuisGuillemoPalaciosGiraldo](https://github.com/LuisGuillemoPalaciosGiraldo)) | `area:personality` |
+
+### Dónde está el trabajo
+
+Todo vive en el tablero
+**[Desktop Buddy](https://github.com/orgs/HackLab-Oriente/projects/1)**, que no
+es más que una vista sobre las issues:
+
+- **`area:*`** dice de qué equipo es. Filtra por la tuya y ya.
+- **Milestone** dice para qué sesión del taller hace falta.
+- **`needs-decision`** no es una tarea: es un punto abierto que decide el
+  grupo. Se discute en el hilo y se cierra escribiendo la decisión, para que
+  dentro de tres meses nadie tenga que reconstruir por qué se hizo así.
+- **Estado**: por hacer → en curso → en revisión → hecho. *Hecho* significa
+  verificado, no escrito.
+
+Coge lo que quieras y asígnatelo. Si no hay issue, ábrela — hay una plantilla
+para tareas y otra para decisiones. Y el fichero
+[`.github/CODEOWNERS`](.github/CODEOWNERS) hace que un PR avise solo a quien
+lidera esa zona; no hace falta que sepas a quién etiquetar.
+
 ## Ramas y spikes
 
 - `main` siempre compila (los **dos** targets: `esp32s3` y `esp32`) y sus
