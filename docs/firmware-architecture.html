@@ -598,7 +598,7 @@ end)</pre>
       '  kBandH   = <span class="k">48</span>    <span class="c">// 5 bandas de 23 KB</span>\n' +
       '  kUseCache = <span class="k">false</span>   <span class="c">// no hay PSRAM donde cachear</span>\n' +
       '#endif\n\n' +
-      '<span class="c">// en uso ahora: ' + (s3 ? "1 banda de 115200 B, con caché (~30 fps)"
+      '<span class="c">// en uso ahora: ' + (s3 ? "1 banda de 115200 B, con caché (33 fps medidos)"
                                                 : "5 bandas de 23040 B, sin caché (14,4 fps medidos)") + '</span>\n' +
       'buddy::<span class="w">face_start</span>();   <span class="c">// main.cpp no sabe en qué placa está</span>';
   }

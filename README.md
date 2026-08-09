@@ -143,7 +143,7 @@ cd firmware && idf.py build flash monitor
 | | ESP32-S3 N16R8 | ESP32 clásico (DevKit V1) |
 |---|---|---|
 | Bus de eventos, reflejos Berry, web UI, cerebro cloud, tacto, NFC | ✓ | ✓ |
-| Cara redonda a color | ✓ 30 fps (con caché en PSRAM) | ✓ por bandas, **14,4 fps medidos** |
+| Cara redonda a color | ✓ **33 fps medidos** (caché en PSRAM) | ✓ por bandas, **14,4 fps medidos** |
 | Modelo de IA local | ✓ medido | ✗ necesita PSRAM |
 | Voz (v1) | ✓ planificado | ✗ sin RAM para audio+TLS |
 

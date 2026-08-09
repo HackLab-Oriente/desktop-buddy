@@ -8,7 +8,7 @@ Expressions, el adaptador de cerebro cloud y la web de recarga en caliente.
 | | `esp32s3` (referencia) | `esp32` (clásico, DevKit V1) |
 |---|---|---|
 | Bus, Berry, web UI, cerebro cloud, tacto, NFC | ✓ | ✓ |
-| Cara GC9A01 a color | ✓ 1 banda + caché PSRAM, ~30 fps | ✓ 5 bandas de 23 KB, **14,4 fps medidos** |
+| Cara GC9A01 a color | ✓ 1 banda + caché PSRAM, **33 fps medidos** | ✓ 5 bandas de 23 KB, **14,4 fps medidos** |
 | Modelo local / voz | ✓ / planificado | ✗ (sin PSRAM) |
 | Verificado | en hardware, completo | en hardware, completo |
 
@@ -29,7 +29,7 @@ En el S3 los ojos van **cacheados**: el SDF cuesta 40–100 ms por frame, pero
 la imagen solo cambia al parpadear o cambiar de emoción — una sacada es una
 *traslación* de una imagen que no cambió. Renderizar una vez por (emoción,
 apertura) en tres sprites PSRAM y blitear con offset de mirada lo lleva de 13
-a ~30 fps, píxel por píxel idéntico. Todo se midió primero en
+a 33 fps medidos, píxel por píxel idéntico. Todo se midió primero en
 [../spikes/lovyangfx-gc9a01/](../spikes/lovyangfx-gc9a01/README.md), que
 registra las trampas — la principal: **LovyanGFX guarda los sprites de 16 bpp
 en big-endian**; escribir little-endian nativo en `getBuffer()` convierte los
@@ -130,7 +130,7 @@ c++ -std=c++17 -Wall -I../components/bus/include test_bus.cpp ../components/bus/
 
 - **Verificado**: ambos targets compilan en ESP-IDF v6.0.2; el bus pasa sus
   tests de host; el S3 completo funciona en hardware (cara, anillo, tacto,
-  WiFi, cerebro Claude).
+  WiFi, cerebro Claude). Render medido: **30,3 ms/frame (33,0 fps)**.
 - **Verificado en el clásico**: con pantalla cableada — arranque, animación de
   boot, ojos, 5 bandas sin costuras visibles, LittleFS, polaridad táctil V1.
   Render medido: **69 ms/frame (14,4 fps)**.
