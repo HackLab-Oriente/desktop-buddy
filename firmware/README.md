@@ -78,7 +78,10 @@ Los pines por defecto **difieren por chip** — los rangos libres no coinciden
 | GC9A01 (SPI, **3V3**) | SCL 12 · SDA 11 · CS 10 · DC 9 · RST 8 · BL 7 | SCL 18 · SDA 23 · CS 5 · DC 27 · RST 26 · BL 25 |
 | Almohadilla táctil | GPIO 4 | GPIO 4 |
 | Anillo WS2812 (**5V**) | DIN 21 | DIN 21 |
-| RC522 (opcional, **3V3**) | SCK 39 · MISO 40 · MOSI 41 · CS 42 · RST 38 | SCK 14 · MISO 34 · MOSI 13 · CS 15 · RST 32 |
+| RC522 (opcional, **3V3**) | SCK 39 · MISO 40 · MOSI 41 · SDA/CS 42 · RST 38 | SCK 14 · MISO 34 · MOSI 13 · SDA/CS 15 · RST 32 |
+
+En el RC522 no hay ningún pin marcado «CS»: el módulo serigrafía **`SDA`**, que
+en SPI es el chip select. El `IRQ` va sin conectar — el driver hace polling.
 
 Guías paso a paso con checklist de primer arranque:
 [../hardware/buddy-s3-display.md](../hardware/buddy-s3-display.md) (S3) y

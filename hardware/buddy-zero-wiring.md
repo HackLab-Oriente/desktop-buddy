@@ -61,9 +61,14 @@ Actívalo en `menuconfig → Buddy Zero → Enable RC522 RFID reader`.
 | SCK | GPIO **14** | |
 | MISO | GPIO **34** | solo-entrada: perfecto para MISO y seguro en el arranque |
 | MOSI | GPIO **13** | |
-| SDA (=CS) | GPIO **15** | |
+| SDA (=CS) | GPIO **15** | el módulo lo serigrafía **SDA**; en SPI es el chip select |
 | RST | GPIO **32** | |
-| IRQ | — sin conectar | |
+| IRQ | — **sin conectar** | el driver hace polling; no usa la interrupción |
+
+Si buscas un pin «CS» en el módulo, no existe: el MFRC522 multiplexa SPI, I2C
+y UART sobre los mismos pines físicos y la serigrafía usa el nombre de I2C.
+**`SDA` es el chip select.** El `IRQ` se queda al aire a propósito —
+`rc522.cpp` lee `ComIrqReg` por SPI en lugar de cablear la interrupción.
 
 MISO va en 34 y no en el clásico 12 a propósito: GPIO 12 es strapping (MTDI),
 y un módulo que lo deje alto en el arranque selecciona el voltaje de flash

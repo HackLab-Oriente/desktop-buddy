@@ -125,8 +125,15 @@ directamente peligrosos en este chip porque GPIO 19/20 son el USB.
 | SCK | GPIO **39** | |
 | MISO | GPIO **40** | |
 | MOSI | GPIO **41** | |
-| SDA / CS | GPIO **42** | |
+| SDA / CS | GPIO **42** | el módulo lo serigrafía **SDA**; en SPI es el chip select |
 | RST | GPIO **38** | |
+| IRQ | — **sin conectar** | el driver hace polling; no usa la interrupción |
+
+Si buscas un pin marcado «CS» en el módulo, no lo hay: el MFRC522 multiplexa
+SPI, I2C y UART sobre los mismos pines físicos y la serigrafía usa el nombre de
+I2C. **`SDA` es el chip select.** Y el `IRQ` se queda al aire a propósito:
+`rc522.cpp` lee `ComIrqReg` por SPI en vez de cablear la interrupción, así que
+sobra un cable y un GPIO.
 
 Se habilita en `menuconfig → Buddy Zero → Enable RC522 RFID reader`; los
 pines son configurables en el submenú. Elegidos evitando cada mina del S3:
