@@ -98,8 +98,9 @@ buddy.face.play(anim)             # by name from faces/
 buddy.screen.show(rel)            # image from pack, C++ decodes/blits
 buddy.sound.play(rel, done_cb)    # streamed by C++; callback on sound.done
 buddy.led.mood(name)
-buddy.say(text)                   # → Brain/TTS pipeline (live)
-buddy.hint(text)                  # on-screen text, no TTS
+buddy.say(text)                   # estas palabras exactas salen (pantalla; + TTS cuando llegue la voz)
+buddy.ask(prompt)                 # le preguntas al Brain; ÉL decide qué dice el buddy
+buddy.hint(text)                  # solo pantalla, nunca se pronuncia
 
 buddy.lang                        # active language code, from pack + device config
 buddy.pack.meta                   # own manifest as a map

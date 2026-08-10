@@ -464,7 +464,7 @@ buddy.on(<b>"touch.poke"</b>, def (ev)
   pokes += 1
   if pokes >= 3                      <i># tiene memoria: se harta</i>
     buddy.face.emotion(<b>"enfadado"</b>)
-    buddy.show("HMPH.")
+    buddy.say("HMPH.")
   else
     buddy.face.emotion(<b>"sorprendido"</b>)
   end
@@ -472,7 +472,7 @@ end)
 
 buddy.on(<b>"nfc.tag"</b>, def (ev)
   buddy.face.emotion(<b>"curioso"</b>)
-  buddy.say("Te han enseñado una tarjeta " + ev['payload'])
+  buddy.ask("Te han enseñado una tarjeta " + ev['payload'])
 end)</div>
 </div>
 

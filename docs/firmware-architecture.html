@@ -381,7 +381,7 @@
 buddy.on(<span class="k">"touch.pet"</span>, def (ev)
   buddy.face.emotion(<span class="k">"happy"</span>)
   buddy.led.mood(<span class="k">"excited"</span>)
-  buddy.say(<span class="k">"The user just petted you gently."</span>)   <span class="c"># → brain.ask</span>
+  buddy.ask(<span class="k">"The user just petted you gently."</span>)   <span class="c"># → brain.ask</span>
 end)</pre>
         <p>La VM vive entera en la tarea de despacho del bus, así que los scripts no necesitan locks —
           y, en igual medida, un script que entre en bucle infinito congela todos los reflejos. Esa

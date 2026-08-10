@@ -45,6 +45,14 @@ int native_log(bvm* vm) {
 
 // Prelude: the `buddy` API surface, in Berry itself. Handlers live in a
 // Berry-side list; C only ever calls _dispatch(name, payload).
+//
+// Naming rule, learned the hard way: a verb means the same thing in Berry as
+// it does on the bus. `say` used to publish brain.ask while `show` published
+// face.say -- so "say" meant utter-these-words at one layer and ask-the-model
+// at the other, and whichever you learned first taught you the other one
+// backwards. Now: say = these exact words come out; ask = the brain decides
+// what comes out. When voice lands, `say` grows to mean screen AND speaker,
+// which is already what a reader expects it to mean.
 constexpr char kPrelude[] = R"(
 _handlers = []
 buddy = module('buddy')
@@ -54,8 +62,8 @@ buddy.led = module('led')
 buddy.led.mood = def (m) bz_emit('led.mood', m) end
 buddy.face = module('face')
 buddy.face.emotion = def (e) bz_emit('face.emotion', e) end
-buddy.say = def (text) bz_emit('brain.ask', text) end
-buddy.show = def (text) bz_emit('face.say', str(text)) end
+buddy.say = def (text) bz_emit('face.say', str(text)) end
+buddy.ask = def (prompt) bz_emit('brain.ask', prompt) end
 buddy.log = def (msg) bz_log(str(msg)) end
 
 def _match(pattern, name)
