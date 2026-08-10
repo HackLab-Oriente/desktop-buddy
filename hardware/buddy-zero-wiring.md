@@ -72,8 +72,10 @@ y UART sobre los mismos pines físicos y la serigrafía usa el nombre de I2C.
 
 MISO va en 34 y no en el clásico 12 a propósito: GPIO 12 es strapping (MTDI),
 y un módulo que lo deje alto en el arranque selecciona el voltaje de flash
-equivocado. Estos pines están **sin probar en hardware** — mismo aviso que la
-pantalla.
+equivocado. Estos pines están **sin probar en el clásico**. El módulo en sí ya
+funciona: en el S3 responde `version 0x92` y lee llaveros a la primera
+([buddy-s3-display.md](buddy-s3-display.md)), así que lo único que queda por
+demostrar aquí es este mapa de pines.
 
 ## Consejos de protoboard
 

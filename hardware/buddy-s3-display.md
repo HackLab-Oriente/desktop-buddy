@@ -112,7 +112,7 @@ Mismo S3, incremental — cada una es un Sense/Expression más en el bus:
   (chirps primero, luego el bucle de voz push-to-talk).
 - **Botones** — Senses digitales extra.
 
-## Lector NFC RC522 (sin probar en el S3)
+## Lector NFC RC522 (verificado en el S3)
 
 Su propio bus SPI3, así que no comparte con la pantalla. Estos son los
 defaults de menuconfig; los valores viejos del ESP32 clásico eran
@@ -142,3 +142,8 @@ el bus de la pantalla (7–12), USB (19/20), flash (26–32), PSRAM octal
 
 Comprobación al arrancar: acerca un llavero y busca `nfc.tag` con un UID hex
 en la traza.
+
+> **Verificado en hardware** (S3, primer intento): `rc522: MFRC522 version 0x92`
+> y un llavero dispara `nfc.tag` con su UID, que la cara muestra en pantalla.
+> Estos pines y este cableado son reales, no una propuesta leída del datasheet.
+> En el **ESP32 clásico sigue sin probarse** — mismo módulo, otros pines.

@@ -138,4 +138,4 @@ c++ -std=c++17 -Wall -I../components/bus/include test_bus.cpp ../components/bus/
   boot, ojos, 5 bandas sin costuras visibles, LittleFS, polaridad táctil V1.
   Render medido: **69 ms/frame (14,4 fps)**.
 - **Sin cablear todavía**: audio (INMP441/MAX98357A), tarjeta SD, sensores
-  I2C; RC522 sin probar en hardware.
+  I2C; RC522 sin probar en el clásico (verificado en el S3).
