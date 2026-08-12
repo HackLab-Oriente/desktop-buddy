@@ -35,16 +35,44 @@ buddy.on("touch.poke", def (ev)
   end
 end)
 
+# --- Cartuchos NFC ---------------------------------------------------------
+# Tres eventos, tres cosas distintas:
+#   nfc.tag   quién es la tarjeta (UID) — identidad
+#   nfc.text  qué lleva escrito         — contenido
+#   nfc.gone  se la llevaron
+# nfc.tag siempre llega antes que nfc.text, así que aquí se puede guardar el
+# UID y usarlo cuando llegue el texto.
+
+last_uid = ""
+
 buddy.on("nfc.tag", def (ev)
-  # Tap a fob, read the UID off the screen, then give it a meaning here:
-  if ev['payload'] == "PUT-A-UID-HERE"
-    buddy.face.emotion("sleepy")
-    buddy.led.mood("calm")
+  last_uid = ev['payload']
+  buddy.face.emotion("curious")
+  buddy.say(ev['payload'])   # el UID en pantalla — sin cable serie
+end)
+
+buddy.on("nfc.text", def (ev)
+  # AQUÍ vive la gramática de los cartuchos, no en el firmware. El firmware
+  # solo dice "esta tarjeta pone esto"; qué significa lo decide este archivo,
+  # que se edita desde la web y se recarga en caliente.
+  #
+  # Estos verbos son una PROPUESTA: los define el equipo de personalidad.
+  var t = ev['payload']
+  if size(t) > 5 && t[0..4] == "mood:"
+    buddy.face.emotion(t[5..])
+    buddy.led.mood("excited")
+  elif size(t) > 4 && t[0..3] == "say:"
+    buddy.say(t[4..])
   else
-    buddy.face.emotion("happy")
-    buddy.say(ev['payload'])   # the UID itself, on screen — no serial cable needed
-    # ...and the brain's reaction replaces it a moment later. Both verbs in one
-    # handler: say puts YOUR words up, ask lets the buddy find its own.
-    buddy.ask("The user showed you an unfamiliar card. React with playful curiosity, one short sentence.")
+    # No lo entendemos: enséñalo y deja que el buddy improvise.
+    buddy.say(t)
+    buddy.ask("The user showed you a card that reads: " + t + ". React in one short sentence.")
   end
+end)
+
+buddy.on("nfc.gone", def (ev)
+  # Quitar la tarjeta deshace lo que hizo. Esto es lo que hace que "mantener
+  # la tarjeta puesta" sea un gesto y no un interruptor.
+  buddy.face.emotion("neutral")
+  buddy.led.mood("calm")
 end)

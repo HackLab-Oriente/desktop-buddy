@@ -52,8 +52,29 @@ publicación y suscripción: [event-registry.html](event-registry.html).
 | `touch.down` | `"pad0"` | [touch_sense.cpp](../firmware/components/senses/touch_sense.cpp) | el dedo hace contacto |
 | `touch.poke` | `"pad0"` | touch_sense | soltado en **< 400 ms** |
 | `touch.pet` | `"pad0"` | touch_sense | soltado en **≥ 400 ms** |
-| `nfc.tag` | UID hex, ej. `04A2B3C4` | rc522 | tarjeta presentada |
+| `nfc.tag` | UID hex, 8 o 14 dígitos | rc522 | tarjeta presentada |
+| `nfc.text` | texto NDEF decodificado (máx. 128) | rc522 | **solo si** la tarjeta lleva contenido legible |
+| `nfc.gone` | — | rc522 | la tarjeta salió del campo |
 | `time.synced` | — | wifi/SNTP | reloj puesto en hora tras conectar |
+
+Tres garantías de los eventos `nfc.*` que conviene tener por escrito, porque no
+se pueden adivinar leyendo el código:
+
+1. **`nfc.tag` siempre llega antes que `nfc.text`** en la misma presentación.
+   Un reflejo que necesite identidad *y* contenido guarda el UID al recibir
+   `nfc.tag` y lo usa cuando llega el texto.
+2. **Una tarjeta en blanco solo emite `nfc.tag`.** La ausencia de `nfc.text` es
+   la señal; no hay caso especial de cadena vacía.
+3. **Mantener la tarjeta puesta no repite eventos.** Se emite al llegar y
+   `nfc.gone` al irse (con histéresis de ~600 ms, porque una lectura fallida
+   suelta es ruido de RF, no una retirada). Eso convierte «dejar la tarjeta
+   encima» en un gesto sostenido, no en un interruptor.
+
+**El firmware no interpreta el contenido.** `nfc.text` lleva el string tal cual;
+qué significa `mood:happy` lo decide un reflejo Berry del pack, no C++. Si la
+gramática viviera en el firmware, cada verbo nuevo pediría reflashear — justo
+lo contrario del compromiso «el comportamiento es datos». La gramática de
+cartuchos la define el equipo de personalidad.
 
 ### Brain — el viaje de pensar
 

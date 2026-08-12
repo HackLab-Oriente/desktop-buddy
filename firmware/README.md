@@ -126,7 +126,13 @@ El contrato de eventos completo (con dueños por prefijo y agujeros conocidos):
 ```bash
 cd host_test
 c++ -std=c++17 -Wall -I../components/bus/include test_bus.cpp ../components/bus/bus.cpp -o test_bus
-./test_bus   # se espera: "bus: all tests passed"
+./test_bus    # se espera: "bus: all tests passed"
+
+# El decodificador NDEF lee bytes de una pegatina que cualquiera puede dejar
+# en tu mesa, así que se prueba con sanitizers puestos.
+c++ -std=c++17 -Wall -fsanitize=address,undefined -fno-sanitize-recover=all \
+  -I../components/senses test_ndef.cpp -o test_ndef
+./test_ndef   # se espera: "ndef: all tests passed"
 ```
 
 ## Estado
