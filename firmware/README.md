@@ -23,7 +23,19 @@ código de siempre. Todo esto vive en `components/expressions/round_face.cpp`.
 Los ojos los dibuja **nuestro** renderer de campos de distancia (SDF), porque
 la ceja y el guiño de felicidad se recortan de la forma como *cobertura* —
 ninguna primitiva de librería expresa eso. Todo lo demás (driver del panel,
-sprites, fuentes, blitting) es **LovyanGFX**.
+sprites, blitting) es **LovyanGFX**.
+
+**La fuente también es nuestra**, y no por gusto: *todas* las que trae
+LovyanGFX se paran en 0x7E/0x7F — `Font2` calcula literalmente
+`(uniCode - 0x20) < 0x60`, 96 glifos. Es decir, `á` salía como un cuadrado.
+Las únicas fuentes Unicode de la librería son las efont, y son 17–32 MB de
+CJK. Así que `tools/make_font.py` genera `font_latin.h` (DejaVu Sans 13 px,
+0x20–0xFF, **4 KB**) y con eso el buddy escribe español de verdad. Se
+regenera a mano y se commitea; el build no lo ejecuta.
+
+Lo que va más allá de 0x00FF —las comillas curvas y las rayas que un LLM
+adora— lo pliega `latin1.h` a ASCII antes de dibujar, porque un glifo que no
+existe se dibuja como nada y `don’t` perdería el apóstrofo.
 
 En el S3 los ojos van **cacheados**: el SDF cuesta 40–100 ms por frame, pero
 la imagen solo cambia al parpadear o cambiar de emoción — una sacada es una
@@ -133,6 +145,12 @@ c++ -std=c++17 -Wall -I../components/bus/include test_bus.cpp ../components/bus/
 c++ -std=c++17 -Wall -fsanitize=address,undefined -fno-sanitize-recover=all \
   -I../components/senses test_ndef.cpp -o test_ndef
 ./test_ndef   # se espera: "ndef: all tests passed"
+
+# El normalizador de texto recorre UTF-8 del LLM hacia un buffer fijo: mismo
+# tipo de código, mismos sanitizers.
+c++ -std=c++17 -Wall -fsanitize=address,undefined -fno-sanitize-recover=all \
+  -I../components/expressions test_latin1.cpp -o test_latin1
+./test_latin1 # se espera: "latin1: all tests passed"
 ```
 
 ## Estado

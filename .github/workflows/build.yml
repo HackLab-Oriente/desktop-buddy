@@ -93,6 +93,17 @@ jobs:
             -I../components/senses test_ndef.cpp -o test_ndef
           ./test_ndef
 
+      - name: Latin-1 text normaliser (with sanitizers)
+        # Same shape of code, same reason: it walks UTF-8 from an LLM into a
+        # fixed buffer. The interesting cases are truncated sequences and a
+        # two-byte character landing on the last free byte.
+        working-directory: firmware/host_test
+        run: |
+          c++ -std=c++17 -Wall -Wextra \
+            -fsanitize=address,undefined -fno-sanitize-recover=all \
+            -I../components/expressions test_latin1.cpp -o test_latin1
+          ./test_latin1
+
   docs:
     name: docs · links resolve
     runs-on: ubuntu-latest

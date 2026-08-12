@@ -18,6 +18,8 @@
 
 #include "bus.h"
 #include "expressions.h"
+#include "font_latin.h"
+#include "latin1.h"
 #include "face_model.h"
 
 #include <cmath>
@@ -305,7 +307,7 @@ void draw_eyes(int open_pct, int gx, int gy) {
 void draw_text(const char* text) {
   // Wrapping is measured once, outside the band loop — it only needs the font
   // metrics, not the pixels.
-  spr.setFont(&fonts::Font2);
+  spr.setFont(&FontLatin);
   const Emotion& em = kEmotions[s_emotion];
   spr.setTextColor(spr.color565(em.r, em.g, em.b));
   spr.setTextDatum(middle_center);
@@ -351,7 +353,7 @@ void draw_text(const char* text) {
   const int pitch = spr.fontHeight() + 2;
   const int y_top = CY - (used - 1) * pitch / 2;
   render_bands([&] {
-    spr.setFont(&fonts::Font2);
+    spr.setFont(&FontLatin);
     spr.setTextColor(spr.color565(em.r, em.g, em.b));
     spr.setTextDatum(middle_center);
     int y = y_top;
@@ -480,7 +482,7 @@ void draw_splash(float amt, int roll, bool with_logo) {
     if (with_logo) draw_logo((W - kLogoW) / 2, (H - kLogoH) / 2 - 12);
     {
       std::lock_guard<std::mutex> lock(s_status_mu);
-      spr.setFont(&fonts::Font2);
+      spr.setFont(&FontLatin);
       spr.setTextDatum(top_center);
       spr.setTextColor(spr.color565(120, 130, 145));
       spr.drawString(s_status, CX, 200 - band_y0);  // sprite-local y
@@ -524,6 +526,7 @@ std::mutex s_say_mu;
 char s_say_text[128];
 volatile int64_t s_say_until = 0;
 volatile bool s_say_dirty = false;
+
 
 // face.look sets a target; while active the eyes follow it instead of doing
 // idle saccades. Any Sense or reflex can drive it. The target expires so the
@@ -619,8 +622,7 @@ void face_start() {
   });
   bus().subscribe("face.say", [](const Event& ev) {
     std::lock_guard<std::mutex> lock(s_say_mu);
-    strncpy(s_say_text, ev.payload.c_str(), sizeof s_say_text - 1);
-    s_say_text[sizeof s_say_text - 1] = '\0';
+    latin1::copy_display_text(s_say_text, sizeof s_say_text, ev.payload.c_str());
     const int64_t hold = 1500 + 60 * static_cast<int64_t>(ev.payload.size());
     s_say_until = esp_log_timestamp() + (hold > 8000 ? 8000 : hold);
     s_say_dirty = true;
