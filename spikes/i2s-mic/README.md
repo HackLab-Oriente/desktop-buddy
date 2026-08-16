@@ -10,9 +10,9 @@ Proyecto aislado a propósito: dentro del firmware real, una grabación muda
 podría ser el bus, la prioridad de una tarea, DMA o el cableado. Aquí solo
 puede ser el cableado o la config de I2S.
 
-**Estado**: el **micro funciona** (verificado en el S3 por Daniel, a la
-primera). El bucle PTT compila, arranca y el medidor corre; **falta probar el
-botón y la reproducción**, que necesitan el ampli y el pulsador cableados.
+**Estado**: **funciona entero**. Micro, botón, grabación con el altavoz mudo y
+reproducción: verificado en el S3 por Daniel. El bucle push-to-talk de la
+sesión 1 está demostrado.
 
 ## Cableado
 
@@ -97,6 +97,30 @@ Qué mirar en esa línea:
 - **pico entre −30 y −12 dBFS** — perfecto para STT.
 - **pico por debajo de −45** — el spike te avisa: acércate o hará falta ganancia.
 - **pico pegado a 0 y `clipped` > 0** — recorte; sonará roto.
+
+## Subir el volumen
+
+En orden de cuánto dan, no de lo obvios que parecen:
+
+1. **Normalizar la grabación** — ya lo hace el spike. Una voz grabada a
+   −30 dBFS reproducida tal cual mueve el ampli al 3 % de lo que puede: el
+   altavoz suena flojo porque la **grabación** es floja, no porque el ampli lo
+   sea. Ajustar el pico a −3 dBFS vale unos **25 dB**. La línea del log dice
+   cuánta ganancia se aplicó, con tope de +24 dB (más allá se amplifica el
+   ruido de sala, que está a −57 dBFS).
+2. **Alimentar el ampli a 5 V, no a 3V3.** La potencia de salida va con la
+   tensión de alimentación; a 3V3 el mismo módulo suena bastante más flojo.
+3. **Pin `GAIN` del MAX98357A** — al aire son 9 dB. A GND directo, 12 dB; a
+   GND por 100 kΩ, 15 dB. Es decir, **+6 dB como mucho**, mucho menos de lo
+   que parece prometer.
+4. **Filtrar los graves.** El spike de salida midió este altavoz: respecto a
+   la banda de 1–1,4 kHz, da **−12,6 dB a 700–990 Hz, −20,4 dB a 500–700 y
+   −30 dB a 350–490**. Es un pasa-banda estrecho alrededor de 1–2 kHz. Los
+   graves no salen como sonido pero sí mueven el cono, y un cono al final de
+   su recorrido distorsiona todo lo demás. Un pasa-altos a ~400 Hz sube el
+   volumen **percibido** sin tocar la ganancia.
+5. **Ponerle caja.** Un altavoz sin bafle cancela sus propios graves por el
+   borde. Montarlo en la carcasa es gratis y ayuda — territorio de CAD.
 
 ## Una decisión de diseño que conviene conocer
 

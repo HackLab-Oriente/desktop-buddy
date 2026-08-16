@@ -45,11 +45,15 @@ static const char *TAG = "i2s-mic";
 #define RATE 16000
 #define SLOT_BITS I2S_DATA_BIT_WIDTH_32BIT
 #define CHUNK 512                       // frames per read: 32 ms at 16 kHz
-#define MAX_SECONDS 6
+// 30 s is 960 KB in PSRAM, of which the S3 has 8 MB — this ceiling exists to
+// catch a stuck button, not because memory is short. At 32 KB/s the chip could
+// hold four minutes. The real limit on a voice loop is the STT upload, not RAM.
+#define MAX_SECONDS 30
 #define MAX_FRAMES (RATE * MAX_SECONDS)
 #define FULL_SCALE 8388608.0f           // 24-bit
 
 static i2s_chan_handle_t s_rx, s_tx;
+static float s_peak;                    // of the last take, 24-bit scale
 static int16_t *s_rec;                  // PSRAM; 16-bit is what STT wants anyway
 static int32_t *s_chunk;
 
@@ -140,6 +144,7 @@ static size_t record(void) {
     }
   }
 
+  s_peak = peak;
   const float rms = frames ? sqrtf((float)(sumsq / frames)) : 0;
   ESP_LOGI(TAG, "captured %.2f s — peak %.1f dBFS, rms %.1f dBFS, %d clipped",
            (double)frames / RATE, (double)dbfs(peak), (double)dbfs(rms), clipped);
@@ -154,7 +159,18 @@ static size_t record(void) {
 }
 
 static void playback(size_t frames) {
-  ESP_LOGI(TAG, "playing back %.2f s", (double)frames / RATE);
+  // Make-up gain, and this is the big volume lever. A voice recorded at, say,
+  // -30 dBFS played back untouched drives the amplifier to 3% of what it can
+  // do — so the speaker is quiet because the RECORDING is quiet, not because
+  // the amplifier is weak. Normalising to about -3 dBFS is worth ~27 dB here;
+  // the MAX98357A's GAIN pin, for comparison, can offer at most 6 dB.
+  const float peak16 = s_peak / 256.0f;            // stored samples are 16-bit
+  float gain = (peak16 > 8.0f) ? 23000.0f / peak16 : 1.0f;
+  if (gain < 1.0f) gain = 1.0f;                    // never make it quieter
+  if (gain > 16.0f) gain = 16.0f;                  // +24 dB: past this you are
+                                                   // just amplifying the hiss
+  ESP_LOGI(TAG, "playing back %.2f s with %+.1f dB make-up gain",
+           (double)frames / RATE, (double)(20.0f * log10f(gain)));
   amp_enabled(true);
   vTaskDelay(pdMS_TO_TICKS(20));            // let the amp's output stage settle
 
@@ -163,7 +179,9 @@ static void playback(size_t frames) {
   for (size_t i = 0; i < frames; i += CHUNK / 2) {
     const size_t n = (frames - i < CHUNK / 2) ? frames - i : CHUNK / 2;
     for (size_t j = 0; j < n; j++) {
-      const int32_t s = (int32_t)s_rec[i + j] << 16;   // 16-bit -> 32-bit slot
+      int32_t v = (int32_t)(s_rec[i + j] * gain);
+      if (v > 32767) v = 32767; else if (v < -32768) v = -32768;
+      const int32_t s = v << 16;                       // 16-bit -> 32-bit slot
       s_chunk[j * 2] = s;
       s_chunk[j * 2 + 1] = s;
     }
