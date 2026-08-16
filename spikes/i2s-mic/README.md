@@ -154,9 +154,28 @@ Tres causas posibles, y se distinguen en un minuto:
    el zumbido sigue ahí sin haber hablado, no es distorsión, es el ruido de la
    sala (o del propio circuito) subido de volumen.
 3. **Caída de la alimentación.** Un class-D a 5 V desde el USB del devkit tira
-   picos de corriente; si el raíl se hunde, zumba. Un condensador de
-   470–1000 µF entre `Vin` y `GND` del ampli es el arreglo clásico, y es la
-   única de las tres que se arregla con hardware.
+   picos de corriente; si el raíl se hunde, zumba. Es la única de las tres que
+   se arregla con hardware, y el arreglo cuesta céntimos:
+
+   > **Un condensador electrolítico de 470 a 1000 µF.** El µF (microfaradio) es
+   > la unidad de capacidad: cuánta carga guarda. Es un depósito de energía
+   > pequeño y muy rápido, puesto **justo al lado** del amplificador. Cuando
+   > llega un sonido fuerte, el ampli pide un golpe de corriente que el USB y
+   > 20 cm de cable fino no entregan a tiempo, la tensión baja un instante y
+   > eso se oye. El condensador entrega ese golpe desde al lado y se rellena
+   > después.
+   >
+   > - **Valor**: 470 µF o 1000 µF, da igual cuál — más grande, más reserva.
+   > - **Tensión**: **16 V** o más. Nunca 6,3 V: va justo sobre 5 V y no
+   >   perdona picos.
+   > - **Polaridad, esto importa**: tiene patas + y −. La franja del lateral
+   >   marca la **negativa**, que además suele ser la pata más corta. Al revés
+   >   se calienta y puede reventar.
+   > - **Dónde**: `+` al `Vin` del ampli, `−` a `GND`, lo más cerca del módulo
+   >   que puedas. En paralelo, sin cortar nada.
+   >
+   > Opcional: uno cerámico de 0,1 µF (sin polaridad) en paralelo con él, para
+   > los picos rápidos que el electrolítico no alcanza.
 
 ## Una decisión de diseño que conviene conocer
 
