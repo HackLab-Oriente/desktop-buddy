@@ -86,11 +86,18 @@ sin carcasa:
 |---|---|---|
 | ambiente, sin hablar | **−57 dBFS** (−66 … −53 según el momento) | ≈ **−68 dBFS** |
 
-Es decir, **unos 57 dB de margen** hasta recortar. Voz normal a 30 cm debería
-caer 20–30 dB por encima de ese suelo, así que **no hace falta ganancia
-digital** — y añadirla sería contraproducente, porque amplificaría el suelo lo
-mismo que la voz. Cuando grabes con el botón, el spike imprime pico y RMS en
-dBFS de cada toma: ahí es donde salen los números de voz.
+Es decir, **unos 57 dB de margen** hasta recortar. Voz normal a 30 cm cae
+20–30 dB por encima de ese suelo. Cuando grabes con el botón, el spike imprime
+pico y RMS en dBFS de cada toma: ahí salen los números de voz.
+
+Dos cosas que se confunden y no son la misma:
+
+- **Para el STT no hace falta ganancia**, ni digital ni de otro tipo. Lo que
+  importa es la relación señal/ruido, y multiplicar las muestras no la mejora:
+  sube la voz y el suelo por igual. Ya hay margen de sobra.
+- **Para oírlo por el altavoz sí**, y es lo que hace la normalización de la
+  reproducción (ver abajo). No cambia la SNR ni un dB; solo deja de pedirle al
+  amplificador que trabaje al 3 % de su recorrido.
 
 Qué mirar en esa línea:
 
