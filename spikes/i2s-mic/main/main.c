@@ -56,7 +56,9 @@ static const char *TAG = "i2s-mic";
 // matter of ear, not of theory — turn them and listen.
 #define TARGET_DBFS   -6.0f             // peak to normalise a take to
 #define MAX_GAIN_DB   18.0f             // ceiling; see the comment in playback()
-#define HIGHPASS_HZ   300.0f            // 0 disables it
+#define HIGHPASS_HZ   400.0f            // 0 disables it. B beat A by ear, and
+                                        // 400 is where the output spike landed
+#define AB_COMPARE    0                 // 1 = play unfiltered then filtered
 
 static i2s_chan_handle_t s_rx, s_tx;
 static float s_peak;                    // of the last take, 24-bit scale
@@ -192,7 +194,9 @@ static void highpass(size_t frames) {
   }
 }
 
-static void playback(size_t frames, const char *label) {
+// Returns true if the button was pressed during playback, meaning the user
+// wants to talk NOW and this take is over.
+static bool playback(size_t frames, const char *label) {
   // Make-up gain. A voice recorded at -30 dBFS played back untouched drives
   // the amplifier to 3% of what it can do, so the speaker is quiet because the
   // RECORDING is quiet. But the ceiling matters as much as the target: at
@@ -222,11 +226,21 @@ static void playback(size_t frames, const char *label) {
       s_chunk[j * 2] = s;
       s_chunk[j * 2 + 1] = s;
     }
+    // Checked per chunk (32 ms), so pressing the button cuts in immediately.
+    // The silence really is immediate: amp_enabled(false) drops the output
+    // stage, so whatever is still sitting in the DMA buffer never reaches the
+    // speaker. That is the same hard mute the recording relies on.
+    if (ptt_held()) {
+      amp_enabled(false);
+      ESP_LOGW(TAG, "cut off — you pressed the button, listening again");
+      return true;
+    }
     size_t wrote = 0;
     i2s_channel_write(s_tx, s_chunk, n * 2 * sizeof(int32_t), &wrote, 1000);
   }
   vTaskDelay(pdMS_TO_TICKS(40));            // drain before cutting the clock
   amp_enabled(false);
+  return false;
 }
 
 void app_main(void) {
@@ -264,22 +278,31 @@ void app_main(void) {
 
       const size_t frames = record();
       i2s_close(&s_rx);                     // the port can only face one way
+      bool cut = false;
       if (frames > RATE / 10) {             // ignore an accidental tap
         i2s_open_tx();
-        // A/B, the same method the output spike used: the two versions play
-        // back to back so the ear compares them instead of remembering them.
-        ESP_LOGW(TAG, "A/B — first as recorded, then high-passed at %d Hz",
-                 (int)HIGHPASS_HZ);
-        playback(frames, "A sin filtrar");
-        vTaskDelay(pdMS_TO_TICKS(400));
-        highpass(frames);
-        playback(frames, "B pasa-altos");
+        if (AB_COMPARE) {
+          // The method the output spike used: both versions back to back, so
+          // the ear compares them instead of trying to remember them.
+          ESP_LOGW(TAG, "A/B — as recorded, then high-passed at %d Hz",
+                   (int)HIGHPASS_HZ);
+          cut = playback(frames, "A sin filtrar");
+          if (!cut) vTaskDelay(pdMS_TO_TICKS(400));
+        }
+        if (!cut) {
+          highpass(frames);
+          cut = playback(frames, AB_COMPARE ? "B pasa-altos" : "reproduciendo");
+        }
         i2s_close(&s_tx);
       } else {
         ESP_LOGW(TAG, "too short to play back — hold the button while talking");
       }
       i2s_open_rx();
-      while (ptt_held()) vTaskDelay(pdMS_TO_TICKS(20));   // don't retrigger
+      // Only wait for release when playback finished on its own. If it was cut
+      // short the button is deliberately down, and making the user let go and
+      // press again to say the thing they already started saying is the kind of
+      // detail that makes a device feel deaf.
+      if (!cut) while (ptt_held()) vTaskDelay(pdMS_TO_TICKS(20));
       peak = 0; sumsq = 0; frames_seen = 0;
       continue;
     }

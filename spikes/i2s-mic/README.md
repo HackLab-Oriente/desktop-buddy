@@ -77,6 +77,10 @@ rm -f sdkconfig && rm -rf build && idf.py set-target esp32s3
 En reposo sale un medidor de nivel. Mantén GPIO 5, habla, suelta: graba (con
 el altavoz mudo), te dice los números de lo grabado y lo reproduce.
 
+**Puedes interrumpir la reproducción**: pulsa el botón mientras suena y corta
+al instante para escucharte otra vez. El corte es inmediato de verdad porque
+baja el `SD` del ampli — lo que quede en el buffer DMA no llega al altavoz.
+
 ## Los números
 
 Suelo de ruido medido en el S3, habitación normal en silencio, micro al aire
@@ -125,8 +129,10 @@ En orden de cuánto dan, no de lo obvios que parecen:
 3. **Pin `GAIN` del MAX98357A** — al aire son 9 dB. A GND directo, 12 dB; a
    GND por 100 kΩ, 15 dB. Es decir, **+6 dB como mucho**, mucho menos de lo
    que parece prometer.
-4. **Filtrar los graves** — ya está puesto, a 300 Hz, y cada toma se reproduce
-   **A (sin filtrar) y B (pasa-altos) seguidas** para que decidas de oído.
+4. **Filtrar los graves** — puesto y **decidido de oído: a 400 Hz**. El A/B
+   (`AB_COMPARE` en `main.c`) dejó claro que la versión filtrada gana; se queda
+   apagado para no reproducir dos veces cada toma, y se enciende si quieres
+   probar otra frecuencia de corte.
    El porqué está medido: el spike de salida encontró que este altavoz, contra
    la banda de 1–1,4 kHz, da **−12,6 dB a 700–990 Hz, −20,4 dB a 500–700 y
    −30 dB a 350–490** — un pasa-banda estrecho alrededor de 1–2 kHz. Esos
