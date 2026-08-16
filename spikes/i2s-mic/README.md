@@ -61,6 +61,19 @@ idf.py set-target esp32s3
 idf.py build flash monitor
 ```
 
+**Ese `cd` importa más de lo que parece.** Si lanzas el flash desde `firmware/`
+—o desde el botón de la extensión de ESP-IDF, que apunta al proyecto que tenga
+configurado— flasheas el buddy y ves los ojos, no el spike. Pasó.
+
+**Y si ya tenías un `sdkconfig` aquí de antes**, bórralo. ESP-IDF solo lee
+`sdkconfig.defaults` cuando **no** existe `sdkconfig`, así que un
+`sdkconfig` viejo se queda sin la PSRAM que el buffer de grabación necesita, y
+el spike arranca solo para decir `no memory — is PSRAM enabled?`:
+
+```bash
+rm -f sdkconfig && rm -rf build && idf.py set-target esp32s3
+```
+
 En reposo sale un medidor de nivel. Mantén GPIO 5, habla, suelta: graba (con
 el altavoz mudo), te dice los números de lo grabado y lo reproduce.
 
