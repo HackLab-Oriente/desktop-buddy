@@ -4,11 +4,11 @@
 > estos pines (SCK 15 · WS 16 · SD 17 · L/R a GND) — ver
 > [`spikes/i2s-mic/`](../spikes/i2s-mic/README.md). El amplificador compila y
 > corre en 15/16/18 con mute en 2, pendiente de oírlo. La tarjeta SD sigue sin
-> tocarse. No hay driver en el firmware real ni entradas en `Kconfig.projbuild`. Estos pines están elegidos
-> esquivando las minas del S3 y las asignaciones que ya existen, pero **nadie
-> ha encendido esto aún**. El RC522 nos acaba de recordar por qué eso importa:
-> el módulo no tenía el pin que la tabla decía. Trata este documento como un
-> plan de cableado, y cámbialo en cuanto la placa diga otra cosa.
+> tocarse. No hay driver en el firmware real ni entradas en `Kconfig.projbuild`.
+>
+> Lo que sigue sin encender —el altavoz y la SD— trátalo como plan de cableado
+> y cámbialo en cuanto la placa diga otra cosa. El RC522 nos recordó por qué:
+> el módulo no tenía el pin que la tabla decía.
 >
 > El primer arranque real es la [#10](https://github.com/HackLab-Oriente/desktop-buddy/issues/10)
 > (grabar 3 s y reproducirlos), que es el listón de la sesión 1 para voz.
