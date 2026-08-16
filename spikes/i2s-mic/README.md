@@ -85,6 +85,11 @@ sin carcasa:
 | | pico | RMS |
 |---|---|---|
 | ambiente, sin hablar | **−57 dBFS** (−66 … −53 según el momento) | ≈ **−68 dBFS** |
+| voz normal, ~30 cm | **−28,8 dBFS** | **−45,5 dBFS** |
+
+La voz queda **28 dB por encima del suelo** y con 29 dB de margen hasta
+recortar. Factor de cresta 16,7 dB, que es lo normal en voz. Para STT esto
+está de sobra.
 
 Es decir, **unos 57 dB de margen** hasta recortar. Voz normal a 30 cm cae
 20–30 dB por encima de ese suelo. Cuando grabes con el botón, el spike imprime
@@ -109,18 +114,21 @@ Qué mirar en esa línea:
 
 En orden de cuánto dan, no de lo obvios que parecen:
 
-1. **Normalizar la grabación** — ya lo hace el spike. Una voz grabada a
-   −30 dBFS reproducida tal cual mueve el ampli al 3 % de lo que puede: el
-   altavoz suena flojo porque la **grabación** es floja, no porque el ampli lo
-   sea. Ajustar el pico a −3 dBFS vale unos **25 dB**. La línea del log dice
-   cuánta ganancia se aplicó, con tope de +24 dB (más allá se amplifica el
-   ruido de sala, que está a −57 dBFS).
+1. **Normalizar la grabación** — ya lo hace el spike, pero con medida. Una voz
+   grabada a −30 dBFS reproducida tal cual mueve el ampli al 3 % de lo que
+   puede. Ahora bien: **el techo aquí es acústico, no digital.** Con +24 dB
+   aquella toma de −28,8 dBFS salió a −21 dBFS de RMS, y el resultado fue «un
+   poco más alto pero con zumbido». Más ganancia compra distorsión, no
+   volumen. Por eso ahora el objetivo es **−6 dBFS de pico con tope de
+   +18 dB**, y ambos son constantes al principio de `main.c` para que las
+   muevas y escuches.
 2. **Alimentar el ampli a 5 V, no a 3V3.** La potencia de salida va con la
    tensión de alimentación; a 3V3 el mismo módulo suena bastante más flojo.
 3. **Pin `GAIN` del MAX98357A** — al aire son 9 dB. A GND directo, 12 dB; a
    GND por 100 kΩ, 15 dB. Es decir, **+6 dB como mucho**, mucho menos de lo
    que parece prometer.
-4. **Filtrar los graves.** El spike de salida midió este altavoz: respecto a
+4. **Filtrar los graves** — ya está puesto, a 300 Hz, y el spike reproduce
+   **A (sin filtrar) y B (pasa-altos) seguidos** para que decidas de oído. El spike de salida midió este altavoz: respecto a
    la banda de 1–1,4 kHz, da **−12,6 dB a 700–990 Hz, −20,4 dB a 500–700 y
    −30 dB a 350–490**. Es un pasa-banda estrecho alrededor de 1–2 kHz. Los
    graves no salen como sonido pero sí mueven el cono, y un cono al final de
@@ -128,6 +136,22 @@ En orden de cuánto dan, no de lo obvios que parecen:
    volumen **percibido** sin tocar la ganancia.
 5. **Ponerle caja.** Un altavoz sin bafle cancela sus propios graves por el
    borde. Montarlo en la carcasa es gratis y ayuda — territorio de CAD.
+
+### Si zumba
+
+Tres causas posibles, y se distinguen en un minuto:
+
+1. **Excursión del cono.** Es la primera sospechosa: con la ganancia alta le
+   estás metiendo al altavoz 20 dB de graves que no sabe reproducir pero sí
+   mover. Se prueba con el A/B: si **B suena más limpio que A**, era esto.
+2. **Suelo de sala amplificado.** El ambiente está a −57 dBFS; con +24 dB pasa
+   a −33 dBFS, que se oye. Se prueba **grabando en silencio y escuchando**: si
+   el zumbido sigue ahí sin haber hablado, no es distorsión, es el ruido de la
+   sala (o del propio circuito) subido de volumen.
+3. **Caída de la alimentación.** Un class-D a 5 V desde el USB del devkit tira
+   picos de corriente; si el raíl se hunde, zumba. Un condensador de
+   470–1000 µF entre `Vin` y `GND` del ampli es el arreglo clásico, y es la
+   única de las tres que se arregla con hardware.
 
 ## Una decisión de diseño que conviene conocer
 

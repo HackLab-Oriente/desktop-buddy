@@ -52,6 +52,12 @@ static const char *TAG = "i2s-mic";
 #define MAX_FRAMES (RATE * MAX_SECONDS)
 #define FULL_SCALE 8388608.0f           // 24-bit
 
+// Playback conditioning. Both knobs are here because the right values are a
+// matter of ear, not of theory — turn them and listen.
+#define TARGET_DBFS   -6.0f             // peak to normalise a take to
+#define MAX_GAIN_DB   18.0f             // ceiling; see the comment in playback()
+#define HIGHPASS_HZ   300.0f            // 0 disables it
+
 static i2s_chan_handle_t s_rx, s_tx;
 static float s_peak;                    // of the last take, 24-bit scale
 static int16_t *s_rec;                  // PSRAM; 16-bit is what STT wants anyway
@@ -158,19 +164,50 @@ static size_t record(void) {
   return frames;
 }
 
-static void playback(size_t frames) {
-  // Make-up gain, and this is the big volume lever. A voice recorded at, say,
-  // -30 dBFS played back untouched drives the amplifier to 3% of what it can
-  // do — so the speaker is quiet because the RECORDING is quiet, not because
-  // the amplifier is weak. Normalising to about -3 dBFS is worth ~27 dB here;
-  // the MAX98357A's GAIN pin, for comparison, can offer at most 6 dB.
-  const float peak16 = s_peak / 256.0f;            // stored samples are 16-bit
-  float gain = (peak16 > 8.0f) ? 23000.0f / peak16 : 1.0f;
+// Peak of the 16-bit buffer, needed again after filtering changes it.
+static float buffer_peak(size_t frames) {
+  float peak = 0;
+  for (size_t i = 0; i < frames; i++) {
+    const float a = fabsf((float)s_rec[i]);
+    if (a > peak) peak = a;
+  }
+  return peak;
+}
+
+// One-pole high-pass, in place. The speaker was measured at -20 to -30 dB
+// below 700 Hz: that bass never becomes sound, but it still moves the cone to
+// the end of its travel, and a cone at its limit distorts everything else.
+// Removing it makes the same take sound louder AND cleaner.
+static void highpass(size_t frames) {
+  if (HIGHPASS_HZ <= 0) return;
+  const float rc = 1.0f / (2.0f * (float)M_PI * HIGHPASS_HZ);
+  const float dt = 1.0f / RATE;
+  const float a = rc / (rc + dt);
+  float y = 0, x_prev = 0;
+  for (size_t i = 0; i < frames; i++) {
+    const float x = (float)s_rec[i];
+    y = a * (y + x - x_prev);
+    x_prev = x;
+    s_rec[i] = (int16_t)(y < -32768.0f ? -32768.0f : (y > 32767.0f ? 32767.0f : y));
+  }
+}
+
+static void playback(size_t frames, const char *label) {
+  // Make-up gain. A voice recorded at -30 dBFS played back untouched drives
+  // the amplifier to 3% of what it can do, so the speaker is quiet because the
+  // RECORDING is quiet. But the ceiling matters as much as the target: at
+  // +24 dB a -28.8 dBFS take came out at -21 dBFS RMS, which pushed this
+  // speaker past what it can reproduce and buzzed. The limit here is acoustic,
+  // not digital — more gain buys distortion, not volume.
+  const float peak = buffer_peak(frames);
+  const float target = 32767.0f * powf(10.0f, TARGET_DBFS / 20.0f);
+  const float ceiling = powf(10.0f, MAX_GAIN_DB / 20.0f);
+  float gain = (peak > 8.0f) ? target / peak : 1.0f;
   if (gain < 1.0f) gain = 1.0f;                    // never make it quieter
-  if (gain > 16.0f) gain = 16.0f;                  // +24 dB: past this you are
-                                                   // just amplifying the hiss
-  ESP_LOGI(TAG, "playing back %.2f s with %+.1f dB make-up gain",
-           (double)frames / RATE, (double)(20.0f * log10f(gain)));
+  if (gain > ceiling) gain = ceiling;
+  ESP_LOGI(TAG, "  %s: %.2f s, %+.1f dB gain -> peak %.1f dBFS", label,
+           (double)frames / RATE, (double)(20.0f * log10f(gain)),
+           (double)(20.0f * log10f(fminf(peak * gain, 32767.0f) / 32767.0f)));
   amp_enabled(true);
   vTaskDelay(pdMS_TO_TICKS(20));            // let the amp's output stage settle
 
@@ -229,7 +266,14 @@ void app_main(void) {
       i2s_close(&s_rx);                     // the port can only face one way
       if (frames > RATE / 10) {             // ignore an accidental tap
         i2s_open_tx();
-        playback(frames);
+        // A/B, the same method the output spike used: the two versions play
+        // back to back so the ear compares them instead of remembering them.
+        ESP_LOGW(TAG, "A/B — first as recorded, then high-passed at %d Hz",
+                 (int)HIGHPASS_HZ);
+        playback(frames, "A sin filtrar");
+        vTaskDelay(pdMS_TO_TICKS(400));
+        highpass(frames);
+        playback(frames, "B pasa-altos");
         i2s_close(&s_tx);
       } else {
         ESP_LOGW(TAG, "too short to play back — hold the button while talking");
