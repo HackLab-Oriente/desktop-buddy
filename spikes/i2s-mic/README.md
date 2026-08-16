@@ -91,9 +91,7 @@ La voz queda **28 dB por encima del suelo** y con 29 dB de margen hasta
 recortar. Factor de cresta 16,7 dB, que es lo normal en voz. Para STT esto
 está de sobra.
 
-Es decir, **unos 57 dB de margen** hasta recortar. Voz normal a 30 cm cae
-20–30 dB por encima de ese suelo. Cuando grabes con el botón, el spike imprime
-pico y RMS en dBFS de cada toma: ahí salen los números de voz.
+Cada toma imprime sus propios números, así que no hay que fiarse de estos.
 
 Dos cosas que se confunden y no son la misma:
 
@@ -127,13 +125,14 @@ En orden de cuánto dan, no de lo obvios que parecen:
 3. **Pin `GAIN` del MAX98357A** — al aire son 9 dB. A GND directo, 12 dB; a
    GND por 100 kΩ, 15 dB. Es decir, **+6 dB como mucho**, mucho menos de lo
    que parece prometer.
-4. **Filtrar los graves** — ya está puesto, a 300 Hz, y el spike reproduce
-   **A (sin filtrar) y B (pasa-altos) seguidos** para que decidas de oído. El spike de salida midió este altavoz: respecto a
+4. **Filtrar los graves** — ya está puesto, a 300 Hz, y cada toma se reproduce
+   **A (sin filtrar) y B (pasa-altos) seguidas** para que decidas de oído.
+   El porqué está medido: el spike de salida encontró que este altavoz, contra
    la banda de 1–1,4 kHz, da **−12,6 dB a 700–990 Hz, −20,4 dB a 500–700 y
-   −30 dB a 350–490**. Es un pasa-banda estrecho alrededor de 1–2 kHz. Los
-   graves no salen como sonido pero sí mueven el cono, y un cono al final de
-   su recorrido distorsiona todo lo demás. Un pasa-altos a ~400 Hz sube el
-   volumen **percibido** sin tocar la ganancia.
+   −30 dB a 350–490** — un pasa-banda estrecho alrededor de 1–2 kHz. Esos
+   graves no salen como sonido pero sí mueven el cono, y un cono al final de su
+   recorrido distorsiona todo lo demás. Quitarlos sube el volumen **percibido**
+   sin tocar la ganancia.
 5. **Ponerle caja.** Un altavoz sin bafle cancela sus propios graves por el
    borde. Montarlo en la carcasa es gratis y ayuda — territorio de CAD.
 
