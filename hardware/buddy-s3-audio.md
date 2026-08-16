@@ -1,7 +1,10 @@
 # Audio (INMP441 + MAX98357A) y tarjeta SD — ESP32-S3
 
-> **PROPUESTA, sin verificar.** No hay firmware todavía: ni driver I2S, ni
-> driver de SD, ni entradas en `Kconfig.projbuild`. Estos pines están elegidos
+> **PROPUESTA, parcialmente verificada.** El **micro INMP441 ya funciona** en
+> estos pines (SCK 15 · WS 16 · SD 17 · L/R a GND) — ver
+> [`spikes/i2s-mic/`](../spikes/i2s-mic/README.md). El amplificador compila y
+> corre en 15/16/18 con mute en 2, pendiente de oírlo. La tarjeta SD sigue sin
+> tocarse. No hay driver en el firmware real ni entradas en `Kconfig.projbuild`. Estos pines están elegidos
 > esquivando las minas del S3 y las asignaciones que ya existen, pero **nadie
 > ha encendido esto aún**. El RC522 nos acaba de recordar por qué eso importa:
 > el módulo no tenía el pin que la tabla decía. Trata este documento como un

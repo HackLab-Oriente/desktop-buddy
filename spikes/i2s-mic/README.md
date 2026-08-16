@@ -11,7 +11,15 @@ los dos falló. Primero se demuestra el micro. Los pines ya son compatibles con
 el spike de salida (comparten BCLK y WS), así que juntarlos después es poco
 trabajo.
 
-**Estado**: sin probar en hardware — recién escrito.
+**Estado**: **funciona**. Cableado por Daniel y verificado en el S3 a la
+primera: suelo de ruido en reposo que sube al hablar. Los pines de
+[buddy-s3-audio.md](../../hardware/buddy-s3-audio.md) son correctos y el micro
+oye.
+
+Falta anotar aquí los **números** (dBFS en silencio y hablando), que es lo que
+convierte «se mueve la barra» en una respuesta útil: dicen cuánto margen hay
+antes de recortar y si el STT va a tener con qué trabajar. Pega dos líneas del
+medidor —una callado, otra hablando— cuando puedas.
 
 ## Cableado
 
