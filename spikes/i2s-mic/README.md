@@ -1,51 +1,57 @@
-# Spike: entrada de audio I2S (micro INMP441)
+# Spike: micro INMP441 y bucle push-to-talk
 
-¿Oye algo el micrófono, en los pines que planeamos? Proyecto aislado a
-propósito: dentro del firmware real, un micro mudo podría ser el bus, la
-prioridad de una tarea, DMA o el cableado. Aquí solo puede ser el cableado o
-la config de I2S.
+Mantén el botón, habla, suéltalo, óyete. Es el listón de voz de la sesión 1, y
+demuestra el mecanismo del que depende todo el diseño PTT: **el altavoz está
+silenciado por hardware mientras el micro graba**. No «con el volumen bajo» —
+la etapa de salida del amplificador apagada. Sin eso, el buddy se oye a sí
+mismo y el bucle no vale nada.
 
-**Este spike no toca el amplificador.** «Grabar y reproducir» es la meta de la
-sesión 1, pero son dos subsistemas: si no oyes nada, no has aprendido cuál de
-los dos falló. Primero se demuestra el micro. Los pines ya son compatibles con
-el spike de salida (comparten BCLK y WS), así que juntarlos después es poco
-trabajo.
+Proyecto aislado a propósito: dentro del firmware real, una grabación muda
+podría ser el bus, la prioridad de una tarea, DMA o el cableado. Aquí solo
+puede ser el cableado o la config de I2S.
 
-**Estado**: **funciona**. Cableado por Daniel y verificado en el S3 a la
-primera: suelo de ruido en reposo que sube al hablar. Los pines de
-[buddy-s3-audio.md](../../hardware/buddy-s3-audio.md) son correctos y el micro
-oye.
-
-Falta anotar aquí los **números** (dBFS en silencio y hablando), que es lo que
-convierte «se mueve la barra» en una respuesta útil: dicen cuánto margen hay
-antes de recortar y si el STT va a tener con qué trabajar. Pega dos líneas del
-medidor —una callado, otra hablando— cuando puedas.
+**Estado**: el **micro funciona** (verificado en el S3 por Daniel, a la
+primera). El bucle PTT compila, arranca y el medidor corre; **falta probar el
+botón y la reproducción**, que necesitan el ampli y el pulsador cableados.
 
 ## Cableado
 
-| Pin INMP441 | A | Nota |
+### Micro INMP441
+
+| Pin | A | Nota |
 |---|---|---|
 | VDD | **3V3** | nunca 5 V |
-| GND | GND | compartido con el S3 |
+| GND | GND | |
 | SCK | GPIO **15** | reloj de bit — **el mismo que el ampli** |
 | WS | GPIO **16** | selector de canal — **el mismo que el ampli** |
-| SD | GPIO **17** | datos: habla el micro, escucha el ESP |
+| SD | GPIO **17** | datos: habla el micro |
 | L/R | **GND** | canal izquierdo — **no lo dejes al aire** |
 
-Dos cosas que parecen detalles y no lo son:
+### Botón push-to-talk
 
-**`L/R` a GND, siempre.** Es la causa número uno de «grabo y solo hay
-silencio». Sin él, el micro no sabe en qué mitad de la trama hablar y el ESP
-lee el hueco vacío. El firmware escucha el slot **izquierdo**, que es lo que
-`L/R` a masa selecciona.
+| | A |
+|---|---|
+| una pata | GPIO **5** |
+| la otra | **GND** |
 
-**`SCK` y `WS` son los mismos pines que el amplificador.** No es un ahorro
-casual: el diseño es half-duplex a propósito (el buddy nunca escucha mientras
-habla, si no se oye a sí mismo), así que micro y altavoz nunca transmiten a la
-vez y pueden compartir relojes. Son 4 pines en total en vez de 6.
+Nada más: sin resistencia. El firmware activa el pull-up interno, así que en
+reposo el pin lee alto y pulsado lee bajo. Da igual la orientación del pulsador.
 
-A 16 kHz el BCLK va a 1,024 MHz, que es exactamente el 64× que pide el
-datasheet del INMP441. Si cambias el `RATE`, comprueba que sigue cuadrando.
+GPIO 5 porque es de los pocos que quedan: la pantalla ocupa 7–12, el tacto el
+4, el anillo el 21, el RC522 38–42, el I2S 15–18, el mute del ampli el 2 y el
+CS de la SD el 14. Libres quedan **1, 5, 6, 13, 47 y 48** — y de esos, 47/48
+mueven el LED RGB de placa en algunos devkits S3, así que mejor no.
+
+> En el buddy de verdad **el gesto PTT es la almohadilla táctil** (GPIO 4), como
+> dice el plan de talleres: mantener el pad → grabar. Aquí se usa un botón
+> porque en un spike quieres una variable menos: el tacto capacitivo tiene
+> deriva de umbral, y un pulsador no.
+
+### Amplificador MAX98357A
+
+El del [spike de salida](../i2s-audio/README.md): BCLK 15 · LRC 16 · DIN 18 ·
+SD (mute) 2 · Vin 5V. **Ninguno de los dos cables del altavoz va a GND** — la
+salida es en puente.
 
 ## Probarlo
 
@@ -55,36 +61,61 @@ idf.py set-target esp32s3
 idf.py build flash monitor
 ```
 
-Habla al micro. El medidor debería moverse:
+En reposo sale un medidor de nivel. Mantén GPIO 5, habla, suelta: graba (con
+el altavoz mudo), te dice los números de lo grabado y lo reproduce.
 
-```
-I (2020) i2s-mic: [########################................]  -32 dBFS  peak=  210000  rms=   41000
-```
+## Los números
+
+Suelo de ruido medido en el S3, habitación normal en silencio, micro al aire
+sin carcasa:
+
+| | pico | RMS |
+|---|---|---|
+| ambiente, sin hablar | **−57 dBFS** (−66 … −53 según el momento) | ≈ **−68 dBFS** |
+
+Es decir, **unos 57 dB de margen** hasta recortar. Voz normal a 30 cm debería
+caer 20–30 dB por encima de ese suelo, así que **no hace falta ganancia
+digital** — y añadirla sería contraproducente, porque amplificaría el suelo lo
+mismo que la voz. Cuando grabes con el botón, el spike imprime pico y RMS en
+dBFS de cada toma: ahí es donde salen los números de voz.
+
+Qué mirar en esa línea:
+
+- **pico entre −30 y −12 dBFS** — perfecto para STT.
+- **pico por debajo de −45** — el spike te avisa: acércate o hará falta ganancia.
+- **pico pegado a 0 y `clipped` > 0** — recorte; sonará roto.
+
+## Una decisión de diseño que conviene conocer
+
+El puerto I2S se **destruye y se reconstruye en cada cambio de sentido**, en
+vez de dejar un par de canales full-duplex montado.
+
+Cuesta unos milisegundos que no se perciben (pasa justo al soltar el botón), y
+compra dos cosas. Cada sentido usa exactamente la configuración ya demostrada
+por su propio spike —entrada mono/LEFT en slots de 32 bits, salida estéreo de
+32— así que un fallo aquí no puede ser «el framing compartido estaba mal por
+poco». Y hace que el half-duplex sea verdad en el hardware y no por convenio:
+el periférico es físicamente incapaz de hacer las dos cosas a la vez.
 
 ## Qué mirar cuando no funciona
 
-El spike imprime las **primeras 8 palabras en crudo** antes de interpretarlas,
+El spike imprime las primeras palabras en crudo antes de interpretarlas,
 porque casi todos los fallos se distinguen ahí:
 
 | lo que ves | qué significa |
 |---|---|
-| `00000000 00000000 …` | no llegan datos: revisa `SD` en GPIO 17, y `L/R` a GND |
-| `ffffffff ffffffff …` | la línea de datos está clavada arriba — mira si `SD` toca 3V3 |
-| valores que cambian pero `peak` diminuto | suele ser el slot equivocado (`L/R` al aire o a 3V3) |
-| `peak` clavado en el máximo | recorte: el desplazamiento de 24 en 32 bits no cuadra |
-| ruido de fondo que sube al hablar | **funciona** |
-
-El medidor sale una vez por segundo, no una por lectura: 31 líneas por segundo
-no hay quien las lea.
+| `00000000 00000000 …` | no llegan datos: revisa `SD` en GPIO 17 y `L/R` a GND |
+| `ffffffff ffffffff …` | línea de datos clavada arriba |
+| valores que cambian pero `peak` diminuto | slot equivocado (`L/R` al aire o a 3V3) |
+| graba sin tocar el botón | el pulsador está al revés o el pin a masa fijo |
+| se oye a sí mismo al grabar | el mute no llega: revisa `SD` del ampli en GPIO 2 |
 
 ## Lo siguiente
 
-Cuando esto pase, el bucle half-duplex de la sesión 1 —grabar 3 s con el
-micro, silenciar el ampli mientras se graba, y reproducirlo— es unir este
-spike con [`../i2s-audio/`](../i2s-audio/README.md), que ya tiene la parte de
-salida y el mute por firmware (`SD` del MAX98357A en GPIO 2). Comparten
-relojes, así que se configuran como un único puerto I2S full-duplex y se usa
-uno cada vez.
+Con esto verde, lo que falta para el bucle de voz de verdad no es audio: son
+los eventos [`voice.listening` y `voice.thinking`](https://github.com/HackLab-Oriente/desktop-buddy/issues/9),
+que aún no existen, y que son lo que deja al pack tapar el viaje de 1,5–3 s
+con un gesto.
 
-El plan de pines completo, con la tarjeta SD y los porqués, está en
+Plan de pines completo, con la tarjeta SD y los porqués, en
 [`../../hardware/buddy-s3-audio.md`](../../hardware/buddy-s3-audio.md).

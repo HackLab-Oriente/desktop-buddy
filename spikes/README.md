@@ -24,7 +24,7 @@ números, barato de tirar si la respuesta es «no». La disciplina:
 - **`i2s-audio/`** (rama `spike/i2s-audio`) — ¿sale sonido por el MAX98357A en
   los pines planeados? Incluye el mute por firmware, que es el mecanismo
   half-duplex del que depende el push-to-talk.
-- **`i2s-mic/`** (rama `spike/i2s-mic`) — ¿oye algo el INMP441? Medidor de
-  nivel y volcado en crudo para distinguir los cuatro fallos típicos. **No
-  toca el amplificador a propósito**: si grabas y no oyes nada, con los dos
-  subsistemas juntos no sabes cuál falló.
+- **`i2s-mic/`** (rama `spike/i2s-mic`) — ¿oye algo el INMP441? **Sí**: suelo
+  de ruido de −57 dBFS de pico que sube al hablar, a la primera. Ahora incluye
+  el bucle **push-to-talk** (mantener botón → grabar con el altavoz mudo por
+  hardware → soltar → oírse), que es el listón de voz de la sesión 1.
