@@ -157,10 +157,16 @@ Así los flasheos actuales siguen funcionando (hay `sdkconfig` con credenciales
 reales por ahí), NVS pasa a ser una capa de override, y «reset de fábrica»
 tiene una definición de una línea: borrar el namespace `buddy`.
 
-## Las tres puertas y el núcleo único
+Esa regla es además la que resuelve el taller **sin código nuevo**: la red de
+la sala entra por `menuconfig` al flashear, los buddies arrancan conectados, y
+el día que alguien se lleve el suyo a casa el portal escribe la red nueva en
+NVS y gana. La red del taller es el valor de fábrica, no una atadura. Si se
+hace, que sea en un `sdkconfig` local sin commitear: la contraseña de la sala
+no tiene por qué vivir en un repositorio público.
 
-La pregunta de si tener portal SoftAP *y* tarjeta NFC no se responde con
-«¿cuántas puertas?» sino con «¿cuántas implementaciones?». Una:
+## Las dos puertas y el núcleo único
+
+La pregunta no es «¿cuántas puertas?» sino «¿cuántas implementaciones?». Una:
 
 ```
 config_apply(json) → validar → escribir NVS → emitir config.changed
@@ -170,9 +176,13 @@ Con eso, cada transporte es fino:
 
 | puerta | cuándo | tamaño |
 |---|---|---|
-| **Portal SoftAP** | primer arranque, o red que ya no existe | la que hay que construir |
-| **Web UI normal** | ya está en la red de casa | el `webui` que ya existe |
-| **Tarjeta NFC** | taller: una tarjeta, quince buddies | ~30 líneas sobre `read_ndef`, que ya funciona |
+| **Portal SoftAP** | primer arranque, o la red de casa ya no existe | la que hay que construir |
+| **Web UI normal** | ya está en la red | el `webui` que ya existe |
+
+Que el núcleo esté separado no se justifica por tener muchas puertas: se
+justifica porque la validación, la escritura y el evento ocurren en un solo
+sitio. Una consola serie de depuración, o lo que venga después, son veinte
+líneas en vez de una segunda implementación con sus propios fallos.
 
 ### Portal SoftAP
 
@@ -225,26 +235,40 @@ de aprovisionamiento) que expone la rejilla de módulos en vez de solo
 imprimirla por consola, así que LovyanGFX puede dibujarla. Confirmar la API
 exacta al integrar.
 
-### Tarjeta NFC
+### Por qué no hay tarjeta NFC de configuración
 
-Dos cosas que decidir antes de escribir la primera línea:
+Se consideró y se descartó. Queda escrito porque la idea es buena y va a
+volver.
 
-**Es pasiva.** No hay paso de consentimiento: cualquiera acerca una tarjeta y
-el buddy obedece. O bien las tarjetas de config solo se aceptan en modo setup,
-o bien —mejor— **el buddy enseña el cambio y pregunta**: «¿Cambio el WiFi a
-HackLab? Tócame». Un control de seguridad convertido en un momento de
-personalidad, que es exactamente el tipo de cosa que hace este bicho.
+La propuesta era una tarjeta con la red del taller: un toque, quince buddies
+configurados. Al acotarla a **solo la puesta en marcha** —no uso diario— se
+quedó sin caso propio:
 
-**El firmware estaría reclamando un prefijo de la gramática de las tarjetas.**
-Hoy `nfc.text` va directo a Berry y los verbos los pone el pack. Una tarjeta
-de config significa que el firmware intercepta `buddy:config:` antes de que
-Berry lo vea — firmware quitándole un espacio de nombres al equipo de
-personalidad. Si no se escribe, choca.
+- **En la puesta en marcha la gente está delante de un portátil.** Las
+  sesiones se montan en protoboard y cada uno flashea desde su clon; la red se
+  pone una vez en `menuconfig` y ya. La tarjeta no acelera nada ahí.
+- **Lejos del portátil ya es uso diario**, que es justo lo que la tarjeta no
+  iba a cubrir. Y ese caso es el del portal SoftAP, una vez por persona: no
+  hay problema de caudal que resolver.
 
-**Alcance propuesto: las tarjetas de config llevan solo red.** Es el caso real
-del taller (quince buddies, una red) y mantiene las claves de API fuera de las
-pegatinas. Nota de compra si se hace: un NTAG213 tiene 144 bytes de usuario y
-un NTAG215 tiene 504 — la config completa no cabe en los baratos.
+Los costes, en cambio, eran permanentes:
+
+- **La contraseña del WiFi en claro sobre una pegatina**, sin caducidad y sin
+  forma de revocarla. Las tarjetas se quedan en las mesas, se van en mochilas
+  y se reescriben luego como cartuchos.
+- **El firmware tendría que reclamar un prefijo** (`buddy:config:`) de la
+  gramática de las tarjetas, que es del equipo de personalidad. Ese prefijo
+  queda reservado para siempre aunque la función se use una tarde.
+- **NTAG215 obligatorio** (504 B de usuario) en vez de NTAG213 (144 B): una
+  consecuencia de compra para toda la tanda.
+- Una superficie de ataque más, y pasiva: nadie confirma nada, se acerca una
+  tarjeta y el buddy obedece. Aceptarlas solo en modo setup habría estrechado
+  esa ventana, pero la ventana **es** el taller — el rato exacto en que hay
+  tarjetas sueltas por todas las mesas.
+
+**Lo que sí queda**: NFC sigue haciendo lo que ya hace bien, cartuchos de
+personalidad por `nfc.text`, con la gramática entera en manos del pack. El
+firmware no le quita ningún espacio de nombres a nadie.
 
 ## Lo que sigue abierto
 

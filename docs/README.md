@@ -30,7 +30,7 @@ Los `.md` se leen bien en GitHub.
 |---|---|
 | [event-registry.md](event-registry.md) · [.html](event-registry.html) | **El contrato entre equipos**: los 15 eventos del bus, dueños por prefijo, agujeros conocidos |
 | [pack-format.md](pack-format.md) | Formato de packs de personalidad (borrador para discusión) |
-| [config-api.md](config-api.md) | Esquema de configuración, secretos, aprovisionamiento SoftAP/NFC/QR (propuesta) |
+| [config-api.md](config-api.md) | Esquema de configuración, secretos, aprovisionamiento por SoftAP y QR (propuesta) |
 | [hardware.md](hardware.md) | BOM completa, pedidos, sensores, alimentación y montaje |
 | [../hardware/](../hardware/) | Guías de cableado por placa (S3 y clásico) |
 | [services.md](services.md) | Proveedores externos: LLM, STT, TTS — cuentas y costes |
