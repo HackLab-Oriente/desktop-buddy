@@ -36,9 +36,44 @@ multipart con `esp_http_client` y ya.
 
 | Proveedor | Precio | Modo | Encaje en ESP32 |
 |---|---|---|---|
-| **Groq Whisper large-v3-turbo** ⭐ | $0.04/hora (~$0.0007/min), facturación mínima de 10 s | POST por lotes, ~216× tiempo real (un clip de 5 s se transcribe en mucho menos de un segundo) | Perfecto para PTT: un solo POST multipart. Capa gratuita generosa — ideal para un hacklab. |
-| OpenAI gpt-4o-mini-transcribe | ~$0.003/min | POST por lotes (existe variante realtime) | Misma simplicidad; ~4× el precio de Groq, sinergia de una sola cuenta. |
-| Deepgram Nova-3 | $0.0048/min streaming | Streaming por WebSocket, protocolo muy simple | La vía de mejora para v2: hará falta cuando llegue la wake word y los límites de frase se detecten en el servidor. |
+| **OpenAI gpt-4o-mini-transcribe** ⭐ | ~$0.003/min ($0.18/hora) | POST por lotes (existe variante realtime) | **Mismo host que el TTS**: una clave, un certificado, una conexión TLS reutilizable. Ver abajo. |
+| Groq Whisper large-v3-turbo | $0.04/hora, **facturación mínima de 10 s por petición** | POST por lotes, ~217× tiempo real (un clip de 5 s se transcribe en decenas de ms) | Inferencia mucho más rápida y capa gratuita real (2.000 peticiones/día). Un host TLS más, y 20 req/min **por organización**. |
+| Deepgram Nova-3 | $0.0048/min streaming | Streaming por WebSocket | Ver fila de abajo. |
+
+### Por qué el STT cambió de Groq a OpenAI
+
+La primera versión de este documento elegía Groq por precio. El análisis no
+estaba mal; el precio resultó ser el eje **menos** importante a nuestra escala.
+
+**El precio no decide.** El titular de Groq es $0,04/h contra $0,18/h — 4,5×
+más barato. Pero Groq **factura un mínimo de 10 s por petición**, y un buddy
+push-to-talk manda clips de 2–5 s. Por debajo de **2,2 s OpenAI sale más
+barato**, y en la duración típica la diferencia se queda en 1,4×. Un taller
+entero —15 personas, 4 sesiones, ~30 interacciones cada una— son **1.800
+transcripciones: $0,20 con Groq contra $0,27 con OpenAI. Siete centavos.**
+
+**Lo que sí decide: un host TLS menos.** Cada turno de voz habla con STT →
+Claude → TTS. Con Groq son **tres hosts distintos**; con OpenAI haciendo STT y
+TTS son **dos**, y esa conexión se puede mantener viva a través de la llamada
+al cerebro. Importa porque una conexión TLS cuesta **~50 KB de RAM interna**
+(ver [architecture.md](architecture.md)), justo la memoria escasa —los búferes
+DMA y el WiFi no pueden vivir en PSRAM—, y porque un handshake mbedTLS en el
+ESP32 se mide en cientos de milisegundos contra un presupuesto total de
+1,5–3 s. Groq gana en inferencia (decenas de ms contra unos cientos), pero ese
+ahorro es más pequeño que un handshake entero.
+
+> **Esto último está sin medir.** Es la única cifra que podría darle la vuelta
+> a la decisión: si el handshake resulta barato con reanudación de sesión,
+> Groq gana por velocidad. Medirlo es tarea del track de voz.
+
+**La trampa de la capa gratuita.** Groq regala 2.000 peticiones/día sin
+tarjeta, que para un hacklab vale. Pero el límite son **20 peticiones/minuto
+por organización**, y varias claves no lo multiplican: 15 personas pulsando
+cada 30 s son 30 req/min, **por encima del límite**. Solo funciona si cada uno
+se hace su propia cuenta, que es un paso más de instalación por quince.
+
+**Qué haría cambiar la decisión:** transcripción larga (grabar una reunión, no
+una frase), donde el 4,5× de Groq sí es dinero; o un handshake medido barato.
 
 ## TTS — de texto a voz
 
@@ -59,7 +94,7 @@ caracteres:
 
 | Pieza | Stack recomendado | Coste |
 |---|---|---|
-| STT (Groq) | 8 s a $0.04/h (mín. 10 s) | ~$0.0001 |
+| STT (OpenAI mini-transcribe) | 8 s a $0.003/min | ~$0.0004 |
 | LLM (Haiku 4.5) | ~1,2k in / 150 out | ~$0.002 |
 | TTS (OpenAI mini-tts) | ~10 s de audio | ~$0.0025 |
 | **Total** | | **≈ medio centavo** |
@@ -70,9 +105,9 @@ por web solo paga la parte del LLM.
 
 ## Stacks recomendados
 
-- **Mejor calidad/precio (recomendado):** Claude Haiku 4.5 (cerebro) + Groq
-  Whisper (STT) + OpenAI mini-tts (TTS). Tres cuentas con capa gratuita; cada
-  pieza es la mejor de su columna.
+- **Recomendado:** Claude Haiku 4.5 (cerebro) + OpenAI para **voz entera**
+  (mini-transcribe + mini-tts). **Dos cuentas y dos hosts TLS**, no tres. La
+  diferencia de coste contra meter Groq es de centavos; la de fontanería, no.
 - **Menos cuentas (para amigos):** solo OpenAI — gpt-4o-mini (cerebro) +
   gpt-4o-mini-transcribe + gpt-4o-mini-tts. Una sola clave que pegar en la
   web UI. La web debería soportar ambos presets; el contrato de Brain hace

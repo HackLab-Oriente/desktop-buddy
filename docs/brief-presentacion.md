@@ -86,7 +86,7 @@ oro: **nunca brick** — sin red sigue vivo, sin nube sigue siendo tuyo.
   soltar = fin de la frase (sin VAD). Un POST HTTPS del clip completo, sin
   streaming.
 - Proveedores recomendados (intercambiables): Claude Haiku 4.5 (cerebro),
-  Groq Whisper (STT, $0.04/hora), OpenAI mini-tts (TTS). **~medio centavo de
+  OpenAI mini-transcribe (STT) y mini-tts (TTS). **~medio centavo de
   dólar por interacción de voz** (~$7/mes con uso intenso). Preset alternativo
   de una sola cuenta (todo OpenAI).
 - Latencia real 1.5–3 s: no se elimina, se **enmascara** (cara de "pensando" +

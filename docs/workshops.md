@@ -17,7 +17,8 @@ v2+).
 - [ ] Un prototipo montado en protoboard en casa, para que la sesión 1 tenga
   una referencia que se sabe buena
 - [ ] Crear cuentas de proveedores + API keys según [services.md](services.md)
-  (recomendado: Claude Haiku 4.5 + Groq Whisper + OpenAI mini-tts);
+  (recomendado: Claude Haiku 4.5 para el cerebro + OpenAI para toda la voz,
+  mini-transcribe y mini-tts — dos cuentas, no tres; ver services.md);
   probarlas primero con un script desde el portátil (POST de un WAV →
   transcripción → LLM → audio TTS de vuelta), para que el spike de voz de la
   sesión 2 depure solo el lado ESP32, nunca el lado cuentas/API
