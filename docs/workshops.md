@@ -31,7 +31,7 @@ hecho el sábado se hace en la sala o no se hace.
 | Web | Juan Esteban Londoño (@jelondoca) | `config.*` |
 | Electrónica | Diego Isaza (@Dsaoro) | `touch.*`, `nfc.*`, `sense.*` |
 | CAD | Juan Sebastián Carrasquilla (@Juansess) | — |
-| Personalidad | Luis Palacios (@melaganodeojo) | `face.*`, `led.*` (con firmware) |
+| Personalidad | Luis Palacios (@LuisGuillemoPalaciosGiraldo) | `face.*`, `led.*` (con firmware) |
 
 El plan original tenía tres tracks (núcleo, voz, carcasa) y se escribió antes
 de que existieran los equipos. Ahora cada sesión lleva **una línea por
