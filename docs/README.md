@@ -14,7 +14,7 @@ Los `.md` se leen bien en GitHub.
 | [../README.md](../README.md) | Qué es el buddy y arranque en 5 minutos |
 | [../CONTRIBUTING.md](../CONTRIBUTING.md) | Ramas, spikes, commits, idiomas, reglas del bus |
 | [architecture.md](architecture.md) | La definición de producto y arquitectura — el documento fundacional |
-| [workshops.md](workshops.md) | El plan de las 4 sesiones, con tracks y riesgos |
+| [workshops.md](workshops.md) | El plan de las 4 sesiones: fechas, qué hace cada equipo cada tarde, riesgos |
 
 ## Decisiones y reuniones
 
