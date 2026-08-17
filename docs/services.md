@@ -75,6 +75,20 @@ se hace su propia cuenta, que es un paso más de instalación por quince.
 **Qué haría cambiar la decisión:** transcripción larga (grabar una reunión, no
 una frase), donde el 4,5× de Groq sí es dinero; o un handshake medido barato.
 
+## ¿Y hacer todo el flujo con un solo proveedor?
+
+**Con Anthropic no se puede: no tiene STT ni TTS.** Su API es texto e imagen de
+entrada, texto de salida. Claude puede ser el cerebro; nunca los oídos ni la
+boca.
+
+**Y el cerebro no se mueve a OpenAI solo por fontanería.** El argumento del host
+TLS que ganó para el STT pierde aquí: transcribir y hablar son commodities
+—cambiar de proveedor cambia una cifra en la factura— mientras que **el cerebro
+es la única pieza cuya elección se *oye* como personalidad**, que es lo que este
+proyecto dice estar vendiendo. La diferencia de coste son ~$1,80 en todo el
+taller, y mantener la opción abierta ya está pagado: el contrato de cerebro es
+un adaptador con backends intercambiables.
+
 ## TTS — de texto a voz
 
 Restricción: el ESP32 quiere **PCM o MP3 en streaming de vuelta** (decodificar
@@ -84,8 +98,44 @@ Los tres de abajo pueden dar ambos.
 | Proveedor | Precio | Por qué sí / por qué no |
 |---|---|---|
 | **OpenAI gpt-4o-mini-tts** ⭐ | ~$0.015/min de audio ($0.60/MTok texto de entrada, $12/MTok audio de salida) | Barato, buena calidad, ~13 voces, admite "instrucciones" de voz (tono/carácter — útil para packs de personalidad). |
-| ElevenLabs Flash v2.5 | $0.05/1k caracteres (≈$0.0075 por respuesta de 150) | Las mejores voces con carácter + clonado — la opción "dale a tu buddy una voz única". ~3× el coste; vale la pena si la identidad de voz se vuelve central en los packs. |
+| Groq PlayAI Dialog / Orpheus | $50 / $22 por millón de caracteres | Orpheus sale barato, pero devuelve el tercer host TLS y sus variantes publicadas son inglés y árabe — **para un buddy que habla español hay que verificarlo antes de considerarlo**. |
+| ElevenLabs Flash v2.5 | $0.05/1k caracteres, **con mínimo de facturación de 1.000 caracteres** | Las mejores voces con carácter + clonado, y 75 ms de latencia. Pero una respuesta de 150 caracteres factura como 1.000: **$0,05 por respuesta, 20× OpenAI** (ver abajo). |
 | Deepgram Aura-2 | ~$0.03–0.05/1k caracteres | Baja latencia, API simple; atractivo de bundle si ya estás en Deepgram para STT. |
+
+### El TTS es donde está el dinero — y el mínimo de ElevenLabs
+
+Una respuesta hablada del buddy son ~150 caracteres (~10 s de audio). Con eso:
+
+| TTS | por respuesta | taller (1.800) | ×OpenAI |
+|---|---|---|---|
+| **OpenAI gpt-4o-mini-tts** ⭐ | $0,0025 | **$4,50** | 1× |
+| Groq Orpheus (inglés) | $0,0033 | $5,94 | 1× |
+| Groq PlayAI Dialog | $0,0075 | $13,50 | 3× |
+| ElevenLabs Flash v2.5 | $0,0500 | **$90,00** | **20×** |
+
+Dos cosas que corregir de la versión anterior de este documento:
+
+1. **ElevenLabs decía «≈$0,0075 por respuesta»: era 6,7× optimista.** Dividía la
+   tarifa y no veía el **mínimo de 1.000 caracteres por petición**. Nuestras
+   respuestas son de 150.
+2. **El TTS cuesta ~17× lo que el STT.** Toda la discusión de Groq contra
+   OpenAI para transcribir se peleaba por siete centavos mientras el gasto real
+   estaba en la fila de abajo.
+
+> **Regla, no anécdota: mira siempre el mínimo de facturación antes que la
+> tarifa.** Nos ha pasado dos veces —los 10 s de Groq en STT, los 1.000
+> caracteres de ElevenLabs en TTS— y las dos veces el titular mentía. Un buddy
+> habla a ráfagas de una frase; a esa escala **el mínimo manda sobre la
+> tarifa**. Cualquier proveedor nuevo se evalúa con el coste de *una respuesta
+> nuestra*, no con el precio por hora o por millón.
+
+**ElevenLabs no está descartado: está aplazado.** $90 por taller es asequible
+si el grupo decide que una voz propia *es* el producto — eso es una decisión de
+personalidad, no un problema de presupuesto. La razón para esperar es otra:
+**todavía nadie sabe cómo debe sonar el buddy.** Mientras tanto, el parámetro
+`instructions` de OpenAI deja que cada pack ajuste el tono. Se revisa cuando
+[#24](https://github.com/HackLab-Oriente/desktop-buddy/issues/24) y las
+decisiones de personalidad hayan producido un carácter concreto.
 
 ## Coste por interacción (el número que importa)
 
@@ -97,6 +147,9 @@ caracteres:
 | STT (OpenAI mini-transcribe) | 8 s a $0.003/min | ~$0.0004 |
 | LLM (Haiku 4.5) | ~1,2k in / 150 out | ~$0.002 |
 | TTS (OpenAI mini-tts) | ~10 s de audio | ~$0.0025 |
+
+El TTS es la partida más grande de las tres — y con ElevenLabs sería **$0,05**,
+veinte veces el total actual.
 | **Total** | | **≈ medio centavo** |
 
 Con un uso intenso de 50 interacciones/día: **~$7/mes por buddy**. Las
