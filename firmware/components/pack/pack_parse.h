@@ -87,7 +87,7 @@ inline Anim parse_anim(const std::string& s) {
 }
 
 // { "<name>": { "eye": {...}, "blink_ms": N, "color": "#rrggbb",
-//               "mood": "...", "registro": "..." }, ... }
+//               "mood": "...", "register": "..." }, ... }
 inline bool parse_expressions(const char* json, std::vector<Emotion>& out) {
   out.clear();
   cJSON* root = cJSON_Parse(json);
@@ -114,7 +114,7 @@ inline bool parse_expressions(const char* json, std::vector<Emotion>& out) {
     }
     get_int(it, "blink_ms", e.blink_period_ms, 200, 60000);
     get_string(it, "mood", e.mood);
-    get_string(it, "registro", e.registro);
+    get_string(it, "register", e.register_);
 
     const cJSON* col = cJSON_GetObjectItemCaseSensitive(it, "color");
     if (cJSON_IsString(col)) {

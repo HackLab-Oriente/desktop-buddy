@@ -71,6 +71,16 @@ lidera esa zona; no hace falta que sepas a quién etiquetar.
   commit y los nombres de eventos del bus.
 - `CLAUDE.md` y `.kiro/` son configuración de las herramientas de IA y se
   quedan en inglés.
+- **En los packs, la clave es código y el valor es contenido.** Las claves del
+  esquema (`mood`, `register`, `anim`, `colors`) son API: inglés, como los
+  nombres de eventos. Los valores los escribe quien hace el pack, en el idioma
+  que declare su `pack.json` (`"language": "es"`) — `"register": "cálido"`.
+  Mezclar los dos lados es lo que produce cosas como `"registro"` junto a
+  `"colors"`.
+- **El español del proyecto es neutro, de Colombia.** Pretérito simple y no
+  compuesto (*no entendí*, no *no he entendido*), y cuidado con los falsos
+  amigos peninsulares: **«coger» no se usa**, «vale» es «listo», «anda» es
+  «dale».
 
 ## Añadir un evento al bus
 

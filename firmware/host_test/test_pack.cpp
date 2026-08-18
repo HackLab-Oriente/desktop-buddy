@@ -24,7 +24,7 @@ static int test_expressions() {
   // Happy path: every field honoured.
   CHECK(parse_expressions(
       R"({"neutral":{"eye":{"width":26,"height":30,"openness":100,"lift":2,"brow":-1},
-          "blink_ms":3800,"color":"#00beff","mood":"calm","registro":"llano"}})", v));
+          "blink_ms":3800,"color":"#00beff","mood":"calm","register":"llano"}})", v));
   CHECK(v.size() == 1);
   CHECK(v[0].name == "neutral");
   CHECK(v[0].eye.width == 26 && v[0].eye.height == 30);
@@ -32,7 +32,7 @@ static int test_expressions() {
   CHECK(v[0].blink_period_ms == 3800);
   CHECK(v[0].r == 0x00 && v[0].g == 0xbe && v[0].b == 0xff);
   CHECK(v[0].mood == "calm");
-  CHECK(v[0].registro == "llano");
+  CHECK(v[0].register_ == "llano");
 
   // Colour without '#', and upper case.
   CHECK(parse_expressions(R"({"a":{"color":"FF8800"}})", v));
@@ -104,10 +104,10 @@ static int test_moods() {
 
   // Wrapped in a manifest, which is how pack.json actually ships it.
   CHECK(parse_moods(
-      R"({"id":"zero","moods":{"brasa":{"anim":"pulse","period_ms":1800,
+      R"({"id":"zero","moods":{"fuego":{"anim":"pulse","period_ms":1800,
           "floor":0.1,"dir":"ccw","colors":["#ff3300","#ff8800"]}}})", v));
   CHECK(v.size() == 1);
-  CHECK(v[0].name == "brasa");
+  CHECK(v[0].name == "fuego");
   CHECK(v[0].anim == Anim::Pulse);
   CHECK(v[0].period_ms == 1800);
   CHECK(v[0].dir == -1);

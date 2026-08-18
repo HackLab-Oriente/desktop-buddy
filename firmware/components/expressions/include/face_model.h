@@ -31,9 +31,10 @@ struct Emotion {
   int blink_period_ms = 3800;      // mean ms between blinks — sets temperament
   uint8_t r = 0, g = 190, b = 255; // the eye tint AND the LED ring colour
   std::string mood;                // LED mood to request with it; empty = none
-  std::string registro;            // speech register — conditions the local
-                                   // model. Inert until #43; carried so packs
-                                   // can already declare it.
+  std::string register_;           // speech register ("register" is a reserved
+                                   // word). Conditions the local model; inert
+                                   // until #43, carried so packs can already
+                                   // declare it.
 };
 
 // The active table. Never empty: falls back to the built-ins.
