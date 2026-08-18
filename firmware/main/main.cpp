@@ -3,6 +3,7 @@
 // Everything talks through the event bus; nothing here calls a driver directly.
 #include "berry_host.h"
 #include "markov.h"
+#include "voice.h"
 #include "brain.h"
 #include "bus.h"
 #include "expressions.h"
@@ -147,6 +148,16 @@ extern "C" void app_main() {
         ESP_LOGI(TAG, "[%s] %s  (%lld us)", reg, line, us);
         buddy::bus().publish("face.say", line);
       }
+    });
+  }
+
+  // La voz se engancha a `face.say`, no a Markov: así se lee en alto TODO lo
+  // que el bicho dice — las frases locales ahora y las del cerebro cloud
+  // cuando las haya — y ninguna de las dos fuentes sabe que la voz existe.
+  buddy::bus().publish("boot.status", "afinando la voz");
+  if (voice_start()) {
+    buddy::bus().subscribe("face.say", [](const buddy::Event& ev) {
+      voice_say(ev.payload.c_str());     // solo encola; el bus nunca se bloquea
     });
   }
 

@@ -14,6 +14,40 @@ config BUDDY_ANTHROPIC_API_KEY
     string "Anthropic API key (PoC only — v1 stores this in NVS via web UI)"
     default ""
 
+config BUDDY_OPENAI_API_KEY
+    string "OpenAI API key — para leer las frases en voz alta (TTS)"
+    default ""
+    help
+      Si se deja vacía, el buddy no habla y todo lo demás funciona igual.
+      Se guarda en sdkconfig, que está en .gitignore: no se sube al repo.
+      En v1 esto pasará a NVS por la web UI, como la de Anthropic.
+
+config BUDDY_TTS_MODEL
+    string "Modelo de TTS"
+    default "gpt-4o-mini-tts"
+
+config BUDDY_TTS_VOICE
+    string "Voz"
+    default "alloy"
+    help
+      alloy, echo, fable, onyx, nova, shimmer... La API acepta más; se pide
+      WAV siempre, para que el firmware no necesite decodificador.
+
+menu "Pines de audio (MAX98357A)"
+config BUDDY_TTS_PIN_BCLK
+    int "BCLK"
+    default 15
+config BUDDY_TTS_PIN_WS
+    int "WS / LRC"
+    default 16
+config BUDDY_TTS_PIN_DOUT
+    int "DIN del ampli"
+    default 18
+config BUDDY_TTS_PIN_MUTE
+    int "SD del ampli (mudo cuando está bajo)"
+    default 2
+endmenu
+
 # Display pins differ per chip because the "free" GPIO ranges differ:
 #   ESP32-S3: 7-12 are clear (33-37 are octal PSRAM, 19/20 USB, 26-32 flash).
 #   classic ESP32: 6-11 are FLASH and 12 is a strapping pin, so the S3
