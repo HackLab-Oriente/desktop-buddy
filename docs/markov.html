@@ -265,18 +265,40 @@ que un corpus real de 1.000 frases dará bastante más del 13 %. Esta página no
 puede zanjarlo — <code>markov.py --measure</code> sí, sobre el corpus de verdad,
 en segundos. Ese es el momento de decidir.</p></div>
 
-<h2>5. Cómo usarlo — y cómo no</h2>
+<h2>5. Cómo usarlo</h2>
 
-<p><b>No lo pongas a generar dentro del buddy.</b> Con orden bajo puede soltar
-una frase rota, y una frase rota rompe el personaje mucho más que una frase
-repetida. Un buddy repetitivo tiene muletillas; un buddy agramatical parece
-un bug.</p>
+<p>Hay dos formas de usar esto, y no son excluyentes. La diferencia está en
+quién ve la frase antes que el humano que la va a leer en voz del buddy.</p>
 
-<p><b>Úsalo fuera de línea para expandir el corpus, con una persona
-aprobando.</b> Pasas el corpus del grupo, sacas solo lo que no existía, alguien
-lee y se queda con lo bueno, y lo aprobado entra al banco de frases como una
-línea más. Riesgo cero en el dispositivo — nada llega al buddy sin que un
-humano lo haya leído — y variedad gratis, sin modelo y sin entrenar.</p>
+<h3>Dentro del buddy, generando en vivo</h3>
+
+<p><b>Decidido: el grupo prefiere variedad a corrección.</b> Una frase rara de
+vez en cuando se acepta a cambio de que el buddy no repita nunca. Técnicamente
+no hay obstáculo: con 5.000 frases son ~282 KB de PSRAM y ~26 µs por frase —
+unas 40.000 veces más rápido que el modelo neuronal, que además necesita
+~1,2 MB de pesos.</p>
+
+<p>Lo que sí conviene saber al implementarlo, porque son mandos, no reglas:</p>
+
+<ul>
+  <li><b>El orden es el mando de riesgo.</b> Orden 2 sale casi siempre
+    gramatical; orden 1 inventa mucho más y rompe la concordancia. Puede ser
+    configurable por pack: quien quiera un buddy caótico, que suba a 1.</li>
+  <li><b>Un tope de longitud</b> corta el fallo típico de Markov, la frase que
+    se enrolla y no termina.</li>
+  <li><b>Supresión de repetidas recientes</b> — recordar las últimas N frases
+    dichas — sube mucho la sensación de variedad con muy poca memoria.</li>
+  <li><b>Mezcla:</b> un pack puede tirar de frases aprobadas la mayoría de las
+    veces y de generación en vivo el resto. El porcentaje es un número en un
+    fichero, no una decisión de arquitectura.</li>
+</ul>
+
+<h3>Fuera de línea, expandiendo el corpus</h3>
+
+<p>Sigue mereciendo la pena aunque se genere en el dispositivo: pasas el corpus,
+sacas solo lo que no existía, alguien lee y se queda con lo bueno, y lo aprobado
+entra al banco de frases como una línea más. Eso <i>mejora también la generación
+en vivo</i>, porque un corpus más rico recombina mejor.</p>
 
 <pre>python3 markov.py corpus.txt --measure            # ¿da para recombinar?
 python3 markov.py corpus.txt --memory             # coste en el ESP32-S3
@@ -285,8 +307,7 @@ python3 markov.py corpus.txt --order 2 --new 50 &gt; propuestas.txt</pre>
 <p>Los flags están en inglés porque el código del proyecto lo está; el corpus
 sigue en español, que es el dato. <code>--measure</code> es lo mismo que la
 sección 3 de esta página, en terminal y sobre el corpus entero;
-<code>--memory</code> estima lo que costaría en la placa un puerto en C —
-para 5.000 frases, unos 282 KB de PSRAM y 26 µs por frase.</p>
+<code>--memory</code> estima lo que costaría en la placa un puerto en C.</p>
 
 <p>Es el mismo patrón de «generar y curar» que usamos con Claude para
 redactar frases. La diferencia es que Markov escribe con la voz <i>del propio
