@@ -451,7 +451,8 @@ hora divertida y una hora miserable.
 ### Leer sensores desde Berry
 
 ```berry
-buddy.sense(name)                 # valor actual, o nil si no hay sensor / la lectura está vieja
+buddy.sense(name)                 # un valor, o nil si no hay sensor / la lectura está vieja
+buddy.sense([n1, n2, n3])         # varios de golpe -> map; una sola llamada nativa
 ```
 
 **Sí, y con una regla que no es negociable: `buddy.sense()` lee una caché,
@@ -475,6 +476,22 @@ ese estado a mano guardando cada evento en variables globales… **y esa
 reconstrucción está mal hasta que llega el primer evento.** Un buddy que
 arranca en una habitación a oscuras no sabría que está oscuro hasta que la luz
 *cambie*.
+
+**Pide varios de una vez cuando los necesites juntos.** Un handler que quiere
+luz, temperatura y presencia hace *una* llamada nativa y recibe un map con
+exactamente esos tres, en lugar de tres llamadas:
+
+```berry
+var s = buddy.sense(["light", "temp", "presence"])
+if s["light"] != nil && s["light"] < 15 ... end
+```
+
+Esto es a propósito **lo contrario** de meter la instantánea entera en el
+evento. La lista se paga solo cuando alguien la pide y solo por lo que pide;
+la instantánea en el evento se pagaría en cada evento, la use alguien o no —
+y el coste crecería con cada sensor que se añada, que es justo la dirección en
+la que va el proyecto. La mayoría de los handlers (`touch.pet`, `nfc.tag` del
+pack `zero`) no miran ningún sensor.
 
 **`nil` cuando no hay dato, y esto importa.** Si el BH1750 no está montado, o
 murió, o la lectura es vieja, `buddy.sense("light")` devuelve `nil` — no el
@@ -524,6 +541,7 @@ buddy.ask(prompt)                 # le preguntas al Brain; ÉL decide qué dice 
 buddy.hint(text)                  # solo pantalla, nunca se pronuncia
 
 buddy.sense(name)                 # lectura cacheada de un sensor; nil si falta o está vieja
+buddy.sense([n1, n2])             # varios de golpe -> map, una sola llamada
 buddy.lang                        # active language code, from pack + device config
 buddy.pack.meta                   # own manifest as a map
 ```
