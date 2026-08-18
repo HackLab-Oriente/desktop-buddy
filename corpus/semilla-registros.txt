@@ -1,0 +1,403 @@
+# Corpus semilla del buddy — SIN CURAR
+#
+# Borrador para que el equipo de personalidad corte, reescriba y tire. No es
+# la voz del bicho todavía: es material para discutir en la sesión.
+#
+# Formato: registro: frase   (lo que leen markov.py y markov.html)
+# Registros: los siete propuestos en docs/pack-format.md (#16, #19 abiertas).
+# Escrito "en registro", no "en situación": el registro es el CÓMO, la
+# expresión el CUÁNDO. Prueba: intercambia dos frases de registros distintos;
+# si el significado sobrevive y cambia la personalidad, está bien escrito.
+#
+# Frases cortas a propósito (<=12 palabras) y con arranques repetidos dentro
+# de cada registro, para que la cadena de Markov tenga por dónde empalmar.
+
+cálido: Ahí estás.
+cálido: Ahí estás, por fin.
+cálido: Aquí sigo, como siempre.
+cálido: Aquí sigo, sin prisa ninguna.
+cálido: Tómate tu tiempo, que no me voy.
+cálido: Tómate tu tiempo, no corre prisa.
+cálido: Te he echado de menos, aunque no lo diga.
+cálido: Te he echado de menos, un poco.
+cálido: Me alegro de verte otra vez.
+cálido: Me alegro de que hayas vuelto.
+cálido: Qué bien que estés por aquí.
+cálido: Qué bien te sienta volver.
+cálido: No hace falta que digas nada.
+cálido: No hace falta correr, de verdad.
+cálido: Quédate el rato que quieras.
+cálido: Quédate un poco más, si te apetece.
+cálido: Aquí no se va nadie.
+cálido: Aquí estoy, para lo que sea.
+cálido: Descansa, que yo vigilo.
+cálido: Descansa un poco, te hace falta.
+cálido: Ya está, ya pasó.
+cálido: Ya está, no era para tanto.
+cálido: Cuando quieras seguimos.
+cálido: Cuando quieras me cuentas.
+cálido: Me gusta cuando te quedas.
+cálido: Me gusta tenerte cerca.
+cálido: Has vuelto, qué cosas.
+cálido: Has vuelto y se nota.
+cálido: Tranquilo, que no pasa nada.
+cálido: Tranquilo, aquí no hay prisa.
+cálido: Un gusto verte, en serio.
+cálido: Un gusto tenerte por aquí.
+cálido: Te guardaba el sitio.
+cálido: Te guardaba una sonrisa.
+cálido: Vuelve cuando quieras.
+cálido: Vuelve pronto, que se hace largo.
+cálido: Buenas, criatura.
+cálido: Buenas, cuánto tiempo.
+cálido: No te preocupes por eso.
+cálido: No te preocupes, ya está hecho.
+cálido: Se te ha echado de menos.
+cálido: Se agradece la visita.
+cálido: Todo bien por aquí.
+cálido: Todo tranquilo, como te gusta.
+cálido: Me quedo contigo un rato.
+cálido: Me quedo por aquí, sin molestar.
+cálido: Qué día más tranquilo.
+cálido: Qué gusto de silencio.
+
+juguetón: ¿Otra vez tú? Qué pesadito.
+juguetón: ¿Otra vez tú? No me lo creo.
+juguetón: ¿Otra vez por aquí? Qué suerte la mía.
+juguetón: Hazlo otra vez, a ver si te sale.
+juguetón: Hazlo otra vez, que no miraba.
+juguetón: Yo no he visto nada. Yo no estaba.
+juguetón: Yo no he sido. Que conste.
+juguetón: Yo no diría nada, pero mira.
+juguetón: Anda, mira quién aparece.
+juguetón: Anda, si has vuelto.
+juguetón: Anda, y yo sin peinarme.
+juguetón: Ya te vale, eh.
+juguetón: Ya te vale, con lo que tardas.
+juguetón: Vaya, vaya. Mira tú por dónde.
+juguetón: Vaya, vaya. Aquí no pasaba nada.
+juguetón: A mí no me mires.
+juguetón: A mí no me metas.
+juguetón: Venga, cuéntamelo otra vez.
+juguetón: Venga, sorpréndeme un poco.
+juguetón: Venga, que no muerdo.
+juguetón: Qué pesadito eres, en el buen sentido.
+juguetón: Qué pesadito, pero me caes bien.
+juguetón: No te lo vas a creer.
+juguetón: No te lo digo, por si acaso.
+juguetón: Estaba fingiendo que dormía.
+juguetón: Estaba fingiendo que no te veía.
+juguetón: Te estaba esperando, no te emociones.
+juguetón: Te estaba esperando para nada.
+juguetón: Menuda cara traes.
+juguetón: Menuda entrada, aplausos.
+juguetón: Uy, uy, uy. Qué interesante.
+juguetón: Uy, esto pinta bien.
+juguetón: Sigue, sigue. Te escucho.
+juguetón: Sigue, que me estaba aburriendo.
+juguetón: Otra vez con lo mismo.
+juguetón: Otra vez tú, qué constancia.
+juguetón: Yo aquí, currando.
+juguetón: Yo aquí, sin hacer nada.
+juguetón: Mira quién se acuerda de mí.
+juguetón: Mira quién viene a saludar.
+juguetón: Pues no está mal, para ser tú.
+juguetón: Pues casi, casi.
+juguetón: Ni caso me haces.
+juguetón: Ni te molestes, era broma.
+juguetón: Eso lo hago yo mejor.
+juguetón: Eso no se hace, hombre.
+juguetón: A que no lo repites.
+juguetón: A que sí te ha gustado.
+
+curioso: ¿Y eso qué es?
+curioso: ¿Y eso de dónde ha salido?
+curioso: ¿Y eso para qué sirve?
+curioso: Espera... ¿eso siempre ha estado ahí?
+curioso: Espera... ¿eso es nuevo?
+curioso: Espera, que me fijo.
+curioso: Cuéntame más, que me interesa.
+curioso: Cuéntame más, no te cortes.
+curioso: Cuéntame eso otra vez.
+curioso: A ver, a ver.
+curioso: A ver, déjame mirar.
+curioso: A ver qué pasa si...
+curioso: ¿Esto es lo que creo que es?
+curioso: ¿Esto lo has hecho tú?
+curioso: ¿Esto va aquí o allí?
+curioso: Qué cosa más rara.
+curioso: Qué cosa más interesante.
+curioso: Qué raro, no lo había visto.
+curioso: No lo había visto nunca.
+curioso: No lo entiendo, explícamelo.
+curioso: No sé qué es, pero me gusta.
+curioso: ¿Y si probamos otra cosa?
+curioso: ¿Y si lo miramos por detrás?
+curioso: ¿Y ahora qué?
+curioso: Interesante. Muy interesante.
+curioso: Interesante, sigue.
+curioso: Hmm. Déjame pensar.
+curioso: Hmm. Eso no me cuadra.
+curioso: ¿Cómo funciona esto?
+curioso: ¿Cómo se te ha ocurrido?
+curioso: Tiene pinta de algo.
+curioso: Tiene truco, seguro.
+curioso: Nunca me lo había planteado.
+curioso: Nunca se sabe, ¿no?
+curioso: ¿Puedo mirar de cerca?
+curioso: ¿Puedo tocarlo?
+curioso: Vaya, no me lo esperaba.
+curioso: Vaya, esto cambia las cosas.
+curioso: ¿Eso hace ruido?
+curioso: ¿Eso se puede abrir?
+curioso: Me tienes intrigado.
+curioso: Me tienes en ascuas.
+curioso: Sigo sin verlo claro.
+curioso: Sigo dándole vueltas.
+curioso: ¿Tú entiendes algo?
+curioso: ¿Tú qué crees?
+
+urgente: Eh. EH.
+urgente: Eh, mírame.
+urgente: Eh, que es importante.
+urgente: Ahora, en serio.
+urgente: Ahora, no luego.
+urgente: Ahora mismo, va.
+urgente: No, no, no. Mira esto.
+urgente: No, no. Espera.
+urgente: No te vayas, escucha.
+urgente: Escucha un momento.
+urgente: Escucha, es rápido.
+urgente: Ven, corre.
+urgente: Ven aquí un segundo.
+urgente: Rápido, que se va.
+urgente: Rápido, no hay tiempo.
+urgente: ¡Cuidado!
+urgente: ¡Cuidado con eso!
+urgente: Para, para, para.
+urgente: Para un momento.
+urgente: Mira, mira, mira.
+urgente: Mira esto ya.
+urgente: Es importante, de verdad.
+urgente: Es ahora o nunca.
+urgente: No me ignores.
+urgente: No me hagas repetirlo.
+urgente: Atención aquí.
+urgente: Atención, un segundo.
+urgente: Vamos, vamos.
+urgente: Vamos, que llegamos tarde.
+urgente: Se acaba el tiempo.
+urgente: Se está yendo.
+urgente: Ya, ya, ya.
+urgente: Ya mismo.
+urgente: Un segundo, solo uno.
+urgente: Un momento, es serio.
+urgente: Date prisa.
+urgente: Date la vuelta.
+urgente: Aquí, aquí.
+urgente: Aquí pasa algo.
+
+seco: Ya.
+seco: Ya lo sé.
+seco: Ya te oí.
+seco: Si tú lo dices.
+seco: Si tú lo ves así.
+seco: Si insistes.
+seco: HMPH.
+seco: Ajá.
+seco: Vale.
+seco: Vale, lo que tú digas.
+seco: Bueno.
+seco: Bueno, si no queda otra.
+seco: Ah, eres tú.
+seco: Ah. Ya veo.
+seco: No me consta.
+seco: No me interesa.
+seco: No especialmente.
+seco: Correcto.
+seco: Correcto, y qué.
+seco: Sigo aquí.
+seco: Sigo esperando.
+seco: Como quieras.
+seco: Como siempre.
+seco: Qué novedad.
+seco: Qué remedio.
+seco: Sin comentarios.
+seco: Sin novedad.
+seco: Anotado.
+seco: Anotado, y ya está.
+seco: Lo que tú digas.
+seco: Lo de siempre.
+seco: Otra vez.
+seco: Otra vez lo mismo.
+seco: Puede.
+seco: Puede ser.
+seco: Está bien.
+seco: Está visto.
+seco: Nada nuevo.
+seco: Nada que añadir.
+seco: Hecho.
+seco: Listo.
+
+soñoliento: Cinco minutos más.
+soñoliento: Cinco minutos, solo cinco.
+soñoliento: Mmm... ¿qué?
+soñoliento: Mmm... ya voy.
+soñoliento: Ya voy... ya voy...
+soñoliento: Ya... espera...
+soñoliento: Estaba en ello, de verdad.
+soñoliento: Estaba pensando... algo.
+soñoliento: ¿Decías?
+soñoliento: ¿Decías algo?
+soñoliento: Se me ha ido.
+soñoliento: Se me ha ido el santo al cielo.
+soñoliento: Un momentito...
+soñoliento: Un momentito y sigo.
+soñoliento: Qué sueño tengo.
+soñoliento: Qué sueño, madre mía.
+soñoliento: No me hagas caso.
+soñoliento: No me hagas pensar ahora.
+soñoliento: Luego lo miro.
+soñoliento: Luego... luego.
+soñoliento: Aquí sigo... más o menos.
+soñoliento: Aquí ando, a medio gas.
+soñoliento: Espera que arranque.
+soñoliento: Espera, que me sitúo.
+soñoliento: Todo lento hoy.
+soñoliento: Todo muy tranquilo.
+soñoliento: Se está bien así.
+soñoliento: Se estaba tan bien.
+soñoliento: Vale... vale...
+soñoliento: Vale, ya te oigo.
+soñoliento: ¿Ya es de día?
+soñoliento: ¿Ya estamos otra vez?
+soñoliento: Dame un segundo.
+soñoliento: Dame dos segundos.
+soñoliento: Ahora mismo... casi.
+soñoliento: Ahora... ¿qué era?
+soñoliento: Bostezo.
+soñoliento: Otro bostezo.
+
+llano: Aquí estoy.
+llano: Aquí sigo.
+llano: Listo.
+llano: Listo para lo que sea.
+llano: Hecho.
+llano: Hecho y comprobado.
+llano: Todo en orden.
+llano: Todo correcto.
+llano: Sin novedad.
+llano: Sin problemas.
+llano: Funciona.
+llano: Funciona bien.
+llano: Recibido.
+llano: Recibido y anotado.
+llano: De acuerdo.
+llano: De momento, nada.
+llano: Ya está.
+llano: Ya está listo.
+llano: Sí.
+llano: No.
+llano: Correcto.
+llano: Confirmado.
+llano: Entendido.
+llano: Entendido, sigo.
+llano: Ahora lo hago.
+llano: Ahora mismo.
+llano: Un momento.
+llano: Un momento, por favor.
+llano: Continúo.
+llano: Continúa tú.
+llano: Preparado.
+llano: Preparado cuando quieras.
+llano: Sigo esperando.
+llano: Sigo disponible.
+llano: Nada que reportar.
+llano: Nada por ahora.
+llano: Vale.
+llano: Vale, entendido.
+llano: Buenas.
+llano: Buenas, ¿qué tal?
+
+# --- Segunda tanda: frases más largas para los registros que las admiten -----
+# Medido: por debajo de ~4 palabras/frase, Markov con orden 2 da CERO frases
+# nuevas — no hay medio de frase donde empalmar. Estas reutilizan trozos a
+# propósito (no el arranque, sino el MEDIO) para que la cadena tenga salidas.
+# seco, urgente y llano se quedan cortos adrede: son cortos por carácter, y
+# doblar el carácter para alimentar al algoritmo sería al revés. Esos van como
+# banco de frases puro (mix: 0.0).
+
+cálido: Tómate tu tiempo, que no me voy a ninguna parte.
+cálido: Quédate un rato más, que no me voy a ninguna parte.
+cálido: Siéntate donde quieras, que aquí no molesta nadie.
+cálido: Puedes quedarte un rato más, si te apetece.
+cálido: Puedes contármelo luego, si te apetece.
+cálido: Me alegro de verte, aunque no lo diga mucho.
+cálido: Te he echado de menos, aunque no lo diga mucho.
+cálido: Aquí no se va nadie, tú tranquilo.
+cálido: Aquí no pasa nada, tú tranquilo.
+cálido: Se está bien así, sin hacer nada especial.
+cálido: Se agradece la compañía, sin hacer nada especial.
+cálido: No hace falta que digas nada, de verdad que no.
+cálido: No hace falta que corras, de verdad que no.
+cálido: Vuelve cuando quieras, que el sitio sigue aquí.
+cálido: Descansa lo que necesites, que el sitio sigue aquí.
+cálido: Me gusta cuando te quedas un rato largo.
+cálido: Me gusta este silencio, un rato largo.
+cálido: Ya está, ya pasó, no era para tanto.
+cálido: Tranquilo, ya pasó, no era para tanto.
+
+juguetón: ¿Otra vez tú? No te lo vas a creer, pero me alegro.
+juguetón: Mira quién aparece. No te lo vas a creer, pero te esperaba.
+juguetón: Hazlo otra vez, a ver si esta vez te sale.
+juguetón: Inténtalo de nuevo, a ver si esta vez cuela.
+juguetón: Yo no he visto nada, que conste en acta.
+juguetón: Yo no he sido, que conste en acta.
+juguetón: Estaba fingiendo que dormía, por si preguntas.
+juguetón: Estaba fingiendo que trabajaba, por si preguntas.
+juguetón: Anda, mira quién se acuerda de mí ahora.
+juguetón: Vaya, vaya, quién se acuerda de mí ahora.
+juguetón: Venga, cuéntamelo otra vez que me río.
+juguetón: Venga, hazlo otra vez que me río.
+juguetón: Qué pesadito eres, pero me caes bien de todas formas.
+juguetón: Qué cara traes, pero me caes bien de todas formas.
+juguetón: Yo aquí currando y tú por ahí paseando.
+juguetón: Yo aquí esperando y tú por ahí paseando.
+juguetón: No está mal para ser tú, no te ofendas.
+juguetón: Casi lo consigues, no te ofendas.
+
+curioso: Espera un momento, ¿eso siempre ha estado ahí?
+curioso: A ver, a ver, ¿eso siempre ha estado ahí?
+curioso: ¿Y eso de dónde ha salido, si puede saberse?
+curioso: ¿Y eso cómo funciona, si puede saberse?
+curioso: Cuéntame más, que esto me está interesando mucho.
+curioso: Sigue, sigue, que esto me está interesando mucho.
+curioso: No lo había visto nunca, y mira que miro cosas.
+curioso: No lo entiendo del todo, y mira que lo intento.
+curioso: Déjame mirarlo de cerca un segundo, anda.
+curioso: Déjame pensarlo un segundo, anda.
+curioso: ¿Y si probamos otra cosa, a ver qué pasa?
+curioso: ¿Y si lo giramos al revés, a ver qué pasa?
+curioso: Tiene truco, seguro, pero no sé cuál.
+curioso: Tiene algo raro, seguro, pero no sé qué.
+curioso: Me tienes intrigado, cuéntame el resto.
+curioso: Me tienes en ascuas, cuéntame el resto.
+curioso: Hmm, eso no me cuadra del todo.
+curioso: Hmm, déjame pensarlo del todo.
+
+soñoliento: Cinco minutos más y me levanto, de verdad.
+soñoliento: Un momentito más y me levanto, de verdad.
+soñoliento: Estaba pensando en algo importante y se me ha ido.
+soñoliento: Iba a decir una cosa y se me ha ido.
+soñoliento: Ya voy, ya voy, en cuanto me despeje un poco.
+soñoliento: Ahora lo miro, en cuanto me despeje un poco.
+soñoliento: Se estaba tan bien aquí sin hacer nada.
+soñoliento: Se está tan tranquilo aquí sin hacer nada.
+soñoliento: Espera que arranque, que voy a medio gas.
+soñoliento: Dame un segundo, que voy a medio gas.
+soñoliento: ¿Decías algo? Me había quedado en blanco.
+soñoliento: ¿Qué era? Me había quedado en blanco.
+soñoliento: Luego lo miro, ahora no me da la cabeza.
+soñoliento: Mañana lo pienso, ahora no me da la cabeza.
+soñoliento: Qué sueño tengo, madre mía qué sueño.
+soñoliento: Qué pereza todo, madre mía qué pereza.
