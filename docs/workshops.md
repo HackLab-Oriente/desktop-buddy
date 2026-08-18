@@ -60,8 +60,8 @@ contra la que comparar cuando lo suyo no arranque:
 | Cerebro | Anthropic, `buddy.ask` | conversación real |
 | NFC (RC522) | UID de 7 bytes + texto NDEF | etiqueta real leída en S3 |
 | Tipografía | acentos y ñ en pantalla | `¡Ñoño! ¿Qué tal? áéíóú` |
-| Audio de salida | MAX98357A + silenciado por hardware | [spike i2s-audio](../spikes/i2s-audio/README.md) |
-| Audio de entrada | INMP441, suelo −57 dBFS de pico | [spike i2s-mic](../spikes/i2s-mic/README.md) |
+| Audio de salida | MAX98357A + silenciado por hardware | [spike i2s-audio](https://github.com/HackLab-Oriente/desktop-buddy/blob/spike/i2s-audio/spikes/i2s-audio/README.md) |
+| Audio de entrada | INMP441, suelo −57 dBFS de pico | [spike i2s-mic](https://github.com/HackLab-Oriente/desktop-buddy/blob/spike/i2s-mic/spikes/i2s-mic/README.md) |
 | Bucle push-to-talk | mantener → grabar mudo → soltar → oírse | ídem, verificado |
 
 Y lo que **no** existe, que es de lo que van estas cuatro tardes:
