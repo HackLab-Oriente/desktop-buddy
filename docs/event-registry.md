@@ -1,6 +1,8 @@
 # Registro de eventos — el contrato del bus
 
-Cada evento que existe, qué lleva, quién lo emite y de quién es el nombre.
+Cada evento que existe, qué lleva, quién lo emite y de quién es el nombre —
+y, en una tabla aparte, los que **todavía no existen pero ya están
+diseñados**, para que nadie construya contra un nombre creyendo que es real.
 
 Esto es el **contrato entre equipos**. Es la razón de que los tracks puedan ir
 en paralelo: el equipo de voz puede construir sobre `voice.*` mientras
@@ -105,6 +107,36 @@ a esos dos, no a la respuesta cruda.
 | `boot.ready` | — | main | arranque terminado; la cara sale del splash con glitch |
 | `system.reload` | — | web UI | recargar la VM Berry (recarga en caliente) |
 
+## Eventos propuestos
+
+**Nada de esta tabla existe en código.** Están aquí porque ya estaban
+escritos en otros documentos, y un evento prometido en un doc y ausente del
+registro le cuesta una tarde a quien se lo cree. Al menos ahora están todos
+en el mismo sitio, con dueño y con el estado dicho en voz alta.
+
+Tres reglas para esta sección:
+
+- **Un nombre de aquí no es un compromiso.** Puede cambiar o desaparecer
+  mientras siga en esta tabla. Los nombres solo son para siempre cuando
+  cruzan a «Eventos actuales».
+- **Se sube a «Eventos actuales» en el mismo PR que lo implementa**, nunca
+  antes. Ese PR es el que fija el nombre.
+- Si algo lleva aquí mucho tiempo, la pregunta correcta no es «¿cuándo se
+  implementa?» sino «¿esto lo sigue queriendo alguien?».
+
+| evento | payload propuesto | dueño | especificado en | para qué |
+|---|---|---|---|---|
+| `voice.listening` | — | Voz | [#9](https://github.com/HackLab-Oriente/desktop-buddy/issues/9) | el pad está mantenido y el micro graba |
+| `voice.thinking` | — | Voz | [#9](https://github.com/HackLab-Oriente/desktop-buddy/issues/9) | soltaste el pad: empieza el viaje de 1,5–3 s de STT + cerebro + TTS. **Es el evento que deja al pack tapar la espera**, y sin él la espera se ve como un cuelgue |
+| `sound.done` | ruta del sonido | Voz | [pack-format.md](pack-format.md) | terminó de sonar un `buddy.sound.play` |
+| `sound.error` | razón | Voz | [pack-format.md](pack-format.md) | no se pudo reproducir |
+| `config.changed` | nombres de sección separados por coma (`"wifi,brain"`) | Web UI | [config-api.md](config-api.md) | cambió la configuración. **Nunca valores**: los packs Berry están suscritos al bus, así que un payload con la config dentro es una clave de API legible desde un pack |
+| `config.setup` | SSID del AP (`"buddy-a3f2"`) | Web UI | [config-api.md](config-api.md) | el buddy entró en modo aprovisionamiento; la cara puede enseñar el QR |
+| `timer.idle_5m` | — | Firmware | [architecture.md](architecture.md) | cinco minutos sin interacción |
+| `sense.light.dark` | — | Electrónica | [architecture.md](architecture.md), [hardware.md](hardware.md) | el sensor de luz dice que la sala está a oscuras → reflejo de dormir |
+| `storage.sd.gone` | — | Firmware | [pack-format.md](pack-format.md) | se quitó la tarjeta SD y los assets de `media/` dejan de resolver. Un evento, no un crash |
+| `webhook.*` | — | Firmware | [architecture.md](architecture.md) | **solo hub, v2+.** No es un evento del buddy; se lista para que nadie lo confunda con uno |
+
 ## Espacios de nombres
 
 Un equipo es dueño de los nombres bajo su prefijo. **Añadir un evento en tu
@@ -114,11 +146,11 @@ responsable de ese equipo.
 
 | prefijo | dueño | estado |
 |---|---|---|
-| `touch.*`, `nfc.*`, `sense.*` | Electrónica | `touch.*`, `nfc.tag` vivos |
-| `voice.*`, `sound.*` | Voz | ninguno aún — los define el track |
+| `touch.*`, `nfc.*`, `sense.*` | Electrónica | `touch.*` y `nfc.*` vivos; `sense.light.dark` propuesto |
+| `voice.*`, `sound.*` | Voz | **ninguno vivo**; 4 propuestos — los fija el equipo de voz |
 | `face.*`, `led.*` | Personalidad + Firmware | vivos |
-| `config.*` | Web UI | ninguno aún |
-| `brain.*`, `boot.*`, `system.*`, `timer.*`, `storage.*` | Firmware y arquitectura | parcialmente vivos |
+| `config.*` | Web UI | **ninguno vivo**; 2 propuestos en [config-api.md](config-api.md) |
+| `brain.*`, `boot.*`, `system.*`, `timer.*`, `storage.*` | Firmware y arquitectura | `brain.*`, `boot.*`, `system.*` vivos; `timer.*` y `storage.*` solo propuestos |
 
 Por qué esta división: si firmware tiene que nombrar cada evento, los demás
 tracks se bloquean esperando a una persona. Si cada uno inventa libremente,
@@ -128,32 +160,28 @@ cuatro tracks en paralelo.
 
 ## Agujeros conocidos
 
-Inconsistencias reales, listadas para que nadie las redescubra:
+Inconsistencias reales, listadas para que nadie las redescubra.
+
+*Los eventos prometidos en un doc y ausentes del código ya no son un agujero
+suelto: viven arriba, en [Eventos propuestos](#eventos-propuestos), con dueño
+y estado.*
 
 1. **`face.look` está muerto.** `round_face.cpp` se suscribe; nadie lo
    publica. Resto del experimento del logo flotante. O se conecta a la
    mirada o se borra el suscriptor.
-2. **Documentado pero no implementado.** `architecture.md` menciona
-   `timer.idle_5m`, `sense.light.dark` y `webhook.*`; `pack-format.md`
-   promete `sound.done` y `storage.sd.gone`. Ninguno existe en código. Son
-   diseños razonables — solo que aún no son reales, y un doc que describe
-   eventos ausentes le cuesta una tarde a alguien.
-3. **El bucle de voz necesita eventos que no existen**: como mínimo
-   `voice.listening` y `voice.thinking`, para que un pack tape el viaje de
-   1,5–3 s con un gesto. Primer encargo del equipo de voz.
-4. **El payload no tiene esquema.** `brain.reply` ya lleva JSON dentro del
+2. **El payload no tiene esquema.** `brain.reply` ya lleva JSON dentro del
    string. Tolerable hoy; dolerá cuando la web consuma eventos. Si aparece
    un segundo payload estructurado, revisar antes de que haya un tercero.
-5. **El vocabulario de emociones está duplicado.** `face.emotion` acepta los
+3. **El vocabulario de emociones está duplicado.** `face.emotion` acepta los
    ocho nombres de `face_model.cpp`, mientras `led.mood` acepta solo
    `calm|excited|thinking|off`. Dos vocabularios solapados para un concepto —
    lo que el grupo decida sobre expresiones tiene que reconciliarlos.
-6. **`brain.error` no tiene suscriptor.** El cerebro cloud lo publica al
+4. **`brain.error` no tiene suscriptor.** El cerebro cloud lo publica al
    fallar y nada reacciona, así que una petición fallida es silenciosa: el
    buddy simplemente no contesta nunca. Es el único agujero que contradice
    un principio declarado ("nunca un ladrillo") — como mínimo debería mover
    una cara.
-7. **`time.synced` no tiene suscriptor.** Inofensivo hoy, pero significa que
+5. **`time.synced` no tiene suscriptor.** Inofensivo hoy, pero significa que
    nada espera al reloj; cualquier cosa basada en la hora lo necesitará.
 
 ## Añadir un evento — checklist
@@ -161,7 +189,10 @@ Inconsistencias reales, listadas para que nadie las redescubra:
 1. ¿Es un **hecho** (un sense) o una **petición** (una salida)? Eso elige el
    espacio de nombres.
 2. ¿El espacio es tuyo? Si no, habla antes con su responsable.
-3. Añade la fila a este archivo **en el mismo PR** que el código.
+3. Añade la fila a **«Eventos actuales»** en el mismo PR que el código. Si
+   aún lo estás diseñando y no hay código, la fila va a **«Eventos
+   propuestos»** — un evento no cruza de una tabla a la otra sin
+   implementación.
 4. Payload: el string más pequeño que funcione. Una ruta o un id, nunca
    bytes.
 5. Si un pack debería reaccionar a él, dilo también en

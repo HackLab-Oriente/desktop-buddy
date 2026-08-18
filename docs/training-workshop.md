@@ -1,8 +1,10 @@
 # Taller de entrenamiento: enseña al buddy a escribir sus propias frases
 
 Una receta práctica para entrenar un modelo de lenguaje diminuto — de cero
-experiencia en ML a un modelo tuyo corriendo en el buddy. Es la sesión previa
-a los talleres votada en [workshops.md](workshops.md); se apoya en los
+experiencia en ML a un modelo tuyo corriendo en el buddy. Es una **sesión
+suelta**, sin fecha todavía — ver [workshops.md](workshops.md#la-sesión-de-entrenamiento-suelta);
+no depende de ninguna sesión del buddy y ninguna sesión del buddy depende de
+ella. Se apoya en los
 resultados de kernel de `spikes/tinylm-s3` (rama `spike/tinylm-s3`), donde el
 lado de inferencia ya está resuelto: **152 tok/s** para un modelo de 260K
 parámetros en el ESP32-S3, con la salida streameando a la cara.

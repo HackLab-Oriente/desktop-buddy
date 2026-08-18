@@ -181,6 +181,43 @@ Después, en paralelo:
 - **Última hora reservada**: demo, retro y votación de roadmap (¿wake word?
   ¿hub? ¿actuadores? ¿qué quiere el lab después?).
 
+## La sesión de entrenamiento (suelta)
+
+[Taller de entrenamiento](training-workshop.md): entrenar un modelo de lenguaje
+diminuto, de cero experiencia en ML a un modelo propio escribiendo frases en el
+buddy. **No hace falta saber nada de IA**; si sabes ejecutar comandos en una
+terminal, sabes entrenar un modelo.
+
+Es la única sesión del programa que **flota**, y por dos razones concretas:
+
+- **No necesita hardware.** Portátiles y terminal. No compite por los 2–3
+  prototipos, que es el recurso escaso de las otras cuatro tardes.
+- **El lado de inferencia ya está resuelto**: el spike `tinylm-s3` mide
+  **152 tok/s** para un modelo de 260K parámetros en el S3, con la salida
+  streameando a la cara ([local-model-bringup.md](local-model-bringup.md)).
+  La sesión va de entrenar, no de arrancar.
+
+**Recomendación: después de la serie, no antes.** El primer sábado libre es el
+26 de septiembre; la agenda del lab ya tiene además dos sesiones de *IA y
+hardware hacking* el 7 y el 21 de noviembre, que pueden ser su casa natural.
+
+Por qué después:
+
+1. **No cabe antes.** La serie ocupa cuatro sábados consecutivos desde el 29
+   de agosto, y el sábado anterior está a menos de una semana vista.
+2. **Añadir un quinto sábado consecutivo antes de empezar arriesga la
+   asistencia a la serie**, que es lo que tiene fecha y presupuesto.
+3. **Nada del buddy la bloquea.** Ninguna de las cuatro sesiones necesita que
+   alguien haya entrenado un modelo.
+
+Lo que cambiaría la recomendación: **#17** (frases locales — ¿banco de frases o
+modelo local?) está en el bloque de decisiones de la sesión 1, y decidirlo con
+un modelo entrenado en las manos es mejor que decidirlo leyendo un documento.
+Pero eso se resuelve **acotando #17**, no adelantando la sesión: lo que la
+sesión 1 tiene que decidir es si el **formato de packs deja sitio a las dos
+opciones**. Cuál gana no hace falta saberlo hasta la sesión 3, que es cuando se
+construye el pack `default` — y para entonces habrá números, no intuiciones.
+
 ## Notas de riesgo
 
 - **El único riesgo real sigue siendo el scope creep.** Que el firmware vaya
