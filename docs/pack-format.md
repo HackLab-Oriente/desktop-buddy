@@ -69,7 +69,8 @@ ambos, así el contenido puede migrar de nivel sin tocar scripts.
     "guardrails": "Only discuss the café's board games."
   },
   "voice": { "mode": "cached-first", "voice_id": "warm_host" },
-  "expressions": { "map": "faces/expressions.json" }
+  "expressions": { "map": "faces/expressions.json" },
+  "senses": { "touch": { "pet_ms": 400 } }
 }
 ```
 
@@ -311,6 +312,128 @@ después sigue ganando. Por eso los reflejos que ya existen —que publican los
 dos— se comportan exactamente igual que antes, y los nuevos pueden publicar
 solo `face.emotion` y dejar de repetirse.
 
+## Los sentidos: umbrales en el pack, decisiones en los reflejos
+
+**Propuesta.** El bus lleva eventos discretos; los sensores dan valores
+continuos. Alguien tiene que decidir que 12 lux «es de noche», y hoy ese
+número estaría compilado en el firmware — el mismo error que tenía
+`kEmotions`.
+
+Ya está pasando: [`touch_sense.cpp`](../firmware/components/senses/touch_sense.cpp)
+parte `touch.poke` de `touch.pet` en `< 400` ms. **Un buddy al que hay que
+acariciar un segundo entero para que cuente como caricia es otro bicho.** Eso
+es personalidad viviendo en un número mágico.
+
+El reparto:
+
+> **El pack pone los umbrales que convierten lecturas en eventos. Los reflejos
+> deciden qué significan esos eventos.**
+
+Lo que *no* se propone es un sistema de condiciones declarativas en el pack
+(«cuando esté oscuro, ponte somnoliento»). Eso ya lo hacen los reflejos, en
+caliente y con toda la potencia de un lenguaje; una segunda capa de
+comportamiento en JSON sería la duplicación de #19 otra vez, ahora en el
+comportamiento. Y las condiciones crecen: «cuando esté oscuro» acaba siendo
+«cuando esté oscuro Y nadie me toque hace 30 s Y sean más de las diez», que es
+un lenguaje de scripting — y ya tenemos uno mejor.
+
+```json
+"senses": {
+  "touch":    { "pet_ms": 400 },
+  "idle":     { "after_s": 300 },
+  "light":    { "dark_below_lux": 15, "bright_above_lux": 40 },
+  "motion":   { "shake_g": 1.8, "pickup_g": 0.4 },
+  "presence": { "arrive_after_s": 2, "leave_after_s": 30 }
+}
+```
+
+### Valores por defecto
+
+Como con las expresiones y los moods: **el pack sobrescribe, lo ausente usa el
+built-in.** Un pack sin `senses` se comporta igual que hoy, y un pack puede
+tocar un solo umbral sin declarar los demás.
+
+| umbral | por defecto | de dónde sale |
+|---|---|---|
+| `touch.pet_ms` | **400** | el valor que ya está compilado; así nada cambia al adoptarlo |
+| `idle.after_s` | **300** | los 5 min del `timer.idle_5m` propuesto |
+| `light.dark_below_lux` | **15** | una habitación a oscuras da <10 lux; en penumbra, ~50 |
+| `light.bright_above_lux` | **40** | |
+| `motion.shake_g` | **1,8** | **provisional** — la capa de gestos necesita play-testing |
+| `motion.pickup_g` | **0,4** | **provisional**, ídem |
+| `presence.arrive_after_s` | **2** | el radar ve el movimiento antes de que te sientes |
+| `presence.leave_after_s` | **30** | irse cuesta más que llegar, a propósito |
+
+**Los umbrales van en pares, y ese hueco *es* la histéresis.** Un umbral único
+tartamudea en la frontera: a 15,0 lux exactos emitiría `dark`/`bright` en
+bucle. Por eso oscuro es «<15» y claro es «>40», con tierra de nadie en medio.
+Lo mismo en el tiempo con `presence`: llegar tarda 2 s y marcharse 30, para que
+asomarte fuera del alcance del radar no te «vaya» del escritorio. El driver del
+RC522 ya lleva histéresis de 3 fallos por esta misma razón.
+
+Y una razón práctica que ya está escrita en
+[hardware.md](hardware.md): la capa de gestos del MPU6050 «necesita
+play-testing humano para ajustar umbrales — presupuesta una hora divertida».
+Con los umbrales compilados, esa hora es un bucle de recompilar y reflashear.
+Con los umbrales en el pack, es editar y recargar. Es la diferencia entre una
+hora divertida y una hora miserable.
+
+### Leer sensores desde Berry
+
+```berry
+buddy.sense(name)                 # valor actual, o nil si no hay sensor / la lectura está vieja
+```
+
+**Sí, y con una regla que no es negociable: `buddy.sense()` lee una caché,
+nunca el dispositivo.** Los sensores los sondea su propia tarea a su propio
+ritmo y dejan el resultado en una instantánea; `buddy.sense()` lee memoria, en
+microsegundos.
+
+El motivo es el de siempre en este bus: **la entrega de eventos es monohilo y
+un handler no puede bloquear.** Una lectura I2C del AHT20 tarda ~80 ms; hacerla
+dentro de un handler congelaría la entrega de eventos para todo el mundo.
+
+No es mecanismo nuevo: [hardware.md](hardware.md) ya dice que todos los
+sensores alimentan el `sensor_snapshot` del Brain. Esto es un segundo
+consumidor de algo que ya estaba diseñado.
+
+**Por qué hace falta, y no basta con los eventos.** Los eventos dicen *cuándo
+cambió algo*; la instantánea dice *cómo están las cosas ahora*. Un reflejo que
+reacciona a `touch.pet` puede querer saber si está oscuro — y eso no es un
+evento, es estado ambiental. Sin API de lectura, cada pack acaba reconstruyendo
+ese estado a mano guardando cada evento en variables globales… **y esa
+reconstrucción está mal hasta que llega el primer evento.** Un buddy que
+arranca en una habitación a oscuras no sabría que está oscuro hasta que la luz
+*cambie*.
+
+**`nil` cuando no hay dato, y esto importa.** Si el BH1750 no está montado, o
+murió, o la lectura es vieja, `buddy.sense("light")` devuelve `nil` — no el
+último valor para siempre, y no cero. Un cero silencioso es «oscuridad total»
+para un reflejo, que es exactamente la clase de fallo que nadie depura.
+
+**Unidades reales, las mismas que los umbrales**: lux, °C, g. Así un pack puede
+razonar a la vez sobre `dark_below_lux: 15` y sobre lo que devuelve
+`buddy.sense("light")`, sin conversiones mentales.
+
+```berry
+buddy.on("touch.pet", def (ev)
+  var lux = buddy.sense("light")
+  if lux != nil && lux < 15
+    buddy.led.mood("off")         # caricia de noche: no le des un flashazo
+  else
+    buddy.face.emotion("happy")
+  end
+end)
+```
+
+### Una nota de privacidad que conviene no descubrir tarde
+
+El radar mmWave sabe **cuándo estás en tu escritorio**, y a través de la
+carcasa. Un pack puede leer eso y metérselo a `buddy.ask`, que lo manda a la
+nube. No es un canal nuevo —un pack ya puede mandar texto arbitrario al
+cerebro— pero el dato es bastante más personal que la mayoría. Va en la misma
+conversación que la seguridad de instalar packs (#21, #24), no en esta.
+
 ## Superficie de la API de scripts (Berry)
 
 ```berry
@@ -330,6 +453,7 @@ buddy.say(text)                   # estas palabras exactas salen (pantalla; + TT
 buddy.ask(prompt)                 # le preguntas al Brain; ÉL decide qué dice el buddy
 buddy.hint(text)                  # solo pantalla, nunca se pronuncia
 
+buddy.sense(name)                 # lectura cacheada de un sensor; nil si falta o está vieja
 buddy.lang                        # active language code, from pack + device config
 buddy.pack.meta                   # own manifest as a map
 ```
