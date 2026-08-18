@@ -69,7 +69,7 @@ ambos, así el contenido puede migrar de nivel sin tocar scripts.
     "guardrails": "Only discuss the café's board games."
   },
   "voice": { "mode": "cached-first", "voice_id": "warm_host" },
-  "expressions": { "emotion_map": "faces/emotions.json" }
+  "expressions": { "map": "faces/expressions.json" }
 }
 ```
 
@@ -85,63 +85,172 @@ archivo de media si el reflejo lo nombra, TTS si no).
 
 
 
-## De dónde salen las frases
+## Tres capas: expresión, registro, presentación
 
-**Decidido: las dos cosas, y se elige por expresión.**
-([#17](https://github.com/HackLab-Oriente/desktop-buddy/issues/17))
+Antes del banco de frases conviene separar tres cosas que se confunden, porque
+casi todas las decisiones abiertas de personalidad viven en esa confusión.
 
-Cada entrada del mapa de expresiones (`faces/emotions.json`, el archivo que
-#18 saca de C++) lleva una propiedad `source`:
+| capa | quién la define | cuántas hay |
+|---|---|---|
+| **expresión** | quien escribe el pack | **abiertas** — inventa las que quiera |
+| **registro** | el proyecto | **cerradas y pocas** |
+| **presentación** | firmware | animación de cara + `led.mood`, derivadas del registro |
+
+Una **expresión** es un estado con nombre propio del pack: `huraño`, `festivo`,
+`resacoso`. Un **registro** es una *manera de hablar*: seco, cálido, urgente.
+Cada expresión declara a qué registro pertenece.
 
 ```json
 {
-  "happy":     { "source": "bank"  },
-  "curious":   { "source": "model" },
-  "angry":     { "source": "bank"  }
+  "huraño":  { "registro": "seco",     "use_model": true  },
+  "festivo": { "registro": "juguetón"                     },
+  "alerta":  { "registro": "urgente",  "use_model": true  }
 }
 ```
 
-- **`bank`** — las frases están escritas a mano en `lines/<expresion>.txt`,
-  una por línea. Se elige una.
-- **`model`** — las genera el modelo local, condicionado por la expresión.
+Esto es lo que deshace el vocabulario duplicado de
+[#19](https://github.com/HackLab-Oriente/desktop-buddy/issues/19): en vez de dos
+listas paralelas (ocho `face.emotion` contra cuatro `led.mood`), hay **un solo
+vocabulario cerrado —el de registros— del que todo lo demás deriva**. Las
+expresiones son infinitas porque son del autor; los registros son pocos porque
+son el contrato.
 
-Por expresión y no global, que es lo que hace que la decisión sea buena: hay
-expresiones que quieren ingenio escrito a mano (`angry` → «HMPH.») y otras que
-quieren variedad (`curious`). Una sola palanca para todo el pack obligaría a
-elegir mal en la mitad de los casos.
+## De dónde salen las frases
 
-### `source` es una preferencia, no una exclusión
+**Decidido: las dos fuentes, y se elige por expresión.**
+([#17](https://github.com/HackLab-Oriente/desktop-buddy/issues/17))
 
-**`source: "model"` no exime de tener `lines/<expresion>.txt`.** Si no hay
-modelo flasheado, si falla, o si tarda de más, se cae al banco. Es la única
-lectura compatible con el principio declarado de que el buddy **nunca es un
-ladrillo**: una expresión sin frase no es un error recuperable, es un bicho
-que se queda mudo.
+- El **banco** vive en `lines/<expresión>.txt`, una frase por línea. Siempre.
+- **`use_model: true`** añade el modelo local, condicionado por el **registro**
+  de esa expresión.
 
-Dicho de otra forma: el banco es el suelo y el modelo es el techo. Un pack sin
-modelo funciona entero; un pack sin banco es un pack roto que además no lo
-parece hasta que falla el modelo.
+### `use_model` es un añadido, no una alternativa
 
-### Lo que cuesta cada uno
+`use_model: true` **no exime de tener `lines/<expresión>.txt`.** Si no hay
+modelo, si falla o si tarda de más, se cae al banco. Es la única lectura
+compatible con «nunca un ladrillo»: una expresión sin frase deja al bicho mudo.
 
-| | latencia | qué gasta |
+Por eso es un booleano y no un `source: "bank" | "model"`. Un enum diría que la
+fuente *es* el modelo, y sería mentira — el banco sigue ahí y sigue haciendo
+falta. Un booleano dice lo que de verdad pasa: «además, prueba el modelo». Y
+como el valor por defecto es `false`, la expresión normal no escribe nada.
+
+**Pero el nombre no es la defensa: la defensa es el validador.** El validador
+de packs exige `lines/<expresión>.txt` para **toda** expresión, use modelo o
+no. Un pack sin banco está roto de una forma que no se nota hasta que falla el
+modelo, que es el peor momento para enterarse.
+
+### El modelo es *el* del dispositivo. No hay opciones
+
+`use_model` no lleva parámetro y no lo va a llevar: **hay un solo modelo, el
+que está flasheado en la partición `model` del chip**, y un pack lo
+**referencia**, nunca lo trae. Un pack pesa kilobytes; un modelo, megas.
+
+No es un hueco por rellenar, es una decisión: **no se soportan varios
+modelos.** Si algún día se soportaran, aparecería un campo entonces — no ahora,
+y no «por si acaso». Si no hay modelo flasheado, `use_model: true` es
+silenciosamente equivalente a `false`, que es justo lo que la caída al banco
+garantiza.
+
+### Nombres de archivo con acentos
+
+El nombre del archivo sigue a **la expresión**, que la inventa quien escribe el
+pack — no al vocabulario de registros. `huraño` → `lines/huraño.txt`. Que #16 y
+#19 sigan abiertas **no bloquea** escribir bancos de frases.
+
+Lo que sí hay que saber:
+
+- **La longitud no es problema.** `CONFIG_LITTLEFS_OBJ_NAME_LEN=64` incluyendo
+  el terminador, y `huraño.txt` son 11 bytes en UTF-8. Harían falta ~30
+  caracteres acentuados para acercarse.
+- **`fopen` pasa los bytes tal cual**, así que UTF-8 funciona sin tocar nada.
+- **La trampa es la normalización Unicode, y es silenciosa.** `ñ` se puede
+  codificar como `U+00F1` (precompuesta, NFC) o como `n` + `U+0303`
+  (descompuesta, NFD). macOS tiende a NFD; LittleFS no normaliza nada y compara
+  bytes. Un pack escrito en un Mac puede acabar con el archivo en NFD y el JSON
+  en NFC: **son dos nombres distintos para LittleFS**, el archivo «no existe» y
+  no hay ningún error que lo explique. **El validador tiene que normalizar a NFC
+  y rechazar lo que no lo esté.**
+- **Para mostrarlo en pantalla, Latin-1 y ya**: la fuente cubre `U+0000`–`U+00FF`
+  (acentos, ñ, ¿, ¡). Un nombre de expresión en japonés o con emoji se
+  imprimiría vacío.
+
+## Los registros — juego inicial propuesto
+
+**Propuesta, no decisión**: el juego lo cierra el equipo de personalidad
+(#16, #19). Siete, porque son el vocabulario cerrado y deben caber en la cabeza.
+
+| registro | la manera | `led.mood` sugerido |
 |---|---|---|
-| `bank` | microsegundos | nada |
-| `model` | ~65 ms para una frase corta (152 tok/s medidos en S3) | compite con el render de la cara, que va a 30,4 ms/frame |
+| `cálido` | cercano, sin prisa | `calm` |
+| `juguetón` | pica, se burla, no va en serio | `excited` |
+| `curioso` | pregunta, se fija, no da nada por hecho | `thinking` |
+| `urgente` | corto, reclama atención ya | `excited` |
+| `seco` | mínimo, retiene, no colabora | `calm` |
+| `soñoliento` | se apaga, se le va la frase | `off` |
+| `llano` | informa y punto — el neutro | `calm` |
 
-No es prohibitivo, pero **`model` cuesta frames** y quien escribe el pack
-debería saberlo. La contención con la cara está medida en
-[local-model-bringup.md](local-model-bringup.md).
+### Qué es escribir «en registro» y no «en situación»
 
-### Dos cosas que faltan por decidir
+Es la parte que se atraganta, así que aquí está la regla: **el registro es el
+*cómo*, la expresión es el *cuándo*.** Los tres ejemplos de cada registro
+contestan a propósito a situaciones distintas —un saludo, una reacción, una
+negativa— para que lo único constante sea la manera.
 
-1. **Los nombres de archivo copian el vocabulario de expresiones**, que
-   todavía se está decidiendo — #16 (cómo se llama el set) y #19
-   (`face.emotion` de 8 vs `led.mood` de 4). **No crees los `.txt` hasta que
-   esos dos caigan**, o será un renombrado masivo.
-2. **Qué modelo usa `model`.** Los packs son portables y un modelo pesa
-   megas, así que lo razonable es que el pack **referencie** el modelo del
-   dispositivo en vez de traérselo. Sin decidir.
+**La prueba**: intercambia dos frases de registros distintos. Si el significado
+sobrevive pero cambia la personalidad, has escrito registros. Si el significado
+se rompe, has escrito expresiones.
+
+**`cálido`**
+> Ahí estás.
+> Tómate tu tiempo, que no me voy a ninguna parte.
+> Te he echado de menos, aunque no lo diga.
+
+**`juguetón`**
+> ¿Otra vez tú? Qué pesadito.
+> Hazlo otra vez, a ver si te sale.
+> Yo no he visto nada. Yo no estaba.
+
+**`curioso`**
+> ¿Y eso qué es?
+> Espera… ¿eso siempre ha estado ahí?
+> Cuéntame más, que me interesa.
+
+**`urgente`**
+> Eh. EH.
+> Ahora, en serio.
+> No, no, no — mira esto.
+
+**`seco`**
+> Ya.
+> Si tú lo dices.
+> HMPH.
+
+**`soñoliento`**
+> Mmm… ¿qué?
+> Cinco minutos más.
+> Sigo aquí… más o menos.
+
+**`llano`**
+> Listo.
+> Conectado a la red.
+> No encuentro esa tarjeta.
+
+### Para qué sirven exactamente estos ejemplos
+
+**No son bancos de frases.** Los bancos van por expresión (`lines/huraño.txt`) y
+pueden ser todo lo específicos que quieran. Estos ejemplos definen **a qué suena
+cada registro**, y sirven para dos cosas: escribir el prompt que condiciona al
+modelo, y tener contra qué juzgar lo que el modelo devuelve.
+
+Dicho de otro modo: nadie tiene que escribir un banco por registro. El registro
+solo es el parámetro con el que se le pide al modelo.
+
+### Frases cortas, y no por estilo
+
+Tres razones medidas: la pantalla es redonda y de 240 px; el TTS se cobra por
+carácter; y el buddy es **half-duplex**, así que mientras habla está sordo — una
+frase larga es un rato largo sin poder escucharte.
 
 ## Superficie de la API de scripts (Berry)
 
@@ -232,6 +341,15 @@ narración de este texto") para que el dueño del café nunca toque una
 terminal.
 
 
+
+### Dos reglas que el validador tiene que aplicar
+
+1. **Toda expresión necesita su `lines/<expresión>.txt`**, use modelo o no. Un
+   pack sin banco no falla al validarlo ni al arrancar: falla el día que falla
+   el modelo.
+2. **Los nombres de archivo, normalizados a NFC**, y rechazar lo que no lo
+   esté. Es la única forma de que un pack escrito en un Mac funcione en el
+   chip — ver «Nombres de archivo con acentos».
 
 ## Preguntas abiertas para la spec
 
