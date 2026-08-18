@@ -280,37 +280,123 @@ y sustituye `spikes/tinylm-s3/main/tok512.h` y recompila.
 
 ## 7. Parte 2: el corpus del buddy
 
-Cuando exista el **banco de frases** del grupo (el archivo de frases
-etiquetadas por ánimo — que se entrega en un pack por derecho propio), hace
-doble función como datos de entrenamiento. El formato es una frase por
-línea, el ánimo como prefijo en texto plano:
+**El corpus de entrenamiento y el banco de frases ya no son el mismo archivo.**
+Conviene tenerlo claro antes de escribir una línea:
+
+| | va por | para qué |
+|---|---|---|
+| **banco** (`lines/<expresión>.txt`) | expresión (`huraño`) | se lee tal cual; puede ser todo lo específico que quiera |
+| **corpus** (este) | **registro** (`seco`) | entrena al modelo a *hablar así* sobre cualquier cosa |
+
+El formato sigue siendo una línea por frase con el prefijo en texto plano —
+pero el prefijo es el **registro**, no la emoción:
 
 ```
-happy: Ooh, a friend! Today is officially the best day.
-sleepy: Five more minutes. Maybe ten. Wake me for snacks.
-angry: I have logged this offense. There will be consequences.
+cálido: Ahí estás. Te estaba esperando.
+seco: Ah. Eres tú.
+soñoliento: Mmm… ¿ya es de día?
 ```
 
-En generación, el firmware alimenta `happy: ` como prompt y el modelo lo
-completa en ese registro. Los prefijos en texto plano (no `<tokens>`
-especiales) mantienen el pipeline del tokenizer intacto — el BPE los aprende
-como piezas frecuentes normales.
+En generación el firmware alimenta `seco: ` como prompt y el modelo lo
+completa. Prefijos en texto plano y no `<tokens>` especiales: el BPE los
+aprende como piezas frecuentes y el pipeline del tokenizer se queda intacto.
 
-Prep de la sesión aún por construir (pequeño, ~30 líneas cada uno, siguiendo
-el patrón de `tinystories.py`): un script `pretokenize` para nuestro archivo
-de corpus, y un script de muestreo que pregunte con cada ánimo. **Dos
-expectativas que fijar:**
+### Escríbelo como una rejilla, no como una lista
 
-- Un modelo de 150K con unos pocos miles de líneas va a **memorizar
-  fuerte** — se comporta como un banco de frases difuso que recombina. No es
-  fracaso; es precisamente el A/B que el grupo debe juzgar *de oído* contra
-  el banco a secas (el val loss deja de significar algo a este tamaño de
-  datos — lee la salida en su lugar).
-- **Los prefijos de ánimo quedan grabados al entrenar**, así que el set
-  final de emociones del grupo tiene que decidirse antes. Es la misma
-  dependencia de gobernanza que sacar `kEmotions` del C++ a datos de pack:
-  los ánimos son vocabulario compartido entre la cara, los packs y ahora el
-  modelo.
+Es la parte que decide si esto funciona. **No escribas frases sueltas por
+registro: escribe la misma situación en los siete.**
+
+El motivo es concreto. En un corpus pequeño, registro y tema van juntos sin
+querer — si todas las frases `seco` hablan de tarjetas y todas las `cálido` de
+saludos, el modelo aprende *el tema*, porque no tiene forma de saber cuál de
+las dos variables querías. Manteniendo la situación fija y variando solo el
+registro, **el registro es lo único que explica la diferencia**. Eso es todo el
+truco, y es la razón de que 200 líneas en rejilla enseñen más que 2.000 sueltas.
+
+**Situación: llegas y te sientas**
+
+```
+cálido: Ahí estás. Te estaba esperando.
+juguetón: Mira quién se ha dignado a aparecer.
+curioso: ¿Y hoy qué traes?
+urgente: Por fin. Ven, ven.
+seco: Ah. Eres tú.
+soñoliento: Mmm… ¿ya es de día?
+llano: Hola.
+```
+
+**Situación: te acaban de acariciar**
+
+```
+cálido: Otra vez, anda. Que se está bien.
+juguetón: Uy, qué mimoso te has levantado.
+curioso: ¿Y eso por qué lo haces? No me quejo.
+urgente: Más. Ahora. No pares.
+seco: Bueno. Ya está.
+soñoliento: Aaah… así… sigue…
+llano: Gracias.
+```
+
+**Situación: no has entendido lo que te han dicho**
+
+```
+cálido: Perdona, no te he cogido. ¿Me lo repites?
+juguetón: Ni idea de qué me has dicho, pero ha sonado importante.
+curioso: ¿Cómo? Dilo otra vez, que ahora me pica.
+urgente: No te oigo. Otra vez.
+seco: No.
+soñoliento: ¿Mmm? Se me ha ido.
+llano: No he entendido.
+```
+
+**Situación: te han quitado la tarjeta**
+
+```
+cálido: Vale, la dejamos ahí. Cuando quieras.
+juguetón: Ya no está. Magia.
+curioso: ¿Ya? Si acabábamos de empezar.
+urgente: Eh, ¿y eso? Tráela.
+seco: Ya.
+soñoliento: ¿Se ha ido? Bueno.
+llano: Tarjeta retirada.
+```
+
+### La rejilla también dice si faltan registros
+
+Ventaja de escribirlo así: **rellenar la rejilla es la prueba de completitud
+del juego de registros.** Si una casilla cuesta mucho o sale forzada, o la
+situación es rara o falta un registro.
+
+Con las situaciones del buddy, los dos huecos que más se notan son:
+
+- **`contrito`** — cuando la culpa es suya. `llano` lo dice plano y `cálido` lo
+  dice con cariño, pero ninguno pide perdón.
+- **`preocupado`** — `urgente` reclama atención; preocuparse es otra cosa.
+
+Ambos pasan la prueba de «¿puedo decir *cualquier* frase en esta manera?», así
+que son candidatos legítimos y no situaciones disfrazadas. Serían nueve. Lo
+decide el equipo de personalidad (#16, #19).
+
+### Dos expectativas que fijar antes de entrenar
+
+- **La rejilla es la plantilla, no el corpus.** Siete registros por diez
+  situaciones son setenta líneas, y con eso no se entrena nada. La rejilla dice
+  *qué* recoger; el volumen sale de estirarla — más situaciones, y varias
+  formas de decir cada casilla.
+- **Un modelo de 150K con unos miles de líneas va a memorizar fuerte** — se
+  comporta como un banco de frases difuso que recombina. No es fracaso: es
+  justo el A/B que el grupo tiene que juzgar **de oído** contra el banco a
+  secas. A este tamaño de datos el val loss deja de significar gran cosa; lee
+  la salida.
+
+Y una consecuencia de gobernanza que no conviene descubrir tarde: **los
+prefijos quedan grabados al entrenar.** El juego de registros tiene que estar
+cerrado antes de la primera corrida buena, o hay que reentrenar. Es la misma
+dependencia que sacar `kEmotions` a datos de pack (#18).
+
+Prep de la sesión aún por construir (pequeño, ~30 líneas cada uno, siguiendo el
+patrón de `tinystories.py`): un script `pretokenize` para nuestro archivo de
+corpus, y un script de muestreo que pregunte con cada registro.
 
 ## 8. Resolución de problemas
 

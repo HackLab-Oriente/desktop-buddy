@@ -252,6 +252,52 @@ Tres razones medidas: la pantalla es redonda y de 240 px; el TTS se cobra por
 carácter; y el buddy es **half-duplex**, así que mientras habla está sordo — una
 frase larga es un rato largo sin poder escucharte.
 
+## Los moods también son del pack
+
+**Propuesta.** Hoy `led.mood` acepta cuatro valores fijos en C++
+(`calm|excited|thinking|off`), que es una segunda lista cerrada compitiendo con
+las ocho emociones — la mitad del problema de #19. Si los moods pasan a ser
+datos del pack, esa lista deja de existir como vocabulario rival y se convierte
+en un espacio de nombres abierto que cada pack llena.
+
+```json
+"moods": {
+  "brasa":  { "anim": "breathe", "colors": ["#ff3300", "#ff8800"], "period_ms": 2400 },
+  "chispa": { "anim": "spin",    "colors": ["#ffcc00"], "period_ms": 600, "dir": "cw" },
+  "duerme": { "anim": "pulse",   "colors": ["#101030"], "period_ms": 5000 }
+}
+```
+
+Y la cadena completa queda coherente con las tres capas:
+
+**registro** (cerrado, del proyecto) → **mood** (nombre, del pack) → **animación** (parámetros, del pack)
+
+### Primitivas cerradas, no un lenguaje
+
+`anim` sale de una lista corta y fija: `solid`, `breathe`, `spin`, `pulse`,
+`off`. La expresividad la ponen los parámetros —colores, periodo, sentido,
+brillo—, no la gramática.
+
+Es deliberado. Son **12 LEDs** actualizándose junto a una cara que renderiza a
+30,4 ms/frame; un mini-lenguaje de animación aquí es una madriguera con muy
+poco premio. Si alguien necesita algo que las primitivas no dan, ese es el
+momento de añadir **una** primitiva más, no un intérprete.
+
+### El contrato del bus no cambia
+
+`led.mood` sigue siendo el mismo evento con el mismo payload: un nombre. Lo
+único que cambia es **de dónde se resuelve ese nombre** — de un enum compilado
+a datos del pack. Ningún cambio en [event-registry.md](event-registry.md), y
+los reflejos existentes siguen valiendo tal cual.
+
+### Y otra vez el suelo
+
+- Un pack **sin** `moods` se queda con los cuatro de siempre. `packs/zero`
+  sigue funcionando sin tocar nada.
+- Un mood que se nombre y no exista **degrada al built-in**, no apaga el anillo
+  ni revienta. Mismo principio que la caída al banco: lo peor que puede pasar
+  no es quedarse a oscuras sin explicación.
+
 ## Superficie de la API de scripts (Berry)
 
 ```berry
