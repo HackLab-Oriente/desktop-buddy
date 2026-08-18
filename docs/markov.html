@@ -228,7 +228,7 @@ una. Si la curva sube, escribir más frases compra variedad; si se aplana, no.</
   <p id="curve-note" style="font-size:14.5px;margin-top:6px"></p>
 </div>
 
-<h2>3. Lo que medimos de verdad</h2>
+<h2>4. Lo que medimos de verdad</h2>
 
 <p>Sobre este mismo corpus de demo (60 frases, 4 registros, 330 palabras),
 200 generaciones por registro y orden:</p>
@@ -262,10 +262,10 @@ empalmar.</p>
 <div class="note"><p><b>Cuidado con este número.</b> 60 frases es un corpus
 minúsculo. Los pares de palabras compartidos crecen rápido con el tamaño, así
 que un corpus real de 1.000 frases dará bastante más del 13 %. Esta página no
-puede zanjarlo — <code>markov.py --medir</code> sí, sobre el corpus de verdad,
+puede zanjarlo — <code>markov.py --measure</code> sí, sobre el corpus de verdad,
 en segundos. Ese es el momento de decidir.</p></div>
 
-<h2>4. Cómo usarlo — y cómo no</h2>
+<h2>5. Cómo usarlo — y cómo no</h2>
 
 <p><b>No lo pongas a generar dentro del buddy.</b> Con orden bajo puede soltar
 una frase rota, y una frase rota rompe el personaje mucho más que una frase
@@ -278,8 +278,15 @@ lee y se queda con lo bueno, y lo aprobado entra al banco de frases como una
 línea más. Riesgo cero en el dispositivo — nada llega al buddy sin que un
 humano lo haya leído — y variedad gratis, sin modelo y sin entrenar.</p>
 
-<pre>python3 markov.py corpus.txt --medir              # ¿da para recombinar?
-python3 markov.py corpus.txt --orden 2 --nuevas 50 &gt; propuestas.txt</pre>
+<pre>python3 markov.py corpus.txt --measure            # ¿da para recombinar?
+python3 markov.py corpus.txt --memory             # coste en el ESP32-S3
+python3 markov.py corpus.txt --order 2 --new 50 &gt; propuestas.txt</pre>
+
+<p>Los flags están en inglés porque el código del proyecto lo está; el corpus
+sigue en español, que es el dato. <code>--measure</code> es lo mismo que la
+sección 3 de esta página, en terminal y sobre el corpus entero;
+<code>--memory</code> estima lo que costaría en la placa un puerto en C —
+para 5.000 frases, unos 282 KB de PSRAM y 26 µs por frase.</p>
 
 <p>Es el mismo patrón de «generar y curar» que usamos con Claude para
 redactar frases. La diferencia es que Markov escribe con la voz <i>del propio
