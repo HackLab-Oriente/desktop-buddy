@@ -2,6 +2,7 @@
 // petting, the GC9A01 round color face, a WS2812 mood ring, and a real Brain.
 // Everything talks through the event bus; nothing here calls a driver directly.
 #include "berry_host.h"
+#include "markov.h"
 #include "brain.h"
 #include "bus.h"
 #include "expressions.h"
@@ -9,8 +10,12 @@
 #include "webui.h"
 
 #include "cJSON.h"
+#include "driver/gpio.h"
 #include "esp_littlefs.h"
 #include "esp_log.h"
+#include "esp_timer.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 #include "nvs_flash.h"
 #include "sdkconfig.h"
 
@@ -46,6 +51,29 @@ void c_reflexes() {
                   std::string("The user showed you a card with id ") + ev.payload +
                       ". React playfully.");
   });
+}
+
+// El botón de PTT del spike de voz (GPIO 5, a masa, pull-up interno).
+// Publica un HECHO (`button.ptt`), no una orden: quién reacciona y cómo lo
+// deciden los reflejos. Ver docs/event-registry.md, convención 2.
+constexpr gpio_num_t kPttPin = GPIO_NUM_5;
+
+void ptt_task(void*) {
+  gpio_config_t io = {};
+  io.pin_bit_mask = 1ULL << kPttPin;
+  io.mode = GPIO_MODE_INPUT;
+  io.pull_up_en = GPIO_PULLUP_ENABLE;
+  gpio_config(&io);
+  bool was_down = false;
+  while (true) {
+    const bool down = gpio_get_level(kPttPin) == 0;   // pull-up: bajo = pulsado
+    if (down && !was_down) {
+      buddy::bus().publish("button.ptt", "down");
+      vTaskDelay(pdMS_TO_TICKS(40));                  // antirrebote
+    }
+    was_down = down;
+    vTaskDelay(pdMS_TO_TICKS(20));
+  }
 }
 
 }  // namespace
@@ -101,8 +129,30 @@ extern "C" void app_main() {
     cJSON_Delete(j);
   });
 
+  // Frases locales: la cadena de Markov sobre los bancos por registro.
+  // Nunca es motivo de no arrancar — si falla, el botón simplemente no dirá
+  // nada y todo lo demás sigue igual.
+  buddy::bus().publish("boot.status", "cargando frases");
+  if (markov_start()) {
+    buddy::bus().subscribe("button.ptt", [](const buddy::Event&) {
+      // Registro al azar, para que la demo enseñe los siete. En un pack de
+      // verdad esto sale del mapa expresión -> registro, no de un sorteo.
+      static int n = 0;
+      const char* reg = markov_register(n++ % 7);
+      char line[160];
+      const int64_t t0 = esp_timer_get_time();
+      const int len = markov_say(reg, line, sizeof line);
+      const int64_t us = esp_timer_get_time() - t0;
+      if (len > 0) {
+        ESP_LOGI(TAG, "[%s] %s  (%lld us)", reg, line, us);
+        buddy::bus().publish("face.say", line);
+      }
+    });
+  }
+
   // Senses.
   buddy::bus().publish("boot.status", "waking senses");
+  xTaskCreate(ptt_task, "ptt", 2560, nullptr, 4, nullptr);
   buddy::touch_sense_start(CONFIG_BUDDY_PIN_TOUCH);
 #if CONFIG_BUDDY_RC522_ENABLED
   buddy::rc522_start({.sck = CONFIG_BUDDY_RC522_SCK,
