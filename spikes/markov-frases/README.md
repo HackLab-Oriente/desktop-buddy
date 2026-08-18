@@ -53,7 +53,7 @@ distintas no comparten ningún par de palabras donde empalmar.
 
 **Caveat que corta al otro lado:** 60 frases es minúsculo. Los pares
 compartidos crecen rápido con el tamaño del corpus, así que 1.000 frases
-reales darán bastante más del 13 %. Este spike no lo zanja; `--medir` sobre el
+reales darán bastante más del 13 %. Este spike no lo zanja; `--measure` sobre el
 corpus de verdad sí, en segundos.
 
 ## Recomendación
