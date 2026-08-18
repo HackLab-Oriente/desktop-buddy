@@ -298,6 +298,77 @@ los reflejos existentes siguen valiendo tal cual.
   ni revienta. Mismo principio que la caída al banco: lo peor que puede pasar
   no es quedarse a oscuras sin explicación.
 
+## Markov como tercera fuente de frases (propuesta)
+
+El banco y el modelo ya están decididos (#17). Queda encajar la tercera fuente
+—recombinar el banco con una cadena de Markov— y **encaja como el modelo, no
+como un sistema aparte**: un booleano por expresión, que *añade* sobre el banco
+y nunca lo sustituye.
+
+```json
+{
+  "huraño":  { "registro": "seco",     "use_markov": true, "markov": { "order": 1 } },
+  "festivo": { "registro": "juguetón", "use_markov": true },
+  "alerta":  { "registro": "urgente",  "use_model": true  }
+}
+```
+
+**No trae corpus propio.** Markov recombina `lines/<expresión>.txt`, el banco
+que la expresión ya está obligada a tener. Sin banco no hay cadena, igual que
+sin banco no hay nada.
+
+### Mandos, con sus valores por defecto en `pack.json`
+
+```json
+"markov": { "order": 2, "mix": 0.5, "max_words": 18, "no_repeat_last": 12, "pool": "registro" }
+```
+
+| campo | por defecto | qué hace |
+|---|---|---|
+| `order` | `2` | palabras de contexto. **El mando de riesgo**: 2 conserva la concordancia casi siempre; 1 inventa mucho más y la rompe |
+| `mix` | `0.5` | probabilidad de usar una frase generada en vez de una escrita. `0.0` = nunca generar |
+| `max_words` | `20` | corta el fallo típico de Markov: la frase que se enrolla y no termina |
+| `no_repeat_last` | `0` | no repetir las últimas N frases dichas. Mucha variedad percibida por muy poca memoria |
+| `pool` | `"registro"` | de dónde salen las frases que recombina: solo las de la expresión, o las de **todas las expresiones del mismo registro** |
+| `speak` | hereda de `voice.mode` | si la frase generada va también al TTS; se puede apagar por expresión |
+
+Cualquiera de ellos puede sobrescribirse por expresión, como el `order: 1` del
+ejemplo.
+
+### Por qué `pool` y por qué `order` por expresión
+
+Los dos salen de la misma medida, y el registro `seco` de este documento es
+justo el caso. Con orden 2, en el corpus de prueba, `tierno` y `juguetón`
+recombinaron bien —comparten trozos como «yo te»— pero `seco` y `dramático`
+produjeron **cero** frases nuevas: sus frases son cortas y muy distintas entre
+sí, así que no hay ningún par de palabras donde empalmar. Míralo en las frases
+de ejemplo de `seco` de más arriba —«Ya.», «Si tú lo dices.», «HMPH.»— y se ve
+por qué: no comparten nada.
+
+De ahí los dos mandos. `order: 1` deja generar a un registro seco, aceptando
+más frases raras. Y `pool: "registro"` junta los bancos de todas las
+expresiones que comparten registro, que es la otra forma de tener suficiente
+material: más frases = más puntos de empalme. Un `order` único global obligaría
+a elegir mal para alguien.
+
+### Lo que esto deliberadamente NO hace
+
+- **No reintroduce sus frases en el banco.** Medido: el bucle se agota **en una
+  sola vuelta**. La cadena solo recorre caminos que el banco ya tenía, así que
+  devolver su salida no añade ni un estado ni una frase alcanzable — solo
+  refuerza los caminos trillados y baja la variedad. Si alguien quiere más
+  frases nuevas, se escriben a mano; es la única fuente de material nuevo.
+- **No elige registro ni expresión.** Eso ya lo deciden las tres capas.
+
+### Reglas que el validador impone
+
+- `order` fuera de 1–3 o `mix` fuera de 0–1: pack rechazado al cargar, con el
+  error en el log y en la web UI.
+- **Nunca mudo.** Si la generación sale vacía o pasa de `max_words`, se cae al
+  banco — la misma caída que ya protege a `use_model`.
+- `use_markov` sin `lines/<expresión>.txt` es un pack roto, y el validador ya
+  exige ese fichero para toda expresión.
+
 ## Superficie de la API de scripts (Berry)
 
 ```berry
