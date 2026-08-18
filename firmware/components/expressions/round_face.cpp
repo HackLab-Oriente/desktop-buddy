@@ -240,12 +240,12 @@ void build_cache(int emo) {
   const int64_t t0 = esp_timer_get_time();
   for (int i = 0; i < kLevelCount; i++) {
     spr.fillScreen(TFT_BLACK);
-    draw_eye(CX - GAP, 0, kEmotions[emo], kLevels[i], 0, 0);
-    draw_eye(CX + GAP, 1, kEmotions[emo], kLevels[i], 0, 0);
+    draw_eye(CX - GAP, 0, emotions()[emo], kLevels[i], 0, 0);
+    draw_eye(CX + GAP, 1, emotions()[emo], kLevels[i], 0, 0);
     memcpy(cache[i].getBuffer(), spr.getBuffer(), static_cast<size_t>(W) * H * 2);
   }
   cached_emotion = emo;
-  ESP_LOGD(TAG, "cache rebuilt for %s in %.0f ms", kEmotions[emo].name,
+  ESP_LOGD(TAG, "cache rebuilt for %s in %.0f ms", emotions()[emo].name.c_str(),
            (esp_timer_get_time() - t0) / 1000.0);
 }
 
@@ -285,8 +285,8 @@ void draw_eyes_inner(int open_pct, int gx, int gy) {
   // No PSRAM to cache into: draw the eyes for real, band by band. Slower —
   // this is the pre-cache path, ~13 fps — but pixel-identical output.
   render_bands([&] {
-    draw_eye(CX - GAP, 0, kEmotions[s_emotion], open_pct, gx, gy);
-    draw_eye(CX + GAP, 1, kEmotions[s_emotion], open_pct, gx, gy);
+    draw_eye(CX - GAP, 0, emotions()[s_emotion], open_pct, gx, gy);
+    draw_eye(CX + GAP, 1, emotions()[s_emotion], open_pct, gx, gy);
   });
 }
 
@@ -308,7 +308,7 @@ void draw_text(const char* text) {
   // Wrapping is measured once, outside the band loop — it only needs the font
   // metrics, not the pixels.
   spr.setFont(&FontLatin);
-  const Emotion& em = kEmotions[s_emotion];
+  const Emotion& em = emotions()[s_emotion];
   spr.setTextColor(spr.color565(em.r, em.g, em.b));
   spr.setTextDatum(middle_center);
 
@@ -514,8 +514,8 @@ void splash_boot() {
     const uint32_t seed = esp_random() | 1u;
     render_bands([&] {
       if (t < 0.5f) draw_logo((W - kLogoW) / 2, (H - kLogoH) / 2 - 12);
-      else draw_eye(CX - GAP, 0, kEmotions[s_emotion], 100, 0, 0),
-           draw_eye(CX + GAP, 1, kEmotions[s_emotion], 100, 0, 0);
+      else draw_eye(CX - GAP, 0, emotions()[s_emotion], 100, 0, 0),
+           draw_eye(CX + GAP, 1, emotions()[s_emotion], 100, 0, 0);
       glitch_frame(0.85f, static_cast<int>(t * H), seed);
     });
   }
@@ -566,7 +566,7 @@ void face_task(void*) {
       if (now >= next_blink) {
         for (int li : {1, 2, 1}) draw_eyes(kLevels[li], gaze_x, gaze_y);
         draw_eyes(100, gaze_x, gaze_y);
-        const int period = kEmotions[s_emotion].blink_period_ms;
+        const int period = emotions()[s_emotion].blink_period_ms;
         next_blink = now + period / 2 + esp_random() % period;
       }
       vTaskDelay(pdMS_TO_TICKS(30));
@@ -577,7 +577,7 @@ void face_task(void*) {
     if (now >= next_blink) {
       for (int li : {1, 2, 1}) draw_eyes(kLevels[li], gaze_x, gaze_y);
       draw_eyes(100, gaze_x, gaze_y);
-      const int period = kEmotions[s_emotion].blink_period_ms;
+      const int period = emotions()[s_emotion].blink_period_ms;
       next_blink = now + period / 2 + esp_random() % period;
     }
     if (now >= next_saccade) {
