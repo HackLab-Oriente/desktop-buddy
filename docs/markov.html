@@ -95,6 +95,16 @@
   #graph .p-lbl { font: 11.5px ui-monospace, Menlo, monospace; fill: var(--muted); }
   #graph .hit { cursor: pointer; }
   #graph .hit:hover rect { stroke: var(--accent); stroke-width: 2; }
+  textarea { width: 100%; min-height: 150px; resize: vertical; padding: 11px 13px;
+    border: 1px solid var(--line); border-radius: 10px; background: var(--bg);
+    color: var(--ink); font: 14px/1.6 ui-monospace, Menlo, monospace; }
+  .cmp { display: grid; grid-template-columns: 1fr auto auto auto; gap: 2px 14px;
+    align-items: baseline; font-size: 15.5px; }
+  .cmp .h { color: var(--muted); font-size: 13px; text-transform: uppercase;
+    letter-spacing: .04em; padding-bottom: 4px; }
+  .cmp .v { font-family: ui-monospace, Menlo, monospace; text-align: right; }
+  .cmp .d { font-family: ui-monospace, Menlo, monospace; text-align: right; font-size: 14px; }
+  .up { color: var(--good-ink); } .down { color: var(--bad-ink); } .same { color: var(--muted); }
   .note { border-left: 3px solid var(--accent); padding-left: 14px; margin: 14px 0; }
   footer { color: var(--muted); font-size: 14.5px; margin-top: 40px; }
 </style>
@@ -171,6 +181,51 @@ frases nuevas que además dejan de tener sentido.</p>
   </div>
   <div class="stats" id="stats"></div>
   <div class="out" id="out"></div>
+</div>
+
+<h2>3. Prueba tu propio corpus</h2>
+
+<p>Todo lo de arriba corre sobre 60 frases de demo. Pega aquí las del grupo —
+o arrastra un <code>.txt</code> — y la página recalcula el mecanismo, las
+métricas y el coste en la placa con <b>vuestros</b> datos. Formato:
+<code>registro: frase</code>, una por línea; las que empiezan por <code>#</code>
+se ignoran.</p>
+
+<p style="font-size:14.5px"><b>No se sube nada a ningún sitio.</b> La página no
+tiene servidor: el corpus se queda en tu navegador y desaparece al recargar.</p>
+
+<div class="card">
+  <textarea id="ta" spellcheck="false" placeholder="juguetón: ¡Ay, qué gusto! Otra vez tú.
+seco: Ah. Eres tú.
+tierno: Qué bueno que volviste, te extrañé."></textarea>
+  <div class="controls" style="margin-top:10px">
+    <button class="act" id="use">usar este corpus</button>
+    <label class="act ghost" for="file" style="display:inline-block">cargar .txt…</label>
+    <input type="file" id="file" accept=".txt,text/plain" hidden>
+    <button class="act ghost" id="demo">volver al de demo</button>
+    <span id="load-msg" style="font-size:14.5px;color:var(--muted)"></span>
+  </div>
+</div>
+
+<h3>Qué cambia al añadir frases</h3>
+<div class="card">
+  <div id="cmp"></div>
+  <p style="font-size:14.5px;margin-top:12px">Las dos primeras filas de novedad pueden
+  moverse <b>en sentidos opuestos</b>, y eso enseña algo: si las frases que añades son
+  variaciones de las que ya había, suman puntos de empalme (más frases nuevas
+  <i>distintas</i>) pero también refuerzan los caminos viejos (baja el <i>porcentaje</i> de
+  generaciones nuevas). Para ganar variedad de verdad, escribe frases que compartan
+  <i>trozos</i> con las existentes sin ser casi la misma frase.</p>
+</div>
+
+<h3>¿Sube la novedad con el tamaño del corpus?</h3>
+<p>La pregunta que esta página no podía responder con 60 frases. Ahora sí, con
+las tuyas: se toman submuestras del corpus cargado y se mide la novedad de cada
+una. Si la curva sube, escribir más frases compra variedad; si se aplana, no.</p>
+<div class="card">
+  <div class="graph-wrap"><svg id="curve" role="img"
+     aria-label="Novedad frente al tamaño del corpus"></svg></div>
+  <p id="curve-note" style="font-size:14.5px;margin-top:6px"></p>
 </div>
 
 <h2>3. Lo que medimos de verdad</h2>
@@ -311,14 +366,7 @@ tierno: Me quedo contigo el tiempo que quieras.
 `;
 const INICIO = "", FIN = "", SEP = "";  // centinelas invisibles
 
-const REG = {};
-for (const raw of CORPUS.trim().split("\n")) {
-  const i = raw.indexOf(":");
-  if (i < 0) continue;
-  const r = raw.slice(0, i).trim(), s = raw.slice(i + 1).trim();
-  (REG[r] ||= []).push(s);
-}
-const REGS = Object.keys(REG);
+let REG = {}, REGS = [], BASE = null;   // BASE = métricas del corpus anterior
 
 // estado -> {palabra: veces}. Las veces SON la probabilidad; no hay nada más.
 function build(lines, order) {
@@ -401,6 +449,183 @@ function draw() {
     b.addEventListener("click", () => { advance(b.dataset.w === "· fin de frase ·" ? FIN : b.dataset.w); draw(); }));
   drawGraph();
 }
+
+// ---- carga de corpus propio ----------------------------------------------
+function parseCorpus(text) {
+  const reg = {}, bad = [];
+  text.split("\n").forEach((raw, i) => {
+    const line = raw.trim();
+    if (!line || line.startsWith("#")) return;
+    const j = line.indexOf(":");
+    if (j < 0) { bad.push(i + 1); return; }
+    const r = line.slice(0, j).trim(), t = line.slice(j + 1).trim();
+    if (!r || !t) { bad.push(i + 1); return; }
+    (reg[r] ||= []).push(t);
+  });
+  return { reg, bad };
+}
+
+// PRNG con semilla: las submuestras deben ser reproducibles entre recargas,
+// o la curva bailaría sola y nadie se fiaría de ella.
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+// Novedad de un corpus: % de generaciones que NO estaban ya escritas.
+function novelty(reg, order, tries = 200) {
+  let outs = 0, copies = 0; const fresh = new Set();
+  for (const [, lines] of Object.entries(reg)) {
+    if (lines.length < 2) continue;
+    const known = new Set(lines), t = build(lines, order);
+    for (let i = 0; i < tries; i++) {
+      let st = Array(order).fill(INICIO), o = [];
+      for (let k = 0; k < 40; k++) {
+        const m = t.get(st.join(SEP));
+        if (!m) break;
+        const w = pick(m);
+        if (w === FIN) break;
+        o.push(w); st = st.concat([w]).slice(1);
+      }
+      const g = o.join(" ");
+      if (!g) continue;
+      outs++;
+      if (known.has(g)) copies++; else fresh.add(g);
+    }
+  }
+  return { pct: outs ? (outs - copies) / outs * 100 : 0, fresh: fresh.size, outs };
+}
+
+function corpusStats(reg) {
+  let lines = 0, words = [];
+  for (const v of Object.values(reg)) { lines += v.length; for (const s of v) words.push(...s.split(/\s+/)); }
+  const vocab = new Set(words).size;
+  const transitions = words.length + lines, rec = 6;           // orden 2 en la placa
+  const ramKB = (transitions * rec + vocab * 4) / 1024;
+  const n2 = novelty(reg, 2), n1 = novelty(reg, 1);
+  return { lines, words: words.length, vocab, ramKB,
+           nov2: n2.pct, fresh2: n2.fresh, nov1: n1.pct, regs: Object.keys(reg).length };
+}
+
+const FMT = {
+  lines: ["frases", v => v], regs: ["registros", v => v],
+  words: ["palabras", v => v], vocab: ["palabras distintas", v => v],
+  nov2: ["novedad, orden 2", v => v.toFixed(0) + " %"],
+  fresh2: ["frases nuevas distintas", v => v],
+  nov1: ["novedad, orden 1 (rotas)", v => v.toFixed(0) + " %"],
+  ramKB: ["RAM en la placa", v => v.toFixed(0) + " KB"],
+};
+
+function renderCompare(now) {
+  const box = document.getElementById("cmp");
+  const keys = Object.keys(FMT);
+  let h = `<div class="cmp"><div class="h">métrica</div><div class="h v">antes</div>
+    <div class="h v">ahora</div><div class="h d">cambio</div>`;
+  for (const k of keys) {
+    const [label, f] = FMT[k];
+    const cur = now[k], prev = BASE ? BASE[k] : null;
+    let delta = `<span class="same">—</span>`;
+    if (prev !== null && prev !== undefined) {
+      const d = cur - prev;
+      const cls = Math.abs(d) < 1e-9 ? "same" : (d > 0 ? "up" : "down");
+      const sign = d > 0 ? "+" : "";
+      delta = `<span class="${cls}">${Math.abs(d) < 1e-9 ? "=" : sign + f(d)}</span>`;
+    }
+    h += `<div>${label}</div><div class="v">${prev === null || prev === undefined ? "—" : f(prev)}</div>
+      <div class="v">${f(cur)}</div><div class="d">${delta}</div>`;
+  }
+  box.innerHTML = h + `</div>`;
+}
+
+// ---- curva: novedad frente al tamaño del corpus ---------------------------
+function renderCurve(reg) {
+  const svg = document.getElementById("curve"), note = document.getElementById("curve-note");
+  const total = Object.values(reg).reduce((a, v) => a + v.length, 0);
+  const fracs = [0.1, 0.25, 0.5, 0.75, 1.0];
+  const pts = [];
+  for (const f of fracs) {
+    const sub = {};
+    const rnd = mulberry32(12345);                 // misma submuestra siempre
+    for (const [r, lines] of Object.entries(reg)) {
+      const shuffled = lines.map(v => [rnd(), v]).sort((a, b) => a[0] - b[0]).map(v => v[1]);
+      const n = Math.max(2, Math.round(lines.length * f));
+      sub[r] = shuffled.slice(0, n);
+    }
+    const n = Object.values(sub).reduce((a, v) => a + v.length, 0);
+    pts.push({ n, pct: novelty(sub, 2, 200).pct });   // mismo muestreo que la tabla
+  }
+  const W = 700, H = 230, L = 52, R = 22, T = 18, B = 40;
+  const maxY = Math.max(20, Math.ceil(Math.max(...pts.map(p => p.pct)) / 10) * 10);
+  const x = i => L + (W - L - R) * (i / (pts.length - 1));
+  const y = v => T + (H - T - B) * (1 - v / maxY);
+  let g = "";
+  for (let t = 0; t <= maxY; t += maxY / 4) {
+    g += `<line x1="${L}" y1="${y(t)}" x2="${W - R}" y2="${y(t)}" stroke="var(--line)"/>
+      <text x="${L - 8}" y="${y(t) + 4}" text-anchor="end" class="p-lbl">${t.toFixed(0)}%</text>`;
+  }
+  g += `<polyline fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round"
+    points="${pts.map((p, i) => `${x(i)},${y(p.pct)}`).join(" ")}"/>`;
+  pts.forEach((p, i) => {
+    g += `<circle cx="${x(i)}" cy="${y(p.pct)}" r="5" fill="var(--accent)"
+      stroke="var(--card)" stroke-width="2"/>
+      <text x="${x(i)}" y="${H - B + 18}" text-anchor="middle" class="p-lbl">${p.n}</text>`;
+  });
+  const last = pts[pts.length - 1];
+  g += `<text x="${x(pts.length - 1) - 6}" y="${y(last.pct) - 12}" text-anchor="end"
+    class="n-lbl" fill="var(--ink)">${last.pct.toFixed(0)} % nuevas</text>`;
+  g += `<text x="${(L + W - R) / 2}" y="${H - 4}" text-anchor="middle" class="p-lbl">frases en el corpus</text>`;
+  g += `<text transform="translate(13 ${(T + H - B) / 2}) rotate(-90)" text-anchor="middle"
+    class="p-lbl">% de generaciones que salen nuevas</text>`;
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`); svg.setAttribute("height", H);
+  svg.innerHTML = g;
+
+  const first = pts[0].pct, rise = last.pct - first;
+  const distinct = novelty(reg, 2, 200).fresh;
+  note.innerHTML = rise > 5
+    ? `La curva <b>sube</b>: de ${first.toFixed(0)} % a ${last.pct.toFixed(0)} % al pasar de
+       ${pts[0].n} a ${last.n} frases. Escribir más frases sí compra variedad — y el
+       coste en la placa sigue siendo microsegundos.<br>
+       <span style="color:var(--muted)">Ojo con la unidad: aquí se mide qué porcentaje de
+       las <i>generaciones</i> sale nuevo. El 13&nbsp;% de la sección 4 es otra cosa —
+       frases nuevas <i>distintas</i> por cada frase escrita. Con este corpus salen
+       ${distinct} distintas.</span>`
+    : `La curva está <b>plana</b> (${first.toFixed(0)} % → ${last.pct.toFixed(0)} %). Con este
+       corpus, escribir más del mismo estilo no compra novedad: las frases comparten pocos
+       pares de palabras donde empalmar. Frases más largas o más parecidas entre sí
+       recombinan mejor.<br>
+       <span style="color:var(--muted)">Unidad: porcentaje de <i>generaciones</i> que salen
+       nuevas; el 13&nbsp;% de la sección 4 mide frases nuevas <i>distintas</i> por frase
+       escrita. Con este corpus salen ${distinct} distintas.</span>`;
+}
+
+function setCorpus(text, msg) {
+  const { reg, bad } = parseCorpus(text);
+  const n = Object.values(reg).reduce((a, v) => a + v.length, 0);
+  const out = document.getElementById("load-msg");
+  if (n < 4) {
+    out.innerHTML = `<span style="color:var(--bad-ink)">Solo encontré ${n} frase(s) con
+      formato <code>registro: frase</code>. Revisa el formato.</span>`;
+    return;
+  }
+  const prev = Object.keys(REG).length ? corpusStats(REG) : null;
+  BASE = prev;
+  REG = reg; REGS = Object.keys(REG);
+  if (!REGS.includes(S.reg)) S.reg = REGS[0];
+  out.innerHTML = `${msg}: <b>${n}</b> frases en <b>${REGS.length}</b> registro(s)` +
+    (bad.length ? ` · <span style="color:var(--warn-ink)">${bad.length} línea(s) ignorada(s)
+      (sin <code>registro:</code>)</span>` : "");
+  refreshSegs(); rebuild(); refreshAnalysis();
+}
+
+function refreshAnalysis() {
+  renderCompare(corpusStats(REG));
+  renderCurve(REG);
+}
+
 function drawGraph() {
   const svg = document.getElementById("graph");
   const m = cands();
@@ -527,9 +752,33 @@ document.getElementById("theme").addEventListener("click", () => {
 if (matchMedia("(prefers-color-scheme: dark)").matches)
   document.documentElement.dataset.theme = "dark";
 
-refreshSegs();
+document.getElementById("use").addEventListener("click", () =>
+  setCorpus(document.getElementById("ta").value, "Corpus cargado"));
+document.getElementById("demo").addEventListener("click", () => {
+  document.getElementById("ta").value = "";
+  setCorpus(CORPUS, "Corpus de demo");
+});
+document.getElementById("file").addEventListener("change", e => {
+  const f = e.target.files[0];
+  if (!f) return;
+  const r = new FileReader();
+  r.onload = () => { document.getElementById("ta").value = r.result;
+                     setCorpus(r.result, `Cargado ${f.name}`); };
+  r.readAsText(f);
+});
+["dragover", "drop"].forEach(ev => document.addEventListener(ev, e => e.preventDefault()));
+document.getElementById("ta").addEventListener("drop", e => {
+  const f = e.dataTransfer.files[0];
+  if (!f) return;
+  const r = new FileReader();
+  r.onload = () => { document.getElementById("ta").value = r.result;
+                     setCorpus(r.result, `Cargado ${f.name}`); };
+  r.readAsText(f);
+});
+
 document.getElementById("order-note").innerHTML = NOTES[S.order];
-rebuild();
+setCorpus(CORPUS, "Corpus de demo");
+BASE = null; renderCompare(corpusStats(REG));
 </script>
 </body>
 </html>
