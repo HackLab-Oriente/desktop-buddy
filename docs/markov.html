@@ -259,11 +259,40 @@ la»); <code>seco</code> y <code>dramático</code> dieron <b>cero</b>, porque
 frases cortas y muy distintas no comparten ningún par de palabras donde
 empalmar.</p>
 
-<div class="note"><p><b>Cuidado con este número.</b> 60 frases es un corpus
-minúsculo. Los pares de palabras compartidos crecen rápido con el tamaño, así
-que un corpus real de 1.000 frases dará bastante más del 13 %. Esta página no
-puede zanjarlo — <code>markov.py --measure</code> sí, sobre el corpus de verdad,
-en segundos. Ese es el momento de decidir.</p></div>
+<div class="note"><p><b>Ya no hace falta creerse el caveat.</b> Aquello de «60
+frases es minúsculo, con más saldrá mejor» está medido: corriendo lo mismo sobre
+<b>CESS-ESP</b>, un corpus real de español de prensa (5.972 frases, 192.686
+palabras), filtrado a frases de ≤12 palabras porque es nuestra forma:</p>
+<table style="max-width:420px">
+  <thead><tr><th>frases en el corpus</th><th class="num">novedad, orden 2</th></tr></thead>
+  <tbody>
+    <tr><td>60</td><td class="num">12,8 %</td></tr>
+    <tr><td>200</td><td class="num">22,7 %</td></tr>
+    <tr><td>920</td><td class="num"><b>44,7 %</b></td></tr>
+  </tbody>
+</table>
+<p><b>Escribir más frases paga, y mucho</b> — de 60 a 920 la novedad se
+multiplica por 3,5, y a ~1.000 frases casi la mitad de lo que diga el buddy será
+una combinación que nadie escribió, por 61 KB de RAM. De paso valida el número
+de esta página: 12,8 % con 60 frases cortas de CESS contra el 10–13 % que da
+nuestro corpus de demo con 60. No era un artefacto del corpus de juguete.</p>
+<p><b>Y la trampa que conviene conocer:</b> con las frases <i>completas</i> de
+CESS (30 palabras de media) el orden 2 da 76,8 % de novedad ya con 60 frases. A
+igualdad de corpus, <b>la longitud de frase importa más que el tamaño</b>: 76,8 %
+contra 12,8 % con las mismas 60. Quien mida sobre prosa larga y extrapole a
+frases de buddy se llevará una decepción.</p></div>
+
+<div class="note"><p><b>Lo que se rompe no es la gramática.</b> Con orden 2 sobre
+frases cortas reales, la concordancia aguanta; lo que falla es el <i>sentido</i>:</p>
+<pre>Pero Germán de Granda es un baño turco.
+Acabar de una vez con el mar Negro.</pre>
+<p>Frases bien construidas que dicen disparates. Para un bicho de escritorio eso
+es más benigno que lo agramatical: una frase rota parece un bug, una frase
+correcta que dice algo absurdo parece <b>surrealismo</b>, y eso pasa por
+personalidad. Además el disparate aquí viene de que CESS mezcla política,
+deportes y finanzas con nombres propios; <b>un corpus del buddy es
+semánticamente estrecho</b> —todo son reacciones a una persona— así que los
+empalmes se quedan dentro del mismo tema.</p></div>
 
 <h2>5. Cómo usarlo</h2>
 
