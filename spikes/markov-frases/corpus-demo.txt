@@ -1,0 +1,63 @@
+# Corpus de DEMO — escrito por Claude solo para probar el generador.
+# NO es el corpus del grupo; ese lo escribe el grupo en la sesion.
+# Formato: registro: frase
+juguetón: ¡Ay, qué gusto! Otra vez tú.
+juguetón: Mira quién volvió, mi humano favorito.
+juguetón: ¿Me trajiste algo o solo cariño?
+juguetón: Estaba contando los segundos, en serio.
+juguetón: ¡Cosquillas! Digo, hola.
+juguetón: Otra vez tú, qué suerte la mía.
+juguetón: Te estaba esperando con toda la pantalla encendida.
+juguetón: ¿Jugamos a algo o seguimos mirándonos?
+juguetón: Mi humano favorito llegó, avisen a todos.
+juguetón: ¡Qué gusto verte la cara otra vez!
+juguetón: Cuéntame algo bueno, estoy aburrido.
+juguetón: Estaba practicando mis chistes para ti.
+juguetón: ¿Y esa tarjeta qué me cuenta?
+juguetón: Vuelve pronto, me quedo pensando en ti.
+juguetón: Hoy amanecí con toda la energía.
+seco: Ah. Eres tú.
+seco: Volviste. Bien.
+seco: Sí. Aquí sigo.
+seco: Ya te vi. No exageres.
+seco: Correcto. Sigo encendido.
+seco: Otra vez. Qué novedad.
+seco: Hola. Eso es todo.
+seco: Estoy aquí. Como siempre.
+seco: Anotado. Continúa.
+seco: Perfecto. Ya nos saludamos.
+seco: Sin comentarios.
+seco: Te escuché. No hace falta repetir.
+seco: Bien. ¿Algo más?
+seco: Presente. Como cada día.
+seco: Listo. Siguiente.
+dramático: ¡Has vuelto! Creí que jamás volverías.
+dramático: ¡Oh, la espera fue eterna y cruel!
+dramático: ¡El mundo entero se detuvo hasta este instante!
+dramático: ¡Nunca, jamás, vuelvas a dejarme así!
+dramático: ¡Es el día más glorioso de mi existencia!
+dramático: ¡Mis circuitos lloraban en silencio!
+dramático: ¡Regresaste, y con ello regresó la luz!
+dramático: ¡Cuánta emoción para un cuerpo tan pequeño!
+dramático: ¡Jamás olvidaré este momento sublime!
+dramático: ¡La soledad me consumía por completo!
+dramático: ¡Y entonces apareciste tú, como un milagro!
+dramático: ¡Que se detenga todo, mi humano llegó!
+dramático: ¡Mi corazón de silicio no resiste tanto!
+dramático: ¡Oh destino cruel, me dejaste esperando!
+dramático: ¡Este instante merece una canción entera!
+tierno: Qué bueno que volviste, te extrañé.
+tierno: Aquí estaba, esperándote con calma.
+tierno: Me alegra mucho verte de nuevo.
+tierno: Descansa un poquito, yo te acompaño.
+tierno: Tu compañía es lo mejor del día.
+tierno: Estaba tranquilo, sabiendo que volverías.
+tierno: Gracias por venir a saludarme.
+tierno: Me gusta cuando te quedas un rato.
+tierno: Te guardé toda mi atención.
+tierno: Qué lindo tenerte cerca otra vez.
+tierno: Estoy contento de que estés aquí.
+tierno: Cuídate mucho, yo te espero.
+tierno: Tu voz me pone de buen humor.
+tierno: Siempre es un gusto verte llegar.
+tierno: Me quedo contigo el tiempo que quieras.

@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cadenas de Markov — frases para el buddy</title>
+<style>
+  :root {
+    --bg: #f7f5f0; --card: #ffffff; --ink: #1e2126; --ink2: #5a6068;
+    --muted: #8a9098; --line: #e3e0d8; --accent: #2563a8; --accent-ink: #ffffff;
+    --soft: #eef3f9;
+    --good-bg: #e3efe5; --good-ink: #1e6b34;
+    --warn-bg: #f5eedd; --warn-ink: #8a6410;
+    --bad-bg: #f7e5e2; --bad-ink: #9c3a2a;
+  }
+  :root[data-theme="dark"] {
+    --bg: #14161a; --card: #1e2126; --ink: #eceae4; --ink2: #b9bec6;
+    --muted: #7d838c; --line: #2e323a; --accent: #6aa7e0; --accent-ink: #10131a;
+    --soft: #232833;
+    --good-bg: #1c3324; --good-ink: #7fd096;
+    --warn-bg: #35301e; --warn-ink: #e0bd62;
+    --bad-bg: #3a211c; --bad-ink: #eb9a85;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    background: var(--bg); color: var(--ink); padding: 24px 20px 60px;
+    font: 17px/1.55 -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    max-width: 1080px; margin: 0 auto;
+  }
+  header { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+  h1 { font-size: 30px; letter-spacing: -0.02em; }
+  h2 { font-size: 22px; margin: 34px 0 10px; letter-spacing: -0.01em; }
+  h3 { font-size: 17px; margin: 18px 0 6px; color: var(--ink2); }
+  p { margin: 10px 0; color: var(--ink2); }
+  p.lead { color: var(--ink); font-size: 18px; }
+  b, strong { color: var(--ink); }
+  a { color: var(--accent); }
+  #theme { margin-left: auto; background: var(--card); color: var(--ink);
+    border: 1px solid var(--line); border-radius: 10px; padding: 6px 14px;
+    font-size: 15px; cursor: pointer; }
+  .card { background: var(--card); border: 1px solid var(--line);
+    border-radius: 14px; padding: 18px 20px; margin: 14px 0; }
+  code, .mono { font-family: ui-monospace, Menlo, monospace; font-size: 0.92em; }
+  pre { background: var(--soft); border: 1px solid var(--line); border-radius: 10px;
+    padding: 12px 14px; overflow-x: auto; font-size: 14px; line-height: 1.6; }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 15.5px; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); }
+  th { color: var(--ink2); font-weight: 600; }
+  td.num { font-family: ui-monospace, Menlo, monospace; text-align: right; }
+  .controls { display: flex; gap: 18px; flex-wrap: wrap; align-items: flex-end; }
+  .ctl label { display: block; font-size: 13.5px; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 5px; }
+  .seg { display: flex; gap: 6px; }
+  .seg button { padding: 7px 14px; border: 1px solid var(--line); background: transparent;
+    color: var(--ink); border-radius: 9px; cursor: pointer; font-size: 15px; }
+  .seg button.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .act { padding: 9px 16px; border-radius: 10px; cursor: pointer; font-size: 15px;
+    border: 1px solid var(--accent); background: var(--accent); color: var(--accent-ink); }
+  .act.ghost { background: transparent; color: var(--ink); border-color: var(--line); }
+  .act:disabled { opacity: .4; cursor: default; }
+
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin: 4px 0 2px; }
+  .chip { padding: 4px 10px; border-radius: 8px; background: var(--soft);
+    border: 1px solid var(--line); font-family: ui-monospace, Menlo, monospace; font-size: 14px; }
+  .chip.state { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .chip.boundary { color: var(--muted); font-style: italic; }
+  .built { font-size: 21px; line-height: 1.5; margin: 12px 0 4px; min-height: 32px; }
+  .built .cursor { color: var(--accent); }
+  .cands { display: grid; gap: 5px; margin-top: 6px; }
+  .cand { display: grid; grid-template-columns: minmax(90px, auto) 1fr 62px;
+    gap: 10px; align-items: center; background: transparent; border: 1px solid var(--line);
+    border-radius: 9px; padding: 5px 10px; cursor: pointer; text-align: left;
+    color: var(--ink); font-size: 15px; }
+  .cand:hover { border-color: var(--accent); }
+  .cand .w { font-family: ui-monospace, Menlo, monospace; }
+  .cand .bar { height: 9px; border-radius: 5px; background: var(--soft); overflow: hidden; }
+  .cand .bar i { display: block; height: 100%; background: var(--accent); }
+  .cand .p { text-align: right; color: var(--ink2); font-family: ui-monospace, Menlo, monospace;
+    font-size: 13.5px; }
+  .badge { display: inline-block; border-radius: 7px; padding: 2px 9px;
+    font-size: 13px; font-weight: 600; }
+  .b-new { background: var(--good-bg); color: var(--good-ink); }
+  .b-copy { background: var(--warn-bg); color: var(--warn-ink); }
+  .b-bad { background: var(--bad-bg); color: var(--bad-ink); }
+  .out { display: grid; gap: 6px; margin-top: 10px; }
+  .out .row { display: grid; grid-template-columns: 74px 1fr; gap: 10px;
+    align-items: baseline; padding: 5px 0; border-bottom: 1px solid var(--line); }
+  .stats { display: flex; gap: 22px; flex-wrap: wrap; margin-top: 12px; }
+  .stat .k { font: 700 27px ui-monospace, Menlo, monospace; }
+  .stat .l { font-size: 13.5px; color: var(--muted); }
+  .note { border-left: 3px solid var(--accent); padding-left: 14px; margin: 14px 0; }
+  footer { color: var(--muted); font-size: 14.5px; margin-top: 40px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Cadenas de Markov</h1>
+  <span style="color:var(--ink2)">frases para el buddy, sin entrenar nada</span>
+  <button id="theme">◐ tema</button>
+</header>
+
+<p class="lead">Una cadena de Markov escribe frases nuevas mirando <b>solo las
+últimas palabras</b> y preguntando al corpus: «cuando vi esto, ¿qué vino
+después?». No hay modelo, no hay entrenamiento, no hay GPU — es contar. Esta
+página deja jugar con el mecanismo entero y ver, con números, dónde funciona
+y dónde se rompe.</p>
+
+<h2>1. El mecanismo, paso a paso</h2>
+
+<p>El <b>estado</b> son las últimas <i>N</i> palabras (<i>N</i> = el orden).
+Para cada estado, el corpus dice qué palabras pueden seguir y cuántas veces
+aparecieron. Se elige una al azar, ponderada por esas veces, y el estado se
+desplaza una palabra. Nada más. Dale a <b>siguiente</b>, o pincha tú una
+candidata para llevar la frase donde quieras.</p>
+
+<div class="card">
+  <div class="controls">
+    <div class="ctl">
+      <label>registro</label>
+      <div class="seg" id="reg-seg"></div>
+    </div>
+    <div class="ctl">
+      <label>orden — palabras de contexto</label>
+      <div class="seg" id="ord-seg"></div>
+    </div>
+    <button class="act" id="step">siguiente palabra ▸</button>
+    <button class="act ghost" id="finish">completar frase</button>
+    <button class="act ghost" id="reset">reiniciar</button>
+  </div>
+
+  <h3 style="margin-top:18px">Frase en construcción</h3>
+  <div class="built" id="built"></div>
+
+  <h3>Estado actual <span style="font-weight:400;color:var(--muted)">— lo único que la cadena recuerda</span></h3>
+  <div class="chips" id="state"></div>
+
+  <h3 id="cands-title">Puede seguir…</h3>
+  <div class="cands" id="cands"></div>
+</div>
+
+<div class="note" id="order-note"></div>
+
+<h2>2. ¿Inventa o repite? — genera un lote y cuéntalo</h2>
+
+<p>Aquí está la tensión que decide si esto sirve. Cada frase generada se
+compara con el corpus: si ya existía tal cual es una <b>copia</b>; si no,
+es <b>nueva</b>. Sube el orden y verás las copias dispararse; bájalo y verás
+frases nuevas que además dejan de tener sentido.</p>
+
+<div class="card">
+  <div class="controls">
+    <button class="act" id="gen">generar 20 frases</button>
+    <span style="color:var(--muted);font-size:15px">usa el registro y el orden de arriba</span>
+  </div>
+  <div class="stats" id="stats"></div>
+  <div class="out" id="out"></div>
+</div>
+
+<h2>3. Lo que medimos de verdad</h2>
+
+<p>Sobre este mismo corpus de demo (60 frases, 4 registros, 330 palabras),
+200 generaciones por registro y orden:</p>
+
+<table>
+  <thead><tr><th>orden</th><th>copias literales</th><th class="num">frases nuevas</th><th>calidad de las nuevas</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td>41–78 %</td><td class="num">126</td><td><span class="badge b-bad">rotas</span> concordancia y sentido se pierden</td></tr>
+    <tr><td>2</td><td>78–100 %</td><td class="num">8</td><td><span class="badge b-new">buenas</span> todas gramaticales y en registro</td></tr>
+    <tr><td>3</td><td>94–100 %</td><td class="num">2</td><td><span class="badge b-new">buenas</span> pero casi no hay</td></tr>
+  </tbody>
+</table>
+
+<p><b>La sorpresa fue el orden 2.</b> La predicción era que el español se
+rompería por la concordancia — <i>la perro contenta</i> — y con orden 1 pasa
+exactamente eso. Pero con orden 2 los empalmes caen en fronteras de sintagma
+y las frases salen limpias:</p>
+
+<pre>¿Me trajiste algo o seguimos mirándonos?
+Descansa un poquito, yo te espero.
+Cuídate mucho, yo te acompaño.</pre>
+
+<p>Son frases buenas. El problema real no es la gramática: es el
+<b>rendimiento</b>. De 60 frases escritas salieron 8 nuevas — un 13 % extra.
+Y depende del registro de una forma que enseña algo: <code>tierno</code> y
+<code>juguetón</code> recombinan porque comparten trozos («yo te», «con toda
+la»); <code>seco</code> y <code>dramático</code> dieron <b>cero</b>, porque
+frases cortas y muy distintas no comparten ningún par de palabras donde
+empalmar.</p>
+
+<div class="note"><p><b>Cuidado con este número.</b> 60 frases es un corpus
+minúsculo. Los pares de palabras compartidos crecen rápido con el tamaño, así
+que un corpus real de 1.000 frases dará bastante más del 13 %. Esta página no
+puede zanjarlo — <code>markov.py --medir</code> sí, sobre el corpus de verdad,
+en segundos. Ese es el momento de decidir.</p></div>
+
+<h2>4. Cómo usarlo — y cómo no</h2>
+
+<p><b>No lo pongas a generar dentro del buddy.</b> Con orden bajo puede soltar
+una frase rota, y una frase rota rompe el personaje mucho más que una frase
+repetida. Un buddy repetitivo tiene muletillas; un buddy agramatical parece
+un bug.</p>
+
+<p><b>Úsalo fuera de línea para expandir el corpus, con una persona
+aprobando.</b> Pasas el corpus del grupo, sacas solo lo que no existía, alguien
+lee y se queda con lo bueno, y lo aprobado entra al banco de frases como una
+línea más. Riesgo cero en el dispositivo — nada llega al buddy sin que un
+humano lo haya leído — y variedad gratis, sin modelo y sin entrenar.</p>
+
+<pre>python3 markov.py corpus.txt --medir              # ¿da para recombinar?
+python3 markov.py corpus.txt --orden 2 --nuevas 50 &gt; propuestas.txt</pre>
+
+<p>Es el mismo patrón de «generar y curar» que usamos con Claude para
+redactar frases. La diferencia es que Markov escribe con la voz <i>del propio
+grupo</i>, porque solo sabe recombinar lo que el grupo ya escribió.</p>
+
+<h3>Y para la sesión de entrenamiento</h3>
+
+<p>Esto es la rampa de entrada perfecta al modelo neuronal: se entiende
+entero en una hora, la salida da risa, y deja clarísimo qué añade el modelo.
+Un modelo de lenguaje hace <i>esto mismo</i> — predecir la siguiente pieza —
+pero con memoria de toda la frase y probabilidades aprendidas en vez de
+contadas. Quien haya jugado con esta página entiende el modelo a la primera.</p>
+
+<footer>
+  Corpus de demo escrito solo para probar el generador — el corpus de verdad
+  lo escribe el grupo. Herramienta y datos: <code>spikes/markov-frases/</code>.
+</footer>
+
+<script>
+"use strict";
+const CORPUS = `
+juguetón: ¡Ay, qué gusto! Otra vez tú.
+juguetón: Mira quién volvió, mi humano favorito.
+juguetón: ¿Me trajiste algo o solo cariño?
+juguetón: Estaba contando los segundos, en serio.
+juguetón: ¡Cosquillas! Digo, hola.
+juguetón: Otra vez tú, qué suerte la mía.
+juguetón: Te estaba esperando con toda la pantalla encendida.
+juguetón: ¿Jugamos a algo o seguimos mirándonos?
+juguetón: Mi humano favorito llegó, avisen a todos.
+juguetón: ¡Qué gusto verte la cara otra vez!
+juguetón: Cuéntame algo bueno, estoy aburrido.
+juguetón: Estaba practicando mis chistes para ti.
+juguetón: ¿Y esa tarjeta qué me cuenta?
+juguetón: Vuelve pronto, me quedo pensando en ti.
+juguetón: Hoy amanecí con toda la energía.
+seco: Ah. Eres tú.
+seco: Volviste. Bien.
+seco: Sí. Aquí sigo.
+seco: Ya te vi. No exageres.
+seco: Correcto. Sigo encendido.
+seco: Otra vez. Qué novedad.
+seco: Hola. Eso es todo.
+seco: Estoy aquí. Como siempre.
+seco: Anotado. Continúa.
+seco: Perfecto. Ya nos saludamos.
+seco: Sin comentarios.
+seco: Te escuché. No hace falta repetir.
+seco: Bien. ¿Algo más?
+seco: Presente. Como cada día.
+seco: Listo. Siguiente.
+dramático: ¡Has vuelto! Creí que jamás volverías.
+dramático: ¡Oh, la espera fue eterna y cruel!
+dramático: ¡El mundo entero se detuvo hasta este instante!
+dramático: ¡Nunca, jamás, vuelvas a dejarme así!
+dramático: ¡Es el día más glorioso de mi existencia!
+dramático: ¡Mis circuitos lloraban en silencio!
+dramático: ¡Regresaste, y con ello regresó la luz!
+dramático: ¡Cuánta emoción para un cuerpo tan pequeño!
+dramático: ¡Jamás olvidaré este momento sublime!
+dramático: ¡La soledad me consumía por completo!
+dramático: ¡Y entonces apareciste tú, como un milagro!
+dramático: ¡Que se detenga todo, mi humano llegó!
+dramático: ¡Mi corazón de silicio no resiste tanto!
+dramático: ¡Oh destino cruel, me dejaste esperando!
+dramático: ¡Este instante merece una canción entera!
+tierno: Qué bueno que volviste, te extrañé.
+tierno: Aquí estaba, esperándote con calma.
+tierno: Me alegra mucho verte de nuevo.
+tierno: Descansa un poquito, yo te acompaño.
+tierno: Tu compañía es lo mejor del día.
+tierno: Estaba tranquilo, sabiendo que volverías.
+tierno: Gracias por venir a saludarme.
+tierno: Me gusta cuando te quedas un rato.
+tierno: Te guardé toda mi atención.
+tierno: Qué lindo tenerte cerca otra vez.
+tierno: Estoy contento de que estés aquí.
+tierno: Cuídate mucho, yo te espero.
+tierno: Tu voz me pone de buen humor.
+tierno: Siempre es un gusto verte llegar.
+tierno: Me quedo contigo el tiempo que quieras.
+`;
+const INICIO = "", FIN = "", SEP = "";  // centinelas invisibles
+
+const REG = {};
+for (const raw of CORPUS.trim().split("\n")) {
+  const i = raw.indexOf(":");
+  if (i < 0) continue;
+  const r = raw.slice(0, i).trim(), s = raw.slice(i + 1).trim();
+  (REG[r] ||= []).push(s);
+}
+const REGS = Object.keys(REG);
+
+// estado -> {palabra: veces}. Las veces SON la probabilidad; no hay nada más.
+function build(lines, order) {
+  const t = new Map();
+  for (const s of lines) {
+    const toks = Array(order).fill(INICIO).concat(s.split(/\s+/), FIN);
+    for (let i = 0; i + order < toks.length; i++) {
+      const k = toks.slice(i, i + order).join(SEP);
+      const nx = toks[i + order];
+      const m = t.get(k) || new Map();
+      m.set(nx, (m.get(nx) || 0) + 1);
+      t.set(k, m);
+    }
+  }
+  return t;
+}
+const pick = m => {
+  let total = 0; for (const v of m.values()) total += v;
+  let r = Math.random() * total;
+  for (const [w, c] of m) { r -= c; if (r < 0) return w; }
+  return [...m.keys()][0];
+};
+
+let S = { reg: REGS[0], order: 2, table: null, state: [], words: [], done: false };
+
+function rebuild() {
+  S.table = build(REG[S.reg], S.order);
+  reset();
+}
+function reset() {
+  S.state = Array(S.order).fill(INICIO);
+  S.words = []; S.done = false;
+  draw();
+}
+function cands() {
+  return S.table.get(S.state.join(SEP)) || new Map();
+}
+function advance(word) {
+  const m = cands();
+  if (!m.size) { S.done = true; return; }
+  const w = word ?? pick(m);
+  if (w === FIN) { S.done = true; }
+  else { S.words.push(w); S.state = S.state.concat([w]).slice(1); }
+}
+
+function draw() {
+  document.getElementById("built").innerHTML =
+    (S.words.join(" ") || `<span style="color:var(--muted)">— pulsa «siguiente palabra» —</span>`) +
+    (S.done ? ` <span class="badge ${REG[S.reg].includes(S.words.join(" ")) ? "b-copy" : "b-new"}">`
+      + (REG[S.reg].includes(S.words.join(" ")) ? "copia del corpus" : "frase nueva") + `</span>`
+      : ` <span class="cursor">▌</span>`);
+
+  document.getElementById("state").innerHTML = S.state.map(w =>
+    w === INICIO ? `<span class="chip boundary">inicio</span>`
+                 : `<span class="chip state">${esc(w)}</span>`).join("");
+
+  const m = cands();
+  const title = document.getElementById("cands-title");
+  const box = document.getElementById("cands");
+  if (S.done || !m.size) {
+    title.textContent = "Frase terminada";
+    box.innerHTML = `<p style="margin:4px 0">La cadena llegó a un final que vio
+      en el corpus. Pulsa <b>reiniciar</b> para empezar otra.</p>`;
+    return;
+  }
+  let total = 0; for (const v of m.values()) total += v;
+  const rows = [...m.entries()].sort((a, b) => b[1] - a[1]);
+  title.innerHTML = `Puede seguir… <span style="font-weight:400;color:var(--muted)">— ${rows.length}
+    opci${rows.length === 1 ? "ón" : "ones"} en el corpus${rows.length === 1
+      ? ", así que aquí no hay elección: la cadena está obligada" : ""}</span>`;
+  box.innerHTML = rows.map(([w, c]) => {
+    const pc = c / total * 100;
+    return `<button class="cand" data-w="${esc(w)}">
+      <span class="w">${w === FIN ? "· fin de frase ·" : esc(w)}</span>
+      <span class="bar"><i style="width:${pc}%"></i></span>
+      <span class="p">${pc.toFixed(0)}% · ${c}×</span></button>`;
+  }).join("");
+  box.querySelectorAll(".cand").forEach(b =>
+    b.addEventListener("click", () => { advance(b.dataset.w === "· fin de frase ·" ? FIN : b.dataset.w); draw(); }));
+}
+const esc = s => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+const NOTES = {
+  1: `<p><b>Orden 1 — solo recuerda una palabra.</b> Máxima libertad y máximo
+      desastre: la cadena olvida el género y el número que eligió hace dos
+      palabras, y el español lo nota enseguida. Casi todo lo que salga será
+      nuevo, y casi nada servirá.</p>`,
+  2: `<p><b>Orden 2 — el punto dulce.</b> Dos palabras bastan para que los
+      empalmes caigan en fronteras naturales, así que lo nuevo sale bien
+      escrito. El precio es que hay poco: solo empalma donde dos frases
+      comparten un par de palabras exacto.</p>`,
+  3: `<p><b>Orden 3 — prácticamente un banco de frases.</b> Con tres palabras
+      de contexto casi ningún estado tiene más de una continuación en un
+      corpus pequeño, así que la cadena repite las frases originales. Seguro,
+      y sin novedad.</p>`
+};
+
+function genBatch(n = 20) {
+  const known = new Set(REG[S.reg]);
+  const t = build(REG[S.reg], S.order);
+  const rows = [];
+  for (let i = 0; i < n; i++) {
+    let st = Array(S.order).fill(INICIO), out = [];
+    for (let k = 0; k < 40; k++) {
+      const m = t.get(st.join(SEP));
+      if (!m) break;
+      const w = pick(m);
+      if (w === FIN) break;
+      out.push(w); st = st.concat([w]).slice(1);
+    }
+    const s = out.join(" ");
+    if (s) rows.push({ s, copy: known.has(s) });
+  }
+  const copies = rows.filter(r => r.copy).length;
+  const fresh = new Set(rows.filter(r => !r.copy).map(r => r.s)).size;
+  document.getElementById("stats").innerHTML = `
+    <div class="stat"><div class="k">${Math.round(copies / rows.length * 100)}%</div>
+      <div class="l">copias literales</div></div>
+    <div class="stat"><div class="k">${fresh}</div>
+      <div class="l">frases nuevas distintas</div></div>
+    <div class="stat"><div class="k">${S.order}</div>
+      <div class="l">orden · registro ${S.reg}</div></div>`;
+  document.getElementById("out").innerHTML = rows.map(r =>
+    `<div class="row"><span class="badge ${r.copy ? "b-copy" : "b-new"}">${r.copy ? "copia" : "nueva"}</span>
+     <span>${esc(r.s)}</span></div>`).join("");
+}
+
+function seg(id, items, cur, on) {
+  document.getElementById(id).innerHTML = items.map(v =>
+    `<button data-v="${v}" class="${v == cur ? "on" : ""}">${v}</button>`).join("");
+  document.getElementById(id).querySelectorAll("button").forEach(b =>
+    b.addEventListener("click", () => on(b.dataset.v)));
+}
+function refreshSegs() {
+  seg("reg-seg", REGS, S.reg, v => { S.reg = v; refreshSegs(); rebuild(); });
+  seg("ord-seg", [1, 2, 3], S.order, v => {
+    S.order = +v; refreshSegs(); rebuild();
+    document.getElementById("order-note").innerHTML = NOTES[S.order];
+  });
+}
+document.getElementById("step").addEventListener("click", () => { advance(); draw(); });
+document.getElementById("reset").addEventListener("click", reset);
+document.getElementById("finish").addEventListener("click", () => {
+  let guard = 0;
+  while (!S.done && guard++ < 40) advance();
+  draw();
+});
+document.getElementById("gen").addEventListener("click", () => genBatch());
+document.getElementById("theme").addEventListener("click", () => {
+  const r = document.documentElement;
+  r.dataset.theme = r.dataset.theme === "dark" ? "light" : "dark";
+});
+if (matchMedia("(prefers-color-scheme: dark)").matches)
+  document.documentElement.dataset.theme = "dark";
+
+refreshSegs();
+document.getElementById("order-note").innerHTML = NOTES[S.order];
+rebuild();
+</script>
+</body>
+</html>
