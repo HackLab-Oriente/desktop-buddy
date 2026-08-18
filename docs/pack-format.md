@@ -34,6 +34,8 @@ packs, la web los edita, los autores los escriben).
   faces/
     *.anim.json             definiciones de animación
     sprites/                sprite sheets (PNG o RGB565 .bin)
+  lines/
+    <expresion>.txt         banco de frases, una por línea — ver «De dónde salen las frases»
   sounds/                   audio pequeño (chirps, efectos) — residente en flash
   media/                    biblioteca opcional de contenido grande — residente en SD
 ```
@@ -82,6 +84,64 @@ público) viven o mueren por este campo.
 archivo de media si el reflejo lo nombra, TTS si no).
 
 
+
+## De dónde salen las frases
+
+**Decidido: las dos cosas, y se elige por expresión.**
+([#17](https://github.com/HackLab-Oriente/desktop-buddy/issues/17))
+
+Cada entrada del mapa de expresiones (`faces/emotions.json`, el archivo que
+#18 saca de C++) lleva una propiedad `source`:
+
+```json
+{
+  "happy":     { "source": "bank"  },
+  "curious":   { "source": "model" },
+  "angry":     { "source": "bank"  }
+}
+```
+
+- **`bank`** — las frases están escritas a mano en `lines/<expresion>.txt`,
+  una por línea. Se elige una.
+- **`model`** — las genera el modelo local, condicionado por la expresión.
+
+Por expresión y no global, que es lo que hace que la decisión sea buena: hay
+expresiones que quieren ingenio escrito a mano (`angry` → «HMPH.») y otras que
+quieren variedad (`curious`). Una sola palanca para todo el pack obligaría a
+elegir mal en la mitad de los casos.
+
+### `source` es una preferencia, no una exclusión
+
+**`source: "model"` no exime de tener `lines/<expresion>.txt`.** Si no hay
+modelo flasheado, si falla, o si tarda de más, se cae al banco. Es la única
+lectura compatible con el principio declarado de que el buddy **nunca es un
+ladrillo**: una expresión sin frase no es un error recuperable, es un bicho
+que se queda mudo.
+
+Dicho de otra forma: el banco es el suelo y el modelo es el techo. Un pack sin
+modelo funciona entero; un pack sin banco es un pack roto que además no lo
+parece hasta que falla el modelo.
+
+### Lo que cuesta cada uno
+
+| | latencia | qué gasta |
+|---|---|---|
+| `bank` | microsegundos | nada |
+| `model` | ~65 ms para una frase corta (152 tok/s medidos en S3) | compite con el render de la cara, que va a 30,4 ms/frame |
+
+No es prohibitivo, pero **`model` cuesta frames** y quien escribe el pack
+debería saberlo. La contención con la cara está medida en
+[local-model-bringup.md](local-model-bringup.md).
+
+### Dos cosas que faltan por decidir
+
+1. **Los nombres de archivo copian el vocabulario de expresiones**, que
+   todavía se está decidiendo — #16 (cómo se llama el set) y #19
+   (`face.emotion` de 8 vs `led.mood` de 4). **No crees los `.txt` hasta que
+   esos dos caigan**, o será un renombrado masivo.
+2. **Qué modelo usa `model`.** Los packs son portables y un modelo pesa
+   megas, así que lo razonable es que el pack **referencie** el modelo del
+   dispositivo en vez de traérselo. Sin decidir.
 
 ## Superficie de la API de scripts (Berry)
 

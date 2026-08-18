@@ -97,7 +97,7 @@ Y lo que **no** existe, que es de lo que van estas cuatro tardes:
 cerradas, y cada equipo termina la tarde con algo suyo en el repo.**
 
 **Primera hora: cerrar las decisiones abiertas.** Es el bloque más valioso de
-las cuatro sesiones, y ahora tiene material real — seis issues etiquetadas
+las cuatro sesiones, y ahora tiene material real — cinco issues etiquetadas
 `needs-decision`, cada una con su contexto ya escrito:
 
 | # | decisión | bloquea a |
@@ -105,7 +105,6 @@ las cuatro sesiones, y ahora tiene material real — seis issues etiquetadas
 | #20 | ¿seguimos redondos? | **CAD — no puede empezar sin esto** |
 | #19 | `face.emotion` (8) vs `led.mood` (4): vocabulario duplicado | personalidad, firmware |
 | #16 | cómo se llama el set de estados | personalidad |
-| #17 | frases locales: banco de frases o modelo local | personalidad, voz |
 | #24 | qué puede poner una pegatina NFC | personalidad |
 | #27 | autenticación del web UI: hoy no hay ninguna | firmware, web |
 
@@ -128,7 +127,7 @@ Después, en paralelo:
 - **Electrónica** — #13 (cerrar la BOM) y #14 (RC522 en el ESP32 clásico; en
   S3 ya está verificado).
 - **CAD** — #15: medir componentes y bocetar, en cuanto caiga #20.
-- **Personalidad** — dueños de cuatro de las seis decisiones de arriba;
+- **Personalidad** — dueños de tres de las cinco decisiones de arriba;
   después, empezar el contenido del pack `default`.
 
 **Cierre**: demo por equipo y confirmar responsables. El equipo de voz necesita
@@ -198,8 +197,8 @@ Es la única sesión del programa que **flota**, y por dos razones concretas:
   La sesión va de entrenar, no de arrancar.
 
 **Recomendación: después de la serie, no antes.** El primer sábado libre es el
-26 de septiembre; la agenda del lab ya tiene además dos sesiones de *IA y
-hardware hacking* el 7 y el 21 de noviembre, que pueden ser su casa natural.
+26 de septiembre. Necesita fecha propia: las sesiones de *IA y hardware
+hacking* de noviembre que hay en la agenda **son otra cosa**, no esta.
 
 Por qué después:
 
@@ -210,13 +209,12 @@ Por qué después:
 3. **Nada del buddy la bloquea.** Ninguna de las cuatro sesiones necesita que
    alguien haya entrenado un modelo.
 
-Lo que cambiaría la recomendación: **#17** (frases locales — ¿banco de frases o
-modelo local?) está en el bloque de decisiones de la sesión 1, y decidirlo con
-un modelo entrenado en las manos es mejor que decidirlo leyendo un documento.
-Pero eso se resuelve **acotando #17**, no adelantando la sesión: lo que la
-sesión 1 tiene que decidir es si el **formato de packs deja sitio a las dos
-opciones**. Cuál gana no hace falta saberlo hasta la sesión 3, que es cuando se
-construye el pack `default` — y para entonces habrá números, no intuiciones.
+Lo único que podía haber obligado a adelantarla era **#17** (frases locales:
+¿banco o modelo?). **Ya está resuelta, y con las dos**: cada expresión declara
+su `source`, `bank` o `model`, y el banco es siempre el suelo del que se cae
+([pack-format.md](pack-format.md#de-dónde-salen-las-frases)). Con eso, el
+modelo local pasa a ser una mejora opcional y no un prerrequisito de nada —
+que es lo que deja a esta sesión flotar de verdad.
 
 ## Notas de riesgo
 
