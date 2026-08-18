@@ -14,9 +14,11 @@ namespace buddy {
 void face_start();
 
 // Mood indicator — the backend (single PWM LED or WS2812 ring) is chosen in
-// menuconfig. The ring tints itself with the emotion's mood color.
-// Consumes: led.mood     (calm|excited|thinking|off — animation)
-//           face.emotion (ring color; ignored by the single PWM LED)
+// menuconfig.
+// Consumes: led.mood     (any mood NAME in the pack's table — see mood_model.h;
+//                         built-ins are calm|excited|thinking|off)
+//           face.emotion (ring colour, and the expression's default mood;
+//                         a led.mood published afterwards still wins)
 void led_start();
 
 }  // namespace buddy

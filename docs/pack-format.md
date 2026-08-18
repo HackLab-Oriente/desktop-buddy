@@ -254,7 +254,7 @@ frase larga es un rato largo sin poder escucharte.
 
 ## Los moods también son del pack
 
-**Propuesta.** Hoy `led.mood` acepta cuatro valores fijos en C++
+**Implementado.** Hasta ahora `led.mood` aceptaba cuatro valores fijos en C++
 (`calm|excited|thinking|off`), que es una segunda lista cerrada compitiendo con
 las ocho emociones — la mitad del problema de #19. Si los moods pasan a ser
 datos del pack, esa lista deja de existir como vocabulario rival y se convierte
@@ -274,8 +274,9 @@ Y la cadena completa queda coherente con las tres capas:
 
 ### Primitivas cerradas, no un lenguaje
 
-`anim` sale de una lista corta y fija: `solid`, `breathe`, `spin`, `pulse`,
-`off`. La expresividad la ponen los parámetros —colores, periodo, sentido,
+`anim` sale de una lista corta y fija: **`solid`, `breathe`, `spin`, `pulse`,
+`off`**. Un `anim` que no esté en la lista cae a `breathe` — algo visible y
+lento, nunca algo rápido ni a oscuras. La expresividad la ponen los parámetros —colores, periodo, sentido,
 brillo—, no la gramática.
 
 Es deliberado. Son **12 LEDs** actualizándose junto a una cara que renderiza a
@@ -294,9 +295,17 @@ los reflejos existentes siguen valiendo tal cual.
 
 - Un pack **sin** `moods` se queda con los cuatro de siempre. `packs/zero`
   sigue funcionando sin tocar nada.
-- Un mood que se nombre y no exista **degrada al built-in**, no apaga el anillo
-  ni revienta. Mismo principio que la caída al banco: lo peor que puede pasar
-  no es quedarse a oscuras sin explicación.
+- Un mood que se nombre y no exista **deja el que estuviera puesto** y lo
+  avisa por log, en vez de apagar el anillo. Mismo principio que la caída al
+  banco: lo peor que puede pasar no es quedarse a oscuras sin explicación.
+
+### Y una cosa que el `mood` de cada expresión sí cambia
+
+Una expresión puede nombrar su mood (`"angry": { "mood": "brasa" }`). Al llegar
+`face.emotion` se aplica **como valor por defecto**: un `led.mood` publicado
+después sigue ganando. Por eso los reflejos que ya existen —que publican los
+dos— se comportan exactamente igual que antes, y los nuevos pueden publicar
+solo `face.emotion` y dejar de repetirse.
 
 ## Markov como tercera fuente de frases (propuesta)
 

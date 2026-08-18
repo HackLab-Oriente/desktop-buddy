@@ -23,6 +23,7 @@ firmware/.vscode/settings.json
 .vscode/settings.local.json
 firmware/.vscode/settings.local.json
 
-# Binarios de las pruebas de host
-firmware/host_test/test_markov
+# Host-test binaries: built ad hoc by CI and by hand, never shipped.
+firmware/host_test/test_*
+!firmware/host_test/test_*.cpp
 firmware/host_test/*.o
