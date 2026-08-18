@@ -56,6 +56,75 @@ compartidos crecen rápido con el tamaño del corpus, así que 1.000 frases
 reales darán bastante más del 13 %. Este spike no lo zanja; `--measure` sobre el
 corpus de verdad sí, en segundos.
 
+## Prueba a escala: CESS-ESP (192.686 palabras)
+
+El caveat de arriba —«60 frases es minúsculo, con más saldrá mejor»— ya no hace
+falta creérselo. Corriendo lo mismo sobre [CESS-ESP](https://mailman.uib.no/public/corpora/2007-October/005448.html),
+un corpus real de español de prensa (5.972 frases), con
+`python3 cess_scale_test.py`:
+
+**Novedad con orden 2, según el tamaño del corpus (solo frases de ≤12 palabras,
+que es nuestro caso):**
+
+| frases | novedad | nuevas distintas |
+|---|---|---|
+| 60 | 12,8 % | 32 |
+| 200 | 22,7 % | 89 |
+| 920 | **44,7 %** | 245 |
+
+Tres cosas que esto zanja:
+
+1. **Escribir más frases sí paga, y mucho.** De 60 a 920 frases la novedad se
+   multiplica por 3,5. A ~1.000 frases, casi la mitad de lo que diga el buddy
+   será una combinación que nadie escribió. Y cuesta 61 KB de RAM.
+2. **Nuestras medidas del corpus de demo eran correctas.** 12,8 % con 60 frases
+   cortas de CESS contra el 10–13 % que medimos con 60 frases nuestras: el
+   número no era un artefacto del corpus de juguete, es lo que dan las frases
+   cortas.
+3. **El orden 3 está muerto para nuestro caso**: 0 % con 60 frases, 1,5 % con
+   920. Orden 2 es el punto de trabajo, y por eso es el defecto en el formato de
+   packs.
+
+### La trampa que este experimento evita
+
+Con las frases **completas** de CESS (30 palabras de media) el orden 2 da
+**76,8 % de novedad ya con 60 frases**, y 96,3 % con el corpus entero. Si
+hubiéramos medido solo eso, la conclusión habría sido «Markov es
+generativísimo» — y sería falsa para nosotros. **A igualdad de corpus, la
+longitud de frase importa más que el tamaño**: 76,8 % contra 12,8 % con las
+mismas 60 frases. Frases largas comparten muchos bigramas de función («de la»,
+«en el») y empalman por todas partes; las cortas casi no comparten nada.
+
+### Y lo que se rompe no es la gramática
+
+Muestras reales con orden 2 sobre frases cortas de CESS:
+
+```
+Pero Germán de Granda es un baño turco.
+Acabar de una vez con el mar Negro.
+Al lector de hoy elevó a Guga a otro nivel.
+```
+
+**La concordancia aguanta.** Lo que falla es el *sentido*: frases bien
+construidas que dicen disparates. Eso cambia el riesgo que el grupo aceptó, y a
+mejor: una frase agramatical parece un bug, pero una frase bien escrita que
+dice algo absurdo parece **surrealismo**, que en un bicho de escritorio pasa por
+personalidad.
+
+Además, aquí el disparate viene de que CESS mezcla política, deportes y
+finanzas, con nombres propios por todas partes. **Un corpus del buddy es
+semánticamente estrecho** —todo son reacciones a una persona— así que los
+empalmes se quedan dentro del mismo tema. Nuestro caso es más benigno que esta
+prueba.
+
+### Qué NO prueba esto
+
+CESS es prensa, no diálogo: otro registro, otro vocabulario, y llena de nombres
+propios que nosotros no tendremos. Filtrar a frases cortas acerca la forma, no
+el contenido. Un proxy mejor sería diálogo real —subtítulos o Tatoeba en
+español—, que se parece a cómo habla el buddy. Pendiente si alguien quiere
+afinar el número.
+
 ## La decisión
 
 **Tomada: variedad por encima de corrección.** El grupo acepta que salga una
@@ -147,5 +216,6 @@ y probabilidades aprendidas en vez de contadas. Ver
 
 | fichero | qué es |
 |---|---|
+| [cess_scale_test.py](cess_scale_test.py) | prueba a escala sobre CESS-ESP (necesita `nltk`) |
 | [markov.py](markov.py) | la herramienta: `--measure`, `--memory` y generación de propuestas (código en inglés, como el resto del proyecto) |
 | [corpus-demo.txt](corpus-demo.txt) | **datos de prueba** escritos solo para probar el generador — el corpus de verdad lo escribe el grupo |
