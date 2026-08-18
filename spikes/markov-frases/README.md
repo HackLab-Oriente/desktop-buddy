@@ -8,9 +8,14 @@ fichero de texto que cualquiera edita — que es justo el compromiso
 
 Este spike la mide en vez de opinar.
 
-**Explicación interactiva: [markov.html](markov.html)** — el mecanismo paso a
-paso (estado, candidatas, probabilidades), generación por lotes con recuento
-de copias, y cómo usarlo. Pensada para proyector.
+**Explicación interactiva: [`docs/markov.html`](https://github.com/HackLab-Oriente/desktop-buddy/blob/main/docs/markov.html)**
+— el mecanismo paso a paso (estado, candidatas, probabilidades), el grafo del
+vecindario, generación por lotes con recuento de copias, y cómo usarlo. Pensada
+para proyector.
+
+Vive en `main`, no en esta rama, por dos razones: GitHub Pages solo publica
+desde `main`, y con una sola copia no hay dos ficheros que se separen. Está
+enlazada desde la portada de la documentación.
 
 ## Cómo funciona, en una frase
 
@@ -127,6 +132,5 @@ y probabilidades aprendidas en vez de contadas. Ver
 
 | fichero | qué es |
 |---|---|
-| [markov.html](markov.html) | explicación interactiva, autocontenida, para proyector |
 | [markov.py](markov.py) | la herramienta: `--measure`, `--memory` y generación de propuestas (código en inglés, como el resto del proyecto) |
 | [corpus-demo.txt](corpus-demo.txt) | **datos de prueba** escritos solo para probar el generador — el corpus de verdad lo escribe el grupo |
