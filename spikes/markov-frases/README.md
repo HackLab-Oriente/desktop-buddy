@@ -56,17 +56,33 @@ compartidos crecen rápido con el tamaño del corpus, así que 1.000 frases
 reales darán bastante más del 13 %. Este spike no lo zanja; `--measure` sobre el
 corpus de verdad sí, en segundos.
 
-## Recomendación
+## La decisión
 
-**No generar dentro del buddy.** Un orden bajo puede soltar una frase rota, y
-una frase rota rompe el personaje mucho más que una repetida: un buddy
-repetitivo tiene muletillas, uno agramatical parece un bug.
+**Tomada: variedad por encima de corrección.** El grupo acepta que salga una
+frase rara de vez en cuando a cambio de que el buddy no repita nunca, así que
+**sí se genera dentro del dispositivo**. Este spike aporta los números, no el
+veredicto.
 
-**Sí usarlo fuera de línea para expandir el corpus, con revisión humana.**
-Nada llega al dispositivo sin que una persona lo haya leído, y la variedad sale
-gratis — sin modelo, sin entrenar, sin coste en ejecución. Es el mismo patrón
-de «generar y curar» que usamos con Claude, salvo que Markov escribe con la voz
-*del propio grupo*, porque solo recombina lo que el grupo ya escribió.
+Lo que las medidas dicen sobre esa decisión: técnicamente no hay obstáculo
+—5.000 frases son ~282 KB de PSRAM y ~26 µs por frase— y el orden 2 ya sale
+gramatical casi siempre, así que la «cola» de frases rotas es más fina de lo
+que parecía al empezar.
+
+Mandos a la hora de implementarlo, para el pack, no para el firmware:
+
+- **el orden es el mando de riesgo** — 2 conserva la concordancia, 1 inventa
+  mucho más y la rompe; configurable por pack para quien quiera caos
+- **tope de longitud**, que corta el fallo típico de Markov: la frase que se
+  enrolla y no termina
+- **supresión de frases recientes**, que sube mucho la variedad percibida con
+  muy poca memoria
+- **mezcla**: un pack puede tirar de frases aprobadas la mayor parte del tiempo
+  y de generación en vivo el resto; el porcentaje es un número en un fichero
+
+**Expandir el corpus fuera de línea sigue mereciendo la pena**, precisamente
+porque un corpus más rico también mejora la generación en vivo. Es el mismo
+patrón de «generar y curar» que usamos con Claude, salvo que Markov escribe con
+la voz *del propio grupo*, porque solo recombina lo que el grupo ya escribió.
 
 ```bash
 python3 markov.py corpus.txt --measure               # ¿da para recombinar?
@@ -76,7 +92,7 @@ python3 markov.py corpus.txt --order 2 --new 50 > propuestas.txt
 
 Solo stdlib de Python — sin dependencias, sin entorno virtual.
 
-## ¿Y si lo usamos como generador dentro del buddy?
+## Qué cuesta generar dentro del buddy
 
 Coste estimado con `python3 markov.py corpus.txt --memory`. La tabla que un
 puerto en C usaría: array **ordenado** de filas `(w1, w2, siguiente)` de 3
@@ -107,13 +123,12 @@ El tiempo de arranque sí hay que contarlo: construir la tabla es una pasada
 sobre el corpus (decenas de ms para miles de líneas), o se precalcula fuera y
 se flashea ya ordenada.
 
-**Cómo leer esto:** el coste **no** es la razón para no generar en el
-dispositivo — con un corpus grande sería trivial, y además la calidad *mejora*
-con el tamaño (más pares compartidos = más novedad, y los empalmes siguen
-cayendo en fronteras de sintagma). La razón sigue siendo el riesgo de la cola:
-una frase rota de vez en cuando rompe el personaje, y fuera de línea ese riesgo
-es exactamente cero porque alguien la lee antes. Si algún día el grupo prefiere
-asumir esa cola a cambio de variedad infinita, el coste técnico no lo impide.
+**Cómo leer esto:** el coste nunca fue el problema — con un corpus grande la
+generación en el dispositivo es trivial, y además la calidad *mejora* con el
+tamaño (más pares compartidos = más novedad, y los empalmes siguen cayendo en
+fronteras de sintagma). Lo único que quedaba en la balanza era la cola de
+frases raras, que es una cuestión de gusto y no de ingeniería. El grupo la ha
+resuelto a favor de la variedad.
 
 Nota honesta: estos números son analíticos, no medidos en placa — todavía no
 hay puerto en C. Lo que **sí** está medido es la latencia de una lectura
