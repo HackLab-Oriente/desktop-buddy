@@ -93,6 +93,25 @@ jobs:
             -I../components/senses test_ndef.cpp -o test_ndef
           ./test_ndef
 
+      - name: Pack parser (with sanitizers)
+        # A pack is untrusted input too -- they get shared, mailed, and once
+        # #21 lands, installed off a card. The bar is that a broken or hostile
+        # pack yields a dull face, never a crash and never a renderer handed a
+        # zero-width eye. So the cases that matter are wrong types, absurd
+        # numbers and truncated files, not the happy path.
+        working-directory: firmware/host_test
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq libcjson-dev
+          c++ -std=c++17 -Wall -Wextra \
+            -fsanitize=address,undefined -fno-sanitize-recover=all \
+            -I../components/pack -I../components/expressions/include \
+            -I/usr/include/cjson \
+            test_pack.cpp \
+            ../components/expressions/face_model.cpp \
+            ../components/expressions/mood_model.cpp \
+            -lcjson -o test_pack
+          ./test_pack
+
       - name: Latin-1 text normaliser (with sanitizers)
         # Same shape of code, same reason: it walks UTF-8 from an LLM into a
         # fixed buffer. The interesting cases are truncated sequences and a

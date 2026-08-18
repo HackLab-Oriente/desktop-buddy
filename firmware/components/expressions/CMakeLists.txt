@@ -1,5 +1,5 @@
 idf_component_register(
-  SRCS "face_model.cpp" "round_face.cpp" "led_ring.cpp"
+  SRCS "face_model.cpp" "mood_model.cpp" "round_face.cpp" "led_ring.cpp"
   INCLUDE_DIRS "include" "."
   REQUIRES bus LovyanGFX
 )

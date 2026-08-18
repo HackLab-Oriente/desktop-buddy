@@ -1,0 +1,18 @@
+{
+  "neutral":    { "eye": { "width": 26, "height": 30, "openness": 100 },
+                  "blink_ms": 3800, "color": "#00beff", "mood": "calm",     "register": "llano" },
+  "happy":      { "eye": { "width": 26, "height": 30, "openness": 100, "lift": 14 },
+                  "blink_ms": 3000, "color": "#28eb78", "mood": "excited",  "register": "cálido" },
+  "curious":    { "eye": { "width": 30, "height": 34, "openness": 100 },
+                  "blink_ms": 2600, "color": "#00d2eb", "mood": "thinking", "register": "curioso" },
+  "sleepy":     { "eye": { "width": 26, "height": 30, "openness": 35 },
+                  "blink_ms": 6000, "color": "#5a5ac8", "mood": "off",      "register": "somnoliento" },
+  "surprised":  { "eye": { "width": 34, "height": 40, "openness": 100 },
+                  "blink_ms": 5000, "color": "#96f0ff", "mood": "excited",  "register": "urgente" },
+  "angry":      { "eye": { "width": 28, "height": 28, "openness": 100, "brow": 1 },
+                  "blink_ms": 3200, "color": "#ff3219", "mood": "fuego",    "register": "seco" },
+  "sad":        { "eye": { "width": 24, "height": 26, "openness": 75, "brow": -1 },
+                  "blink_ms": 5200, "color": "#326eff", "mood": "calm",     "register": "somnoliento" },
+  "suspicious": { "eye": { "width": 26, "height": 30, "openness": 55, "brow": 1 },
+                  "blink_ms": 2200, "color": "#ffb414", "mood": "calm",     "register": "seco" }
+}

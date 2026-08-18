@@ -77,8 +77,12 @@ def _match(pattern, name)
 end
 
 def _dispatch(name, payload)
+  # Built once per event, not once per handler. Three subscribers to the same
+  # event used to allocate three identical maps for Berry's GC to collect.
+  # NOTE: the map is shared by every handler for this event -- do not mutate it.
+  var ev = {'name': name, 'payload': payload}
   for h : _handlers
-    if _match(h[0], name) h[1]({'name': name, 'payload': payload}) end
+    if _match(h[0], name) h[1](ev) end
   end
 end
 )";
