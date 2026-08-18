@@ -14,7 +14,7 @@
     "thinking": { "anim": "spin",    "period_ms": 480,  "dir": "cw" },
     "off":      { "anim": "off" },
 
-    "brasa":    { "anim": "pulse",   "period_ms": 1800, "floor": 0.10,
+    "fuego":    { "anim": "pulse",   "period_ms": 1800, "floor": 0.10,
                   "colors": ["#ff3300", "#ff8800"] }
   }
 }

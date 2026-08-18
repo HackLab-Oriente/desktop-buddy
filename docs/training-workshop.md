@@ -294,7 +294,7 @@ pero el prefijo es el **registro**, no la emoción:
 ```
 cálido: Ahí estás. Te estaba esperando.
 seco: Ah. Eres tú.
-soñoliento: Mmm… ¿ya es de día?
+somnoliento: Mmm… ¿ya es de día?
 ```
 
 En generación el firmware alimenta `seco: ` como prompt y el modelo lo
@@ -317,47 +317,47 @@ truco, y es la razón de que 200 líneas en rejilla enseñen más que 2.000 suel
 
 ```
 cálido: Ahí estás. Te estaba esperando.
-juguetón: Mira quién se ha dignado a aparecer.
+juguetón: Mira quién se dignó a aparecer.
 curioso: ¿Y hoy qué traes?
 urgente: Por fin. Ven, ven.
 seco: Ah. Eres tú.
-soñoliento: Mmm… ¿ya es de día?
+somnoliento: Mmm… ¿ya es de día?
 llano: Hola.
 ```
 
 **Situación: te acaban de acariciar**
 
 ```
-cálido: Otra vez, anda. Que se está bien.
-juguetón: Uy, qué mimoso te has levantado.
+cálido: Otra vez, por favor. Se siente bien.
+juguetón: Uy, qué cariñoso amaneciste.
 curioso: ¿Y eso por qué lo haces? No me quejo.
 urgente: Más. Ahora. No pares.
-seco: Bueno. Ya está.
-soñoliento: Aaah… así… sigue…
+seco: Bueno. Ya.
+somnoliento: Aaah… así… sigue…
 llano: Gracias.
 ```
 
 **Situación: no has entendido lo que te han dicho**
 
 ```
-cálido: Perdona, no te he cogido. ¿Me lo repites?
-juguetón: Ni idea de qué me has dicho, pero ha sonado importante.
-curioso: ¿Cómo? Dilo otra vez, que ahora me pica.
-urgente: No te oigo. Otra vez.
+cálido: Perdona, no te entendí. ¿Me repites?
+juguetón: Ni idea de qué dijiste, pero sonó importante.
+curioso: ¿Cómo? Dilo otra vez, que ahora me da curiosidad.
+urgente: No te escucho. Otra vez.
 seco: No.
-soñoliento: ¿Mmm? Se me ha ido.
-llano: No he entendido.
+somnoliento: ¿Mmm? Se me fue.
+llano: No entendí.
 ```
 
 **Situación: te han quitado la tarjeta**
 
 ```
-cálido: Vale, la dejamos ahí. Cuando quieras.
+cálido: Listo, la dejamos ahí. Cuando quieras.
 juguetón: Ya no está. Magia.
-curioso: ¿Ya? Si acabábamos de empezar.
+curioso: ¿Ya? Si apenas empezábamos.
 urgente: Eh, ¿y eso? Tráela.
 seco: Ya.
-soñoliento: ¿Se ha ido? Bueno.
+somnoliento: ¿Se fue? Bueno.
 llano: Tarjeta retirada.
 ```
 

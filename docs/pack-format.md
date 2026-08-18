@@ -100,11 +100,15 @@ Una **expresión** es un estado con nombre propio del pack: `huraño`, `festivo`
 `resacoso`. Un **registro** es una *manera de hablar*: seco, cálido, urgente.
 Cada expresión declara a qué registro pertenece.
 
+La clave se llama `register` y no `registro` porque **las claves del esquema son
+código** y el código va en inglés ([CONTRIBUTING](../CONTRIBUTING.md#idiomas)).
+Los **valores** los escribe quien hace el pack, en su idioma.
+
 ```json
 {
-  "huraño":  { "registro": "seco",     "use_model": true  },
-  "festivo": { "registro": "juguetón"                     },
-  "alerta":  { "registro": "urgente",  "use_model": true  }
+  "huraño":  { "register": "seco",     "use_model": true  },
+  "festivo": { "register": "juguetón"                     },
+  "alerta":  { "register": "urgente",  "use_model": true  }
 }
 ```
 
@@ -187,7 +191,7 @@ Lo que sí hay que saber:
 | `curioso` | pregunta, se fija, no da nada por hecho | `thinking` |
 | `urgente` | corto, reclama atención ya | `excited` |
 | `seco` | mínimo, retiene, no colabora | `calm` |
-| `soñoliento` | se apaga, se le va la frase | `off` |
+| `somnoliento` | se apaga, se le va la frase | `off` |
 | `llano` | informa y punto — el neutro | `calm` |
 
 ### Qué es escribir «en registro» y no «en situación»
@@ -203,18 +207,18 @@ se rompe, has escrito expresiones.
 
 **`cálido`**
 > Ahí estás.
-> Tómate tu tiempo, que no me voy a ninguna parte.
-> Te he echado de menos, aunque no lo diga.
+> Tómate tu tiempo, que no me voy a ningún lado.
+> Te extrañé, aunque no lo diga.
 
 **`juguetón`**
-> ¿Otra vez tú? Qué pesadito.
+> ¿Otra vez tú? Qué pesado.
 > Hazlo otra vez, a ver si te sale.
-> Yo no he visto nada. Yo no estaba.
+> Yo no vi nada. Yo no estaba.
 
 **`curioso`**
 > ¿Y eso qué es?
-> Espera… ¿eso siempre ha estado ahí?
-> Cuéntame más, que me interesa.
+> Espera… ¿eso siempre estuvo ahí?
+> Cuéntame más, que me da curiosidad.
 
 **`urgente`**
 > Eh. EH.
@@ -226,7 +230,7 @@ se rompe, has escrito expresiones.
 > Si tú lo dices.
 > HMPH.
 
-**`soñoliento`**
+**`somnoliento`**
 > Mmm… ¿qué?
 > Cinco minutos más.
 > Sigo aquí… más o menos.
@@ -262,7 +266,7 @@ en un espacio de nombres abierto que cada pack llena.
 
 ```json
 "moods": {
-  "brasa":  { "anim": "breathe", "colors": ["#ff3300", "#ff8800"], "period_ms": 2400 },
+  "fuego":  { "anim": "breathe", "colors": ["#ff3300", "#ff8800"], "period_ms": 2400 },
   "chispa": { "anim": "spin",    "colors": ["#ffcc00"], "period_ms": 600, "dir": "cw" },
   "duerme": { "anim": "pulse",   "colors": ["#101030"], "period_ms": 5000 }
 }
@@ -301,7 +305,7 @@ los reflejos existentes siguen valiendo tal cual.
 
 ### Y una cosa que el `mood` de cada expresión sí cambia
 
-Una expresión puede nombrar su mood (`"angry": { "mood": "brasa" }`). Al llegar
+Una expresión puede nombrar su mood (`"angry": { "mood": "fuego" }`). Al llegar
 `face.emotion` se aplica **como valor por defecto**: un `led.mood` publicado
 después sigue ganando. Por eso los reflejos que ya existen —que publican los
 dos— se comportan exactamente igual que antes, y los nuevos pueden publicar
