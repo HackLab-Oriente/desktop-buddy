@@ -79,6 +79,7 @@ static int fetch_tts(const char *text, int *out_rate, int *out_channels, int *ou
         .timeout_ms = 20000,
         .buffer_size_tx = 1024,
     };
+    *out_rate = 24000; *out_channels = 1; *out_pcm_off = 44;
     esp_http_client_handle_t cli = esp_http_client_init(&http);
     if (!cli) return 0;
 
@@ -98,7 +99,10 @@ static int fetch_tts(const char *text, int *out_rate, int *out_channels, int *ou
                      "\"response_format\":\"wav\"}",
                      CONFIG_BUDDY_TTS_MODEL, CONFIG_BUDDY_TTS_VOICE, esc);
 
-    char auth[128];
+    // Dimensionado desde la propia clave: las `sk-proj-...` pasan de 160
+    // caracteres y un buffer fijo de 128 las truncaba en silencio, que da un
+    // 401 imposible de diagnosticar desde el log.
+    char auth[sizeof("Bearer ") + sizeof(CONFIG_BUDDY_OPENAI_API_KEY)];
     snprintf(auth, sizeof auth, "Bearer %s", CONFIG_BUDDY_OPENAI_API_KEY);
     esp_http_client_set_header(cli, "Authorization", auth);
     esp_http_client_set_header(cli, "Content-Type", "application/json");
@@ -129,7 +133,6 @@ done:
 
     // RIFF: buscar los trozos `fmt ` y `data` en vez de dar por hecho el
     // desplazamiento 44 — algunos servidores meten un `LIST` por medio.
-    *out_rate = 24000; *out_channels = 1; *out_pcm_off = 44;
     for (int off = 12; off + 8 <= got;) {
         const uint8_t *c = s_buf + off;
         uint32_t sz = c[4] | c[5] << 8 | c[6] << 16 | (uint32_t)c[7] << 24;
@@ -172,7 +175,7 @@ static void voice_task(void *arg) {
     char text[TEXT_MAX];
     for (;;) {
         if (xQueueReceive(s_q, text, portMAX_DELAY) != pdTRUE) continue;
-        int rate, ch, off;
+        int rate = 24000, ch = 1, off = 44;
         const int64_t t0 = esp_timer_get_time();
         int bytes = fetch_tts(text, &rate, &ch, &off);
         const int64_t t_api = esp_timer_get_time() - t0;
