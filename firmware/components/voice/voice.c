@@ -72,133 +72,37 @@ static void i2s_open(int rate) {
     s_rate_open = rate;
 }
 
-// Devuelve bytes recibidos, o 0. Nunca registra la clave.
-static int fetch_tts(const char *text, int *out_rate, int *out_channels, int *out_pcm_off) {
-    esp_http_client_config_t http = {
-        .url = API,
-        .method = HTTP_METHOD_POST,
-        .crt_bundle_attach = esp_crt_bundle_attach,
-        .timeout_ms = 20000,
-        .buffer_size_tx = 1024,
-    };
-    *out_rate = 24000; *out_channels = 1; *out_pcm_off = 44;
-    esp_http_client_handle_t cli = esp_http_client_init(&http);
-    if (!cli) return 0;
+// --- una frase en vuelo ----------------------------------------------------
+// El audio suena MIENTRAS se descarga. Antes se esperaba al último byte y solo
+// entonces sonaba algo; ahora el primer sonido sale en cuanto hay un pelín de
+// margen, y la descarga deja de contar en la espera.
+typedef struct {
+    uint8_t hdr[256];
+    int  hdr_len;
+    bool parsed;
+    int  rate, ch;
+    bool playing;
+    int  staged;                 // PCM guardado en s_buf antes de arrancar
+    int  total_pcm;
+    uint8_t carry;               // un chunk puede partir una muestra en dos
+    bool has_carry;
+    int64_t t_first_sound;
+} Stream;
 
-    // El texto va tal cual dentro de JSON; hay que escapar comillas y barras o
-    // una frase con comillas rompe la petición.
-    char body[TEXT_MAX * 2 + 256];
-    char esc[TEXT_MAX * 2];
-    size_t e = 0;
-    for (const char *p = text; *p && e < sizeof esc - 2; p++) {
-        if (*p == '"' || *p == '\\') esc[e++] = '\\';
-        if ((unsigned char)*p < 0x20) continue;      // control: fuera
-        esc[e++] = *p;
-    }
-    esc[e] = 0;
-    int n = snprintf(body, sizeof body,
-                     "{\"model\":\"%s\",\"voice\":\"%s\",\"input\":\"%s\","
-                     "\"response_format\":\"wav\"}",
-                     CONFIG_BUDDY_TTS_MODEL, CONFIG_BUDDY_TTS_VOICE, esc);
+// ~0,25 s de colchón antes de arrancar: sin él, un hipo de red se oye como un
+// corte; con demasiado, se pierde la ventaja de streamear.
+#define PREBUFFER_BYTES (24000 * 2 / 4)
 
-    // Dimensionado desde la propia clave: las `sk-proj-...` pasan de 160
-    // caracteres y un buffer fijo de 128 las truncaba en silencio, que da un
-    // 401 imposible de diagnosticar desde el log.
-    char auth[sizeof("Bearer ") + sizeof(CONFIG_BUDDY_OPENAI_API_KEY)];
-    snprintf(auth, sizeof auth, "Bearer %s", CONFIG_BUDDY_OPENAI_API_KEY);
-    esp_http_client_set_header(cli, "Authorization", auth);
-    esp_http_client_set_header(cli, "Content-Type", "application/json");
+static esp_http_client_handle_t s_cli;   // se reutiliza entre frases
+static Stream s_st;
 
-    int got = 0;
-    // Los tres fallos de abajo estaban mudos, y "sin audio" sin causa no se
-    // puede depurar. El heap interno va en el log porque el handshake TLS
-    // necesita ~45 KB de RAM interna y quedarse corto es el sospechoso número
-    // uno cuando la cara y el WiFi ya están arriba.
-    // Desglosar "conectar": si DNS se lleva la mayor parte, la solución no
-    // tiene nada que ver con TLS.
-    const int64_t d0 = esp_timer_get_time();
-    struct addrinfo hints = {.ai_family = AF_INET, .ai_socktype = SOCK_STREAM}, *res = NULL;
-    int gai = getaddrinfo("api.openai.com", "443", &hints, &res);
-    const int64_t d1 = esp_timer_get_time();
-    if (res) freeaddrinfo(res);
-    ESP_LOGD(TAG, "  DNS %lld ms (rc=%d)", (d1 - d0) / 1000, gai);
-
-    const int64_t p0 = esp_timer_get_time();
-    esp_err_t oe = esp_http_client_open(cli, n);
-    const int64_t p1 = esp_timer_get_time();
-    if (oe != ESP_OK) {
-        ESP_LOGE(TAG, "open falló: %s (heap interno libre %u B)", esp_err_to_name(oe),
-                 (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL));
-        esp_http_client_close(cli);
-        return 0;
-    }
-    int wrote_n = esp_http_client_write(cli, body, n);
-    const int64_t p2 = esp_timer_get_time();
-    if (wrote_n != n) { ESP_LOGE(TAG, "write %d de %d bytes", wrote_n, n); goto fail; }
-    int clen = esp_http_client_fetch_headers(cli);
-    const int64_t p3 = esp_timer_get_time();
-    if (clen < 0) { ESP_LOGE(TAG, "fetch_headers falló (%d)", clen); goto fail; }
-
-    int status = esp_http_client_get_status_code(cli);
-    ESP_LOGD(TAG, "HTTP %d, content-length %d", status, clen);
-    if (status != 200) {
-        // El cuerpo del error trae el motivo (clave mala, cuota, modelo…) y no
-        // contiene la clave, así que se puede registrar entero.
-        int r = esp_http_client_read(cli, (char *)s_buf, 255);
-        if (r > 0) { s_buf[r] = 0; ESP_LOGE(TAG, "HTTP %d: %s", status, (char *)s_buf); }
-        else ESP_LOGE(TAG, "HTTP %d, sin cuerpo", status);
-        goto fail;
-    }
-    // La API devuelve el audio con Transfer-Encoding: chunked, así que
-    // content-length llega a 0 y un bucle que corte en la primera lectura
-    // vacía se queda sin nada. `read_response` sí sigue los trozos hasta el
-    // final; esto costó un "HTTP 200 y cero audio" de lo más desconcertante.
-    got = esp_http_client_read_response(cli, (char *)s_buf, MAX_WAV);
-    if (got <= 0) { ESP_LOGE(TAG, "200 pero %d bytes de cuerpo", got); got = 0; }
-    else ESP_LOGD(TAG, "cuerpo recibido: %d B", got);
-    const int64_t p4 = esp_timer_get_time();
-    ESP_LOGI(TAG, "  fases: conectar %lld ms · enviar %lld ms · esperar %lld ms · bajar %lld ms",
-             (p1 - p0) / 1000, (p2 - p1) / 1000, (p3 - p2) / 1000, (p4 - p3) / 1000);
-    goto done;
-fail:
-    esp_http_client_close(cli);       // conexión sospechosa: que la próxima reconecte
-    return 0;
-done:
-    if (got < 44) { esp_http_client_close(cli); return 0; }
-
-    // RIFF: buscar los trozos `fmt ` y `data` en vez de dar por hecho el
-    // desplazamiento 44 — algunos servidores meten un `LIST` por medio.
-    for (int off = 12; off + 8 <= got;) {
-        const uint8_t *c = s_buf + off;
-        uint32_t sz = c[4] | c[5] << 8 | c[6] << 16 | (uint32_t)c[7] << 24;
-        if (memcmp(c, "fmt ", 4) == 0 && off + 8 + 16 <= got) {
-            *out_channels = c[10] | c[11] << 8;
-            *out_rate = c[12] | c[13] << 8 | c[14] << 16 | (uint32_t)c[15] << 24;
-        } else if (memcmp(c, "data", 4) == 0) {
-            *out_pcm_off = off + 8;
-            // Un WAV que se envía en streaming no sabe su longitud cuando
-            // escribe la cabecera, así que pone 0 o 0xFFFFFFFF de relleno.
-            // Con (int)sz eso valía -1 y recortaba 100 KB de audio a 43 bytes.
-            // Solo se hace caso al tamaño si es creíble; si no, mandan los
-            // bytes que de verdad llegaron.
-            if (sz > 0 && sz != 0xFFFFFFFFu && (int64_t)off + 8 + sz <= (int64_t)got)
-                got = off + 8 + (int)sz;
-            break;
-        }
-        if (sz > (uint32_t)got) break;          // tamaño absurdo: no seguir
-        off += 8 + (int)sz + (sz & 1);
-    }
-    return got;
-}
-
-static void play(const uint8_t *pcm, int bytes, int channels) {
-    // El MAX98357A está cableado en estéreo; un WAV mono hay que duplicarlo a
-    // los dos canales o suena a mitad de velocidad.
+// Duplica mono a los dos canales; el MAX98357A está cableado en estéreo.
+// Bloquea al ritmo del DMA, que es justo lo que regula la descarga.
+static void feed_i2s(const uint8_t *pcm, int bytes, int channels) {
     enum { FRAMES = 512 };
     static int16_t out[FRAMES * 2];
     const int16_t *in = (const int16_t *)pcm;
     int samples = bytes / 2;
-    amp_enabled(true);
     for (int i = 0; i < samples;) {
         int n = 0;
         while (n < FRAMES && i < samples) {
@@ -210,7 +114,134 @@ static void play(const uint8_t *pcm, int bytes, int channels) {
         size_t wrote = 0;
         i2s_channel_write(s_tx, out, n * 2 * sizeof(int16_t), &wrote, 2000);
     }
+}
+
+// Recorre los trozos RIFF hasta `data`. Devuelve el desplazamiento del PCM o
+// -1 si todavía no hay cabecera suficiente. El tamaño de `data` no se mira: en
+// streaming es relleno (0 o 0xFFFFFFFF), y hacerle caso costó una tarde.
+static int parse_riff(const uint8_t *b, int len, int *rate, int *ch) {
+    if (len < 12 || memcmp(b, "RIFF", 4) || memcmp(b + 8, "WAVE", 4)) return -1;
+    for (int off = 12; off + 8 <= len;) {
+        const uint8_t *c = b + off;
+        uint32_t sz = c[4] | c[5] << 8 | c[6] << 16 | (uint32_t)c[7] << 24;
+        if (!memcmp(c, "fmt ", 4) && off + 8 + 16 <= len) {
+            *ch   = c[10] | c[11] << 8;
+            *rate = c[12] | c[13] << 8 | c[14] << 16 | (uint32_t)c[15] << 24;
+        } else if (!memcmp(c, "data", 4)) {
+            return off + 8;
+        }
+        if (sz > (uint32_t)len) return -1;
+        off += 8 + (int)sz + (sz & 1);
+    }
+    return -1;
+}
+
+static void start_playing(Stream *st) {
+    i2s_open(st->rate);
+    amp_enabled(true);
+    st->t_first_sound = esp_timer_get_time();
+    st->playing = true;
+    feed_i2s(s_buf, st->staged, st->ch);
+}
+
+static void on_pcm(const uint8_t *d, int len) {
+    Stream *st = &s_st;
+    if (st->has_carry && len > 0) {
+        uint8_t pair[2] = {st->carry, d[0]};
+        st->has_carry = false;
+        d++; len--;
+        st->total_pcm += 2;
+        if (st->playing) feed_i2s(pair, 2, st->ch);
+        else if (st->staged + 2 <= MAX_WAV) { memcpy(s_buf + st->staged, pair, 2); st->staged += 2; }
+    }
+    if (len & 1) { st->carry = d[len - 1]; st->has_carry = true; len--; }
+    if (len <= 0) return;
+    st->total_pcm += len;
+
+    if (st->playing) { feed_i2s(d, len, st->ch); return; }
+    if (st->staged + len <= MAX_WAV) { memcpy(s_buf + st->staged, d, len); st->staged += len; }
+    if (st->staged >= PREBUFFER_BYTES) start_playing(st);
+}
+
+static esp_err_t on_http(esp_http_client_event_t *e) {
+    if (e->event_id != HTTP_EVENT_ON_DATA) return ESP_OK;
+    if (esp_http_client_get_status_code(e->client) != 200) {
+        int n = e->data_len < 200 ? e->data_len : 200;
+        ESP_LOGE(TAG, "HTTP %d: %.*s", esp_http_client_get_status_code(e->client),
+                 n, (char *)e->data);
+        return ESP_OK;
+    }
+    Stream *st = &s_st;
+    const uint8_t *d = e->data;
+    int len = e->data_len;
+
+    if (!st->parsed) {
+        int take = sizeof st->hdr - st->hdr_len;
+        if (take > len) take = len;
+        memcpy(st->hdr + st->hdr_len, d, take);
+        st->hdr_len += take;
+        int off = parse_riff(st->hdr, st->hdr_len, &st->rate, &st->ch);
+        if (off < 0) return ESP_OK;                  // cabecera incompleta
+        st->parsed = true;
+        int extra = st->hdr_len - off;
+        if (extra > 0) on_pcm(st->hdr + off, extra); // lo que ya era PCM
+        d += take; len -= take;
+        if (len <= 0) return ESP_OK;
+    }
+    on_pcm(d, len);
+    return ESP_OK;
+}
+
+// Devuelve bytes de PCM reproducidos, o 0. Nunca registra la clave.
+static int speak_streaming(const char *text) {
+    if (!s_cli) {
+        esp_http_client_config_t http = {
+            .url = API,
+            .method = HTTP_METHOD_POST,
+            .crt_bundle_attach = esp_crt_bundle_attach,
+            .timeout_ms = 20000,
+            .buffer_size = 4096,
+            .buffer_size_tx = 1024,
+            .keep_alive_enable = true,     // el handshake cuesta ~1,8 s: no repetirlo
+            .event_handler = on_http,
+        };
+        s_cli = esp_http_client_init(&http);
+    }
+    if (!s_cli) return 0;
+
+    char body[TEXT_MAX * 2 + 256];
+    char esc[TEXT_MAX * 2];
+    size_t e = 0;
+    for (const char *p = text; *p && e < sizeof esc - 2; p++) {
+        if (*p == '"' || *p == '\\') esc[e++] = '\\';
+        if ((unsigned char)*p < 0x20) continue;
+        esc[e++] = *p;
+    }
+    esc[e] = 0;
+    int n = snprintf(body, sizeof body,
+                     "{\"model\":\"%s\",\"voice\":\"%s\",\"input\":\"%s\","
+                     "\"response_format\":\"wav\"}",
+                     CONFIG_BUDDY_TTS_MODEL, CONFIG_BUDDY_TTS_VOICE, esc);
+
+    char auth[sizeof("Bearer ") + sizeof(CONFIG_BUDDY_OPENAI_API_KEY)];
+    snprintf(auth, sizeof auth, "Bearer %s", CONFIG_BUDDY_OPENAI_API_KEY);
+    esp_http_client_set_header(s_cli, "Authorization", auth);
+    esp_http_client_set_header(s_cli, "Content-Type", "application/json");
+    esp_http_client_set_post_field(s_cli, body, n);
+
+    memset(&s_st, 0, sizeof s_st);
+    s_st.rate = 24000; s_st.ch = 1;
+
+    // perform() mantiene viva la conexión entre llamadas. La versión anterior
+    // usaba open()/write()/read(), que abre una nueva cada vez.
+    esp_err_t err = esp_http_client_perform(s_cli);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "perform: %s", esp_err_to_name(err));
+        esp_http_client_close(s_cli);
+    }
+    if (!s_st.playing && s_st.staged > 0) start_playing(&s_st);   // frase muy corta
     amp_enabled(false);
+    return s_st.total_pcm;
 }
 
 static void voice_task(void *arg) {
@@ -223,19 +254,14 @@ static void voice_task(void *arg) {
             ESP_LOGW(TAG, "sin red todavía; no se dice: %.40s", text);
             continue;
         }
-        int rate = 24000, ch = 1, off = 44;
         const int64_t t0 = esp_timer_get_time();
-        int bytes = fetch_tts(text, &rate, &ch, &off);
-        const int64_t t_api = esp_timer_get_time() - t0;
-        if (bytes <= off) { ESP_LOGW(TAG, "sin audio para: %.40s", text); continue; }
-        const int pcm = bytes - off;
-        const float secs = (float)pcm / (rate * ch * 2);
-        i2s_open(rate);
-        const int64_t t1 = esp_timer_get_time();
-        play(s_buf + off, pcm, ch);
-        ESP_LOGI(TAG, "API %.0f ms · %d B · %d Hz %s · %.1f s de audio · reproducir %.0f ms",
-                 t_api / 1000.0, pcm, rate, ch == 2 ? "estéreo" : "mono", secs,
-                 (esp_timer_get_time() - t1) / 1000.0);
+        int pcm = speak_streaming(text);
+        const int64_t t_end = esp_timer_get_time();
+        if (pcm <= 0) { ESP_LOGW(TAG, "sin audio para: %.40s", text); continue; }
+        const float secs = (float)pcm / (s_st.rate * s_st.ch * 2);
+        // El número que importa es el primero: cuánto tarda en oírse ALGO.
+        ESP_LOGI(TAG, "primer sonido %lld ms · total %lld ms · %d B · %.1f s de audio",
+                 (s_st.t_first_sound - t0) / 1000, (t_end - t0) / 1000, pcm, secs);
     }
 }
 
