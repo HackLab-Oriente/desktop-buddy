@@ -191,6 +191,12 @@ extern "C" void app_main() {
     buddy::bus().publish("boot.status", "offline");
   }
 
+#if CONFIG_BUDDY_TTS_SELFTEST
+  // Depuración: una frase al arrancar, ya con red, por el camino real
+  // (face.say -> voz). Gasta una llamada por arranque.
+  buddy::bus().publish("face.say", "Probando la voz.");
+#endif
+
   buddy::bus().publish("face.emotion", "neutral");
   buddy::bus().publish("led.mood", "calm");
   // Tells the face to glitch out of the splash and become a creature.

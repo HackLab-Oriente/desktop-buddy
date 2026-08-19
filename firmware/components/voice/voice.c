@@ -25,6 +25,7 @@
 #include "esp_heap_caps.h"
 #include "esp_http_client.h"
 #include "esp_log.h"
+#include "esp_netif.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
@@ -108,11 +109,24 @@ static int fetch_tts(const char *text, int *out_rate, int *out_channels, int *ou
     esp_http_client_set_header(cli, "Content-Type", "application/json");
 
     int got = 0;
-    if (esp_http_client_open(cli, n) != ESP_OK) { esp_http_client_cleanup(cli); return 0; }
-    if (esp_http_client_write(cli, body, n) != n) goto done;
-    if (esp_http_client_fetch_headers(cli) < 0) goto done;
+    // Los tres fallos de abajo estaban mudos, y "sin audio" sin causa no se
+    // puede depurar. El heap interno va en el log porque el handshake TLS
+    // necesita ~45 KB de RAM interna y quedarse corto es el sospechoso número
+    // uno cuando la cara y el WiFi ya están arriba.
+    esp_err_t oe = esp_http_client_open(cli, n);
+    if (oe != ESP_OK) {
+        ESP_LOGE(TAG, "open falló: %s (heap interno libre %u B)", esp_err_to_name(oe),
+                 (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL));
+        esp_http_client_cleanup(cli);
+        return 0;
+    }
+    int wrote_n = esp_http_client_write(cli, body, n);
+    if (wrote_n != n) { ESP_LOGE(TAG, "write %d de %d bytes", wrote_n, n); goto done; }
+    int clen = esp_http_client_fetch_headers(cli);
+    if (clen < 0) { ESP_LOGE(TAG, "fetch_headers falló (%d)", clen); goto done; }
 
     int status = esp_http_client_get_status_code(cli);
+    ESP_LOGD(TAG, "HTTP %d, content-length %d", status, clen);
     if (status != 200) {
         // El cuerpo del error trae el motivo (clave mala, cuota, modelo…) y no
         // contiene la clave, así que se puede registrar entero.
@@ -121,11 +135,13 @@ static int fetch_tts(const char *text, int *out_rate, int *out_channels, int *ou
         else ESP_LOGE(TAG, "HTTP %d, sin cuerpo", status);
         goto done;
     }
-    while (got < MAX_WAV) {
-        int r = esp_http_client_read(cli, (char *)s_buf + got, MAX_WAV - got);
-        if (r <= 0) break;
-        got += r;
-    }
+    // La API devuelve el audio con Transfer-Encoding: chunked, así que
+    // content-length llega a 0 y un bucle que corte en la primera lectura
+    // vacía se queda sin nada. `read_response` sí sigue los trozos hasta el
+    // final; esto costó un "HTTP 200 y cero audio" de lo más desconcertante.
+    got = esp_http_client_read_response(cli, (char *)s_buf, MAX_WAV);
+    if (got <= 0) { ESP_LOGE(TAG, "200 pero %d bytes de cuerpo", got); got = 0; }
+    else ESP_LOGD(TAG, "cuerpo recibido: %d B", got);
 done:
     esp_http_client_close(cli);
     esp_http_client_cleanup(cli);
@@ -141,10 +157,17 @@ done:
             *out_rate = c[12] | c[13] << 8 | c[14] << 16 | (uint32_t)c[15] << 24;
         } else if (memcmp(c, "data", 4) == 0) {
             *out_pcm_off = off + 8;
-            if (sz && off + 8 + (int)sz <= got) got = off + 8 + sz;
+            // Un WAV que se envía en streaming no sabe su longitud cuando
+            // escribe la cabecera, así que pone 0 o 0xFFFFFFFF de relleno.
+            // Con (int)sz eso valía -1 y recortaba 100 KB de audio a 43 bytes.
+            // Solo se hace caso al tamaño si es creíble; si no, mandan los
+            // bytes que de verdad llegaron.
+            if (sz > 0 && sz != 0xFFFFFFFFu && (int64_t)off + 8 + sz <= (int64_t)got)
+                got = off + 8 + (int)sz;
             break;
         }
-        off += 8 + sz + (sz & 1);
+        if (sz > (uint32_t)got) break;          // tamaño absurdo: no seguir
+        off += 8 + (int)sz + (sz & 1);
     }
     return got;
 }
@@ -175,6 +198,12 @@ static void voice_task(void *arg) {
     char text[TEXT_MAX];
     for (;;) {
         if (xQueueReceive(s_q, text, portMAX_DELAY) != pdTRUE) continue;
+        esp_netif_t *nif = esp_netif_get_default_netif();
+        esp_netif_ip_info_t ip = {0};
+        if (!nif || esp_netif_get_ip_info(nif, &ip) != ESP_OK || ip.ip.addr == 0) {
+            ESP_LOGW(TAG, "sin red todavía; no se dice: %.40s", text);
+            continue;
+        }
         int rate = 24000, ch = 1, off = 44;
         const int64_t t0 = esp_timer_get_time();
         int bytes = fetch_tts(text, &rate, &ch, &off);

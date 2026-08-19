@@ -33,6 +33,13 @@ config BUDDY_TTS_VOICE
       alloy, echo, fable, onyx, nova, shimmer... La API acepta más; se pide
       WAV siempre, para que el firmware no necesite decodificador.
 
+config BUDDY_TTS_SELFTEST
+    bool "Decir una frase al arrancar (depuración)"
+    default n
+    help
+      Gasta una llamada a la API en cada arranque. Solo para diagnosticar el
+      camino de voz sin tener que pulsar el botón.
+
 menu "Pines de audio (MAX98357A)"
 config BUDDY_TTS_PIN_BCLK
     int "BCLK"
