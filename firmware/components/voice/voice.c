@@ -26,6 +26,7 @@
 #include "esp_http_client.h"
 #include "esp_log.h"
 #include "esp_netif.h"
+#include "lwip/netdb.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
@@ -113,17 +114,30 @@ static int fetch_tts(const char *text, int *out_rate, int *out_channels, int *ou
     // puede depurar. El heap interno va en el log porque el handshake TLS
     // necesita ~45 KB de RAM interna y quedarse corto es el sospechoso número
     // uno cuando la cara y el WiFi ya están arriba.
+    // Desglosar "conectar": si DNS se lleva la mayor parte, la solución no
+    // tiene nada que ver con TLS.
+    const int64_t d0 = esp_timer_get_time();
+    struct addrinfo hints = {.ai_family = AF_INET, .ai_socktype = SOCK_STREAM}, *res = NULL;
+    int gai = getaddrinfo("api.openai.com", "443", &hints, &res);
+    const int64_t d1 = esp_timer_get_time();
+    if (res) freeaddrinfo(res);
+    ESP_LOGD(TAG, "  DNS %lld ms (rc=%d)", (d1 - d0) / 1000, gai);
+
+    const int64_t p0 = esp_timer_get_time();
     esp_err_t oe = esp_http_client_open(cli, n);
+    const int64_t p1 = esp_timer_get_time();
     if (oe != ESP_OK) {
         ESP_LOGE(TAG, "open falló: %s (heap interno libre %u B)", esp_err_to_name(oe),
                  (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL));
-        esp_http_client_cleanup(cli);
+        esp_http_client_close(cli);
         return 0;
     }
     int wrote_n = esp_http_client_write(cli, body, n);
-    if (wrote_n != n) { ESP_LOGE(TAG, "write %d de %d bytes", wrote_n, n); goto done; }
+    const int64_t p2 = esp_timer_get_time();
+    if (wrote_n != n) { ESP_LOGE(TAG, "write %d de %d bytes", wrote_n, n); goto fail; }
     int clen = esp_http_client_fetch_headers(cli);
-    if (clen < 0) { ESP_LOGE(TAG, "fetch_headers falló (%d)", clen); goto done; }
+    const int64_t p3 = esp_timer_get_time();
+    if (clen < 0) { ESP_LOGE(TAG, "fetch_headers falló (%d)", clen); goto fail; }
 
     int status = esp_http_client_get_status_code(cli);
     ESP_LOGD(TAG, "HTTP %d, content-length %d", status, clen);
@@ -133,7 +147,7 @@ static int fetch_tts(const char *text, int *out_rate, int *out_channels, int *ou
         int r = esp_http_client_read(cli, (char *)s_buf, 255);
         if (r > 0) { s_buf[r] = 0; ESP_LOGE(TAG, "HTTP %d: %s", status, (char *)s_buf); }
         else ESP_LOGE(TAG, "HTTP %d, sin cuerpo", status);
-        goto done;
+        goto fail;
     }
     // La API devuelve el audio con Transfer-Encoding: chunked, así que
     // content-length llega a 0 y un bucle que corte en la primera lectura
@@ -142,10 +156,15 @@ static int fetch_tts(const char *text, int *out_rate, int *out_channels, int *ou
     got = esp_http_client_read_response(cli, (char *)s_buf, MAX_WAV);
     if (got <= 0) { ESP_LOGE(TAG, "200 pero %d bytes de cuerpo", got); got = 0; }
     else ESP_LOGD(TAG, "cuerpo recibido: %d B", got);
+    const int64_t p4 = esp_timer_get_time();
+    ESP_LOGI(TAG, "  fases: conectar %lld ms · enviar %lld ms · esperar %lld ms · bajar %lld ms",
+             (p1 - p0) / 1000, (p2 - p1) / 1000, (p3 - p2) / 1000, (p4 - p3) / 1000);
+    goto done;
+fail:
+    esp_http_client_close(cli);       // conexión sospechosa: que la próxima reconecte
+    return 0;
 done:
-    esp_http_client_close(cli);
-    esp_http_client_cleanup(cli);
-    if (got < 44) return 0;
+    if (got < 44) { esp_http_client_close(cli); return 0; }
 
     // RIFF: buscar los trozos `fmt ` y `data` en vez de dar por hecho el
     // desplazamiento 44 — algunos servidores meten un `LIST` por medio.

@@ -16,3 +16,7 @@ CONFIG_ESP_TASK_WDT_TIMEOUT_S=15
 # Hosyond/clone boards ship BOYA flash chips; the generic driver works but
 # the dedicated one enables proper suspend/resume support.
 CONFIG_SPI_FLASH_SUPPORT_BOYA_CHIP=y
+
+# El S3 llega a 240 MHz y venía a 160: es 1,5x gratis en todo lo que
+# depende de la CPU — el handshake TLS, la cadena de Markov y la cara.
+CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y
