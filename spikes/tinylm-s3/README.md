@@ -129,6 +129,37 @@ TOTAL forward()      30.73 ms       →  6.14 ms
   `ee.vld.128`). Every buffer it touches needs 16 B of slack, or the crash is
   rare, allocation-order-dependent, and miserable to find.
 
+### A 240 MHz: el reloj solo ayuda a lo que es cómputo
+
+Todo lo de arriba se midió a **160 MHz**, que es el defecto de ESP-IDF; el S3
+llega a 240. Repetido a 240 MHz (ratio de reloj: 1,5×):
+
+| variante | 160 MHz | 240 MHz | factor |
+|---|---|---|---|
+| fp32, mmap desde flash | 13,3 | 13,9 tok/s | **1,05×** |
+| fp32, en PSRAM | 38,0 | 42,7 tok/s | 1,12× |
+| int8, en PSRAM | 87,8 | 105,5 tok/s | 1,20× |
+| **int8, en RAM interna** | 152,4 | **208,6 tok/s** | **1,37×** |
+
+**El gradiente es la confirmación del diagnóstico.** Cuanto más limitada está
+una variante por la latencia de memoria, menos gana con el reloj: la latencia
+es fija en nanosegundos, así que a 240 MHz una espera cuesta 1,5× más ciclos y
+el mismo tiempo real. La variante mmap, que espera a la flash, se queda en
+1,05×; la que vive en RAM interna, que es cómputo casi puro, llega a 1,37×.
+
+Es el mismo hallazgo que el perfil original (19,5 ciclos/MAC, limitado por
+latencia) visto desde el otro lado.
+
+**Para Config S cambia poco, y es lo que hay que contarle al grupo.** Config S
+no cabe en RAM interna, así que corre desde PSRAM, que es justo la fila que
+menos gana. Escalando la fila int8-PSRAM por parámetros no-embedding:
+**~20 tok/s** (antes ~17), que pone una frase de 15 palabras en **~0,98 s** —
+por debajo del segundo, pero por poco.
+
+Aun así, subir el reloj es gratis y ayuda a todo lo demás del firmware (el
+handshake TLS baja de 2726 a 1851 ms, medido). Lo que no hace es rescatar un
+modelo limitado por memoria.
+
 ### Updated extrapolation, and the recommendation
 
 Config S (1,179,648 non-emb params) at int8 is ~1.2 MB — too big for internal

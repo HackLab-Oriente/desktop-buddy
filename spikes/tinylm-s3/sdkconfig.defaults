@@ -10,3 +10,6 @@ CONFIG_FREERTOS_HZ=1000
 CONFIG_COMPILER_OPTIMIZATION_SIZE=y
 # This board's USB-C is on the native USB pins.
 CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
+
+# El S3 llega a 240 MHz; medir a 160 subestima todo lo que es cómputo.
+CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y
