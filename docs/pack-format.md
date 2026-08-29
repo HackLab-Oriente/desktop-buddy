@@ -187,7 +187,7 @@ Lo que sí hay que saber:
 | `curioso` | pregunta, se fija, no da nada por hecho | `thinking` |
 | `urgente` | corto, reclama atención ya | `excited` |
 | `seco` | mínimo, retiene, no colabora | `calm` |
-| `soñoliento` | se apaga, se le va la frase | `off` |
+| `somnoliento` | se apaga, se le va la frase | `off` |
 | `llano` | informa y punto — el neutro | `calm` |
 
 ### Qué es escribir «en registro» y no «en situación»
@@ -226,7 +226,7 @@ se rompe, has escrito expresiones.
 > Si tú lo dices.
 > HMPH.
 
-**`soñoliento`**
+**`somnoliento`**
 > Mmm… ¿qué?
 > Cinco minutos más.
 > Sigo aquí… más o menos.
