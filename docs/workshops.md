@@ -79,8 +79,10 @@ Y lo que **no** existe, que es de lo que van estas cuatro tardes:
 - [x] Pedir todos los componentes *(pedido 2026-07-13)*
 - [x] Repo publicado, con firmware que compila y hace bastante más que dibujar
 - [x] Prototipo montado en protoboard, como referencia conocida-buena
-- [ ] Instrucciones de ESP-IDF **probadas en Linux y Windows** — hoy solo está
-      verificado macOS, y es el riesgo de calendario más caro que queda
+- [ ] Instrucciones de ESP-IDF **probadas en Linux y Windows** — macOS y
+      **Linux verificados** (2026-08-29: activación del entorno v6.0.2,
+      submódulos, build y flash a un ESP32-S3 real de punta a punta); **falta
+      Windows**, que sigue siendo el riesgo de calendario más caro que queda
 - [ ] Cuentas y claves de proveedor según [services.md](services.md):
       **Claude Haiku 4.5 (cerebro) + OpenAI para STT y TTS** — una sola clave
       para las dos mitades de voz. *(El plan viejo recomendaba Groq Whisper; se
