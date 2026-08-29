@@ -28,8 +28,9 @@ Los `.md` se leen bien en GitHub.
 
 | Doc | Qué cuenta |
 |---|---|
-| [event-registry.md](event-registry.md) · [.html](event-registry.html) | **El contrato entre equipos**: los 15 eventos del bus, dueños por prefijo, agujeros conocidos |
+| [event-registry.md](event-registry.md) · [.html](event-registry.html) | **El contrato entre equipos**: los 17 eventos del bus, dueños por prefijo, agujeros conocidos |
 | [pack-format.md](pack-format.md) | Formato de packs de personalidad (borrador para discusión) |
+| [markov.html](markov.html) | **Cadenas de Markov**: de dónde salen las frases, con el laboratorio para pegar tu corpus y medir la variedad |
 | [config-api.md](config-api.md) | Esquema de configuración, secretos, aprovisionamiento por SoftAP y QR (propuesta) |
 | [hardware.md](hardware.md) | BOM completa, pedidos, sensores, alimentación y montaje |
 | [../hardware/](../hardware/) | Guías de cableado por placa (S3 y clásico) |
