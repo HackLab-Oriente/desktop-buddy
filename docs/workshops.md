@@ -54,7 +54,7 @@ contra la que comparar cuando lo suyo no arranque:
 | Pantalla y caras | 8 emociones, splash con glitch | 30,4 ms/frame (32,9 fps) en S3 |
 | Pad táctil | `touch.down` · `touch.pet` · `touch.poke` | reflejos disparando en vivo |
 | Anillo LED | `led.mood`, 4 estados | |
-| Bus de eventos | 15 eventos, dueños por prefijo | [event-registry.md](event-registry.md) |
+| Bus de eventos | 17 eventos, dueños por prefijo | [event-registry.md](event-registry.md) |
 | VM Berry | integrada, **recarga en caliente** desde la web | `packs/zero/reflexes/main.be` |
 | Web UI | editor de reflejos | 3 endpoints, **sin autenticación** — #27 |
 | Cerebro | Anthropic, `buddy.ask` | conversación real |

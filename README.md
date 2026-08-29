@@ -153,12 +153,13 @@ Según el equipo en el que estés (o quieras estar):
 
 - **Firmware y arquitectura** → [firmware/README.md](firmware/README.md) y
   [docs/event-registry.md](docs/event-registry.md) — el contrato entre equipos.
-- **Web UI / PWA** → el servidor vive en `firmware/components/webui/`; la API
-  de configuración está por diseñar (es el bloqueo nº 1 — pregunta antes de
-  empezar).
+- **Web UI / PWA** → el servidor vive en `firmware/components/webui/`; el
+  esquema de configuración, el manejo de secretos y el aprovisionamiento por
+  SoftAP están propuestos en [docs/config-api.md](docs/config-api.md) — léelo
+  antes de empezar.
 - **Voz** → [docs/services.md](docs/services.md) y los eventos `voice.*` que
   aún no existen ([docs/event-registry.md](docs/event-registry.md), sección
-  «agujeros»).
+  «Eventos propuestos»).
 - **Electrónica** → [docs/hardware.md](docs/hardware.md) (BOM y pedidos) y
   [hardware/](hardware/) (guías de cableado por placa).
 - **CAD y carcasa** → [docs/hardware.md](docs/hardware.md), sección de
@@ -181,8 +182,8 @@ spikes/       experimentos desechables; solo sus conclusiones van a main
 ### 📖 **[hacklaboriente.org/desktop-buddy](https://hacklaboriente.org/desktop-buddy/)**
 
 Ahí está todo, con los documentos interactivos funcionando de verdad: la
-reunión de equipos, el registro de eventos, el explorador de parámetros y las
-dos arquitecturas.
+reunión de equipos, el registro de eventos, el explorador de parámetros, el
+laboratorio de cadenas de Markov y las dos arquitecturas.
 
 Si solo vas a leer tres cosas: [la arquitectura](docs/architecture.md), [el
 plan de talleres](docs/workshops.md) y [cómo contribuir](CONTRIBUTING.md).
@@ -198,5 +199,6 @@ plan de talleres](docs/workshops.md) y [cómo contribuir](CONTRIBUTING.md).
 
 ## Estado
 
-En construcción activa antes de los talleres. Todo lo que hay aquí es una
-propuesta — discútela. Licencia: [MIT](LICENSE).
+En construcción activa durante los talleres (4 sesiones, del 29 de agosto al
+19 de septiembre de 2026 — ver [docs/workshops.md](docs/workshops.md)). Todo
+lo que hay aquí es una propuesta — discútela. Licencia: [MIT](LICENSE).
