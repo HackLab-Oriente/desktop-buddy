@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cableado de audio I2S — Desktop Buddy</title>
+<style>
+  :root {
+    --bg: #f7f5f0; --card: #ffffff; --ink: #1e2126; --ink2: #5a6068;
+    --muted: #8a9098; --line: #e3e0d8; --accent: #2563a8; --accent-ink: #ffffff;
+    --soft: #eef3f9;
+    --good-bg: #e3efe5; --good-ink: #1e6b34;
+    --warn-bg: #f5eedd; --warn-ink: #8a6410;
+    --bad-bg: #f7e5e2; --bad-ink: #9c3a2a;
+  }
+  :root[data-theme="dark"] {
+    --bg: #14161a; --card: #1e2126; --ink: #eceae4; --ink2: #b9bec6;
+    --muted: #7d838c; --line: #2e323a; --accent: #6aa7e0; --accent-ink: #10131a;
+    --soft: #232833;
+    --good-bg: #1c3324; --good-ink: #7fd096;
+    --warn-bg: #35301e; --warn-ink: #e0bd62;
+    --bad-bg: #3a211c; --bad-ink: #eb9a85;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    background: var(--bg); color: var(--ink); padding: 24px 20px 60px;
+    font: 17px/1.55 -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    max-width: 1080px; margin: 0 auto;
+  }
+  header { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 4px; }
+  h1 { font-size: 30px; letter-spacing: -0.02em; }
+  .sub { color: var(--ink2); font-size: 17px; }
+  h2 { font-size: 22px; margin: 34px 0 12px; padding-top: 16px; border-top: 1px solid var(--line); letter-spacing: -0.01em; }
+  h3 { font-size: 16px; margin: 20px 0 8px; color: var(--ink2); }
+  p { margin: 10px 0; color: var(--ink2); max-width: 72ch; }
+  p.lead { color: var(--ink); font-size: 18px; max-width: 74ch; }
+  b, strong { color: var(--ink); }
+  a { color: var(--accent); }
+  code { font: 14.5px ui-monospace, Menlo, monospace; background: var(--soft); border-radius: 5px; padding: 1px 5px; }
+  #theme { margin-left: auto; background: var(--card); color: var(--ink);
+    border: 1px solid var(--line); border-radius: 10px; padding: 6px 14px;
+    font-size: 15px; cursor: pointer; }
+
+  .pill { font-size: 12.5px; font-weight: 700; border-radius: 7px; padding: 2px 9px;
+    text-transform: uppercase; letter-spacing: .05em; display: inline-block; }
+  .pill.ok { background: var(--good-bg); color: var(--good-ink); }
+  .pill.pending { background: var(--warn-bg); color: var(--warn-ink); }
+  .pill.missing { background: var(--bad-bg); color: var(--bad-ink); }
+  .pillrow { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0; }
+
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; margin: 16px 0; }
+  .diagram { background: var(--soft); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin: 16px 0; }
+  .diagram svg { display: block; width: 100%; height: auto; color: var(--ink); }
+  figcaption { color: var(--muted); font-size: 14.5px; margin-top: 8px; max-width: 72ch; }
+
+  .tablewrap { overflow-x: auto; margin: 16px 0; border: 1px solid var(--line); border-radius: 10px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14.5px; min-width: 460px; }
+  thead th { text-align: left; font-size: 12px; letter-spacing: .05em; text-transform: uppercase;
+    color: var(--muted); background: var(--soft); padding: 9px 13px; border-bottom: 1px solid var(--line); }
+  tbody td { padding: 9px 13px; border-bottom: 1px solid var(--line); vertical-align: top; color: var(--ink2); }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody td:first-child { color: var(--ink); font-weight: 600; }
+
+  .callout { display: flex; gap: 12px; padding: 14px 16px; border-radius: 10px; margin: 16px 0; }
+  .callout.danger { background: var(--bad-bg); }
+  .callout.danger p, .callout.danger strong { color: var(--bad-ink); }
+  .callout .icn { font-size: 20px; flex: none; }
+
+  .checklist { list-style: none; padding: 0; margin: 10px 0; }
+  .checklist li { display: flex; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); color: var(--ink2); }
+  .checklist li:last-child { border-bottom: none; }
+  .checklist .box { flex: none; width: 16px; height: 16px; margin-top: 3px; border: 1.5px solid var(--line); border-radius: 4px; }
+  .checklist .box.done { background: var(--good-ink); border-color: var(--good-ink); }
+
+  .term { background: var(--ink); color: var(--bg); border-radius: 10px; padding: 14px 16px;
+    font: 13.5px/1.7 ui-monospace, Menlo, monospace; overflow-x: auto; margin: 14px 0; }
+
+  footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--line); color: var(--muted); font-size: 15px; }
+  footer .src { font: 13px ui-monospace, Menlo, monospace; line-height: 1.9; margin-top: 6px; }
+  .back { color: var(--accent); font-size: 15px; text-decoration: none; }
+</style>
+</head>
+<body>
+
+<a class="back" href="index.html">&larr; documentación</a>
+<header>
+  <h1>Cableado de audio I2S</h1>
+  <span class="sub">micrófono INMP441 + amplificador MAX98357A</span>
+  <button id="theme">&#9680;</button>
+</header>
+<p class="lead">Referencia de cableado del equipo de Voz para el ESP32-S3, y el estado real de la conversión voz&nbsp;&harr;&nbsp;texto de punta a punta.</p>
+
+<div class="pillrow">
+  <span class="pill ok">mic + parlante verificados en placa</span>
+  <span class="pill pending">handshake TLS sin medir (#25)</span>
+  <span class="pill missing">eventos voice.* sin implementar (#9 / #26)</span>
+</div>
+
+<h2>Un solo bus I2S, half-duplex a propósito</h2>
+<p>El micro y el parlante nunca transmiten a la vez, así que comparten reloj de bit (<code>BCLK</code>) y selector de canal (<code>WS</code>), y cada uno se queda con su propia línea de datos: <strong>4 pines en vez de 6</strong>.</p>
+
+<figure class="diagram">
+  <svg viewBox="0 0 860 220" role="img" aria-label="El ESP32-S3 emite BCLK y WS hacia ambos módulos por la misma línea; los datos de entrada y salida van cada uno por su propio cable.">
+    <defs>
+      <marker id="a1" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"></path></marker>
+      <marker id="a2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--accent)"></path></marker>
+      <marker id="a3" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--warn-ink)"></path></marker>
+    </defs>
+    <rect x="40" y="70" width="150" height="80" rx="8" fill="none" stroke="currentColor" stroke-width="1.6"></rect>
+    <text x="115" y="105" text-anchor="middle" font-size="13" font-weight="700">ESP32-S3</text>
+    <text x="115" y="122" text-anchor="middle" font-size="11" opacity="0.6">un puerto I2S</text>
+    <rect x="600" y="20" width="220" height="60" rx="8" fill="none" stroke="currentColor" stroke-width="1.6"></rect>
+    <text x="710" y="55" text-anchor="middle" font-size="13" font-weight="700">INMP441 (micro)</text>
+    <rect x="600" y="140" width="220" height="60" rx="8" fill="none" stroke="currentColor" stroke-width="1.6"></rect>
+    <text x="710" y="175" text-anchor="middle" font-size="13" font-weight="700">MAX98357A (amp)</text>
+    <line x1="190" y1="88" x2="600" y2="40" style="stroke:var(--accent)" stroke-width="1.8" marker-end="url(#a2)"></line>
+    <line x1="190" y1="88" x2="600" y2="160" style="stroke:var(--accent)" stroke-width="1.8" marker-end="url(#a2)"></line>
+    <text x="330" y="72" font-size="11" style="fill:var(--accent)">BCLK &middot; GPIO 15 (compartido)</text>
+    <line x1="190" y1="108" x2="600" y2="55" style="stroke:var(--accent)" stroke-width="1.8" stroke-dasharray="1 5" stroke-linecap="round" marker-end="url(#a2)"></line>
+    <line x1="190" y1="108" x2="600" y2="175" style="stroke:var(--accent)" stroke-width="1.8" stroke-dasharray="1 5" stroke-linecap="round" marker-end="url(#a2)"></line>
+    <text x="330" y="216" font-size="11" style="fill:var(--accent)">WS / LRC &middot; GPIO 16 (compartido)</text>
+    <line x1="600" y1="65" x2="190" y2="128" style="stroke:var(--warn-ink)" stroke-width="1.8" marker-end="url(#a3)"></line>
+    <text x="330" y="118" font-size="11" style="fill:var(--warn-ink)">datos &middot; GPIO 17 &middot; habla el micro</text>
+    <line x1="190" y1="128" x2="600" y2="195" style="stroke:var(--warn-ink)" stroke-width="1.8" marker-end="url(#a3)"></line>
+    <text x="330" y="205" font-size="11" style="fill:var(--warn-ink)">datos &middot; GPIO 18 &middot; habla el buddy</text>
+  </svg>
+  <figcaption>El reloj y el selector de canal son un solo par de cables para ambos módulos; solo las líneas de datos son exclusivas.</figcaption>
+</figure>
+
+<h2>Esquema completo de cableado</h2>
+<div class="diagram">
+  <svg viewBox="0 0 900 460" role="img" aria-label="Esquema de cableado: ESP32-S3 conectado al micrófono INMP441 y al amplificador MAX98357A, que alimenta un parlante en configuración puente sin conexión a masa.">
+    <defs><marker id="b1" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"></path></marker></defs>
+    <rect x="30" y="120" width="170" height="230" rx="10" fill="none" stroke="currentColor" stroke-width="1.8"></rect>
+    <text x="115" y="150" text-anchor="middle" font-size="14" font-weight="700">ESP32-S3</text>
+    <g font-size="11">
+      <line x1="200" y1="185" x2="230" y2="185" stroke="currentColor" stroke-width="1.4"></line><text x="205" y="179">GPIO15</text>
+      <line x1="200" y1="210" x2="230" y2="210" stroke="currentColor" stroke-width="1.4"></line><text x="205" y="204">GPIO16</text>
+      <line x1="200" y1="235" x2="230" y2="235" stroke="currentColor" stroke-width="1.4"></line><text x="205" y="229">GPIO17</text>
+      <line x1="200" y1="260" x2="230" y2="260" stroke="currentColor" stroke-width="1.4"></line><text x="205" y="254">GPIO18</text>
+      <line x1="200" y1="285" x2="230" y2="285" stroke="currentColor" stroke-width="1.4"></line><text x="205" y="279">GPIO2</text>
+      <line x1="200" y1="315" x2="230" y2="315" stroke="currentColor" stroke-width="1.4"></line><text x="205" y="309">5V</text>
+      <line x1="200" y1="150" x2="230" y2="150" stroke="currentColor" stroke-width="1.4"></line><text x="205" y="144">3V3</text>
+    </g>
+    <rect x="420" y="30" width="200" height="140" rx="10" fill="none" stroke="currentColor" stroke-width="1.8"></rect>
+    <text x="520" y="55" text-anchor="middle" font-size="13" font-weight="700">INMP441</text>
+    <g font-size="11">
+      <text x="435" y="92">VDD</text><text x="600" y="92" text-anchor="end">3V3</text>
+      <text x="435" y="110">SCK</text><text x="600" y="110" text-anchor="end">GPIO15</text>
+      <text x="435" y="128">WS</text><text x="600" y="128" text-anchor="end">GPIO16</text>
+      <text x="435" y="146">SD</text><text x="600" y="146" text-anchor="end">GPIO17</text>
+      <text x="435" y="164" style="fill:var(--bad-ink)">L/R &rarr; GND</text>
+    </g>
+    <rect x="420" y="200" width="200" height="170" rx="10" fill="none" stroke="currentColor" stroke-width="1.8"></rect>
+    <text x="520" y="225" text-anchor="middle" font-size="13" font-weight="700">MAX98357A</text>
+    <g font-size="11">
+      <text x="435" y="252">Vin</text><text x="605" y="252" text-anchor="end">5V</text>
+      <text x="435" y="270">BCLK</text><text x="605" y="270" text-anchor="end">GPIO15</text>
+      <text x="435" y="288">LRC</text><text x="605" y="288" text-anchor="end">GPIO16</text>
+      <text x="435" y="306">DIN</text><text x="605" y="306" text-anchor="end">GPIO18</text>
+      <text x="435" y="324">SD (mute)</text><text x="605" y="324" text-anchor="end">GPIO2</text>
+    </g>
+    <path d="M230,150 C 320,150 320,92 420,92" fill="none" stroke="currentColor" stroke-width="1.4" marker-end="url(#b1)"></path>
+    <path d="M230,185 C 340,185 340,110 420,110" fill="none" style="stroke:var(--accent)" stroke-width="1.8" marker-end="url(#b1)"></path>
+    <path d="M230,210 C 350,210 350,128 420,128" fill="none" style="stroke:var(--accent)" stroke-width="1.8" stroke-dasharray="1 5" marker-end="url(#b1)"></path>
+    <path d="M230,235 C 340,235 340,146 420,146" fill="none" style="stroke:var(--warn-ink)" stroke-width="1.8" marker-end="url(#b1)"></path>
+    <path d="M230,315 C 320,315 320,252 420,252" fill="none" stroke="currentColor" stroke-width="1.4" marker-end="url(#b1)"></path>
+    <path d="M230,185 C 260,185 260,270 420,270" fill="none" style="stroke:var(--accent)" stroke-width="1.8" opacity="0.55" marker-end="url(#b1)"></path>
+    <path d="M230,210 C 270,210 270,288 420,288" fill="none" style="stroke:var(--accent)" stroke-width="1.8" stroke-dasharray="1 5" opacity="0.55" marker-end="url(#b1)"></path>
+    <path d="M230,260 C 340,260 340,306 420,306" fill="none" style="stroke:var(--warn-ink)" stroke-width="1.8" marker-end="url(#b1)"></path>
+    <path d="M230,285 C 320,285 320,324 420,324" fill="none" stroke="currentColor" stroke-width="1.4" marker-end="url(#b1)"></path>
+    <g transform="translate(700,220)">
+      <circle cx="60" cy="72" r="44" fill="none" stroke="currentColor" stroke-width="1.8"></circle>
+      <circle cx="60" cy="72" r="18" fill="none" stroke="currentColor" stroke-width="1.4" opacity="0.6"></circle>
+      <text x="60" y="136" text-anchor="middle" font-size="12" font-weight="700">PARLANTE</text>
+      <text x="60" y="152" text-anchor="middle" font-size="10" opacity="0.6">salida en puente (BTL)</text>
+    </g>
+    <path d="M620,270 L700,270" fill="none" stroke="currentColor" stroke-width="1.6" marker-end="url(#b1)"></path><text x="628" y="264" font-size="10.5">+</text>
+    <path d="M620,300 L700,308" fill="none" stroke="currentColor" stroke-width="1.6" marker-end="url(#b1)"></path><text x="628" y="304" font-size="10.5">&minus;</text>
+    <g transform="translate(690,175)">
+      <rect x="-6" y="-18" width="176" height="30" rx="7" style="fill:var(--bad-bg)"></rect>
+      <text x="82" y="1" text-anchor="middle" font-size="11" font-weight="700" style="fill:var(--bad-ink)">ningún cable a GND</text>
+    </g>
+    <g font-size="10.5" transform="translate(30,420)">
+      <line x1="0" y1="0" x2="26" y2="0" style="stroke:var(--accent)" stroke-width="2.4"></line><text x="34" y="4">reloj / canal (compartido)</text>
+      <line x1="240" y1="0" x2="266" y2="0" style="stroke:var(--warn-ink)" stroke-width="2.4"></line><text x="274" y="4">datos I2S</text>
+      <line x1="420" y1="0" x2="446" y2="0" stroke="currentColor" stroke-width="2"></line><text x="454" y="4">alimentación / control</text>
+    </g>
+  </svg>
+</div>
+
+<div class="callout danger">
+  <div class="icn">&#9888;</div>
+  <div>
+    <p><strong>La salida del MAX98357A es en puente (BTL).</strong> Ni <code>+</code> ni <code>&minus;</code> del parlante es masa. Conectar cualquiera de los dos a GND cortocircuita media etapa de salida y <strong>quema el chip</strong>. Usa el conector JST-PH del parlante tal cual, o un latiguillo hembra con cables sueltos.</p>
+  </div>
+</div>
+
+<h2>Tablas de referencia</h2>
+<h3>Micrófono INMP441</h3>
+<div class="tablewrap"><table>
+  <thead><tr><th>Pin</th><th>Va a</th><th>Nota</th></tr></thead>
+  <tbody>
+    <tr><td>VDD</td><td>3V3</td><td>nunca 5&nbsp;V</td></tr>
+    <tr><td>GND</td><td>GND</td><td>&mdash;</td></tr>
+    <tr><td>SCK</td><td>GPIO 15</td><td>compartido con el amp</td></tr>
+    <tr><td>WS</td><td>GPIO 16</td><td>compartido con el amp</td></tr>
+    <tr><td>SD</td><td>GPIO 17</td><td>datos: habla el micro</td></tr>
+    <tr><td>L/R</td><td>GND</td><td>nunca al aire &mdash; causa nº1 de "grabo y hay silencio"</td></tr>
+  </tbody>
+</table></div>
+
+<h3>Amplificador MAX98357A</h3>
+<div class="tablewrap"><table>
+  <thead><tr><th>Pin</th><th>Va a</th><th>Nota</th></tr></thead>
+  <tbody>
+    <tr><td>Vin</td><td>5V</td><td>a 3V3 suena más flojo</td></tr>
+    <tr><td>BCLK</td><td>GPIO 15</td><td>compartido con el micro</td></tr>
+    <tr><td>LRC</td><td>GPIO 16</td><td>compartido con el micro</td></tr>
+    <tr><td>DIN</td><td>GPIO 18</td><td>exclusivo</td></tr>
+    <tr><td>SD</td><td>GPIO 2</td><td>mute por hardware, no solo apagado</td></tr>
+    <tr><td>GAIN</td><td>al aire</td><td>9&nbsp;dB por defecto</td></tr>
+  </tbody>
+</table></div>
+
+<h2>Pipeline texto&ndash;voz&ndash;texto: qué está armado</h2>
+<p>La mitad <strong>local</strong> (capturar, mutear, reproducir) ya corre en hardware. La mitad <strong>de nube</strong> tiene proveedor decidido pero ningún evento del bus la conecta todavía al firmware.</p>
+<div class="tablewrap"><table>
+  <thead><tr><th>Etapa</th><th>Proveedor</th><th>Estado</th></tr></thead>
+  <tbody>
+    <tr><td>Captura + mute (I2S)</td><td>INMP441 + MAX98357A</td><td>verificado en S3</td></tr>
+    <tr><td>Cerebro (LLM)</td><td>Claude Haiku 4.5</td><td>contrato brain.ask/brain.reply en código</td></tr>
+    <tr><td>STT</td><td>OpenAI gpt-4o-mini-transcribe</td><td>decidido, sin cablear (#9/#26)</td></tr>
+    <tr><td>TTS</td><td>OpenAI gpt-4o-mini-tts</td><td>decidido, sin cablear (#9/#26)</td></tr>
+  </tbody>
+</table></div>
+
+<h2>Cómo probarlo</h2>
+<div class="term"># tono de prueba de 440&nbsp;Hz por el parlante
+source ~/.espressif/tools/activate_idf_v6.0.2.sh
+git fetch origin spike/i2s-audio
+git checkout spike/i2s-audio
+cd spikes/i2s-audio
+idf.py set-target esp32s3
+idf.py -p /dev/ttyACM0 flash monitor</div>
+
+<h2>Qué falta</h2>
+<ul class="checklist">
+  <li><span class="box done"></span><div>Micro y parlante verificados en S3 <em>(hecho)</em></div></li>
+  <li><span class="box done"></span><div>Mute half-duplex real en hardware <em>(hecho)</em></div></li>
+  <li><span class="box"></span><div>Medir el coste del handshake TLS en el S3 (issue #25)</div></li>
+  <li><span class="box"></span><div>Definir eventos <code>voice.*</code> en <a href="event-registry.html">event-registry</a> (issues #9, #26)</div></li>
+  <li><span class="box"></span><div>Mover el spike a un componente real dentro de <code>firmware/components/</code></div></li>
+  <li><span class="box"></span><div>Añadir los pines de audio a <code>Kconfig.projbuild</code></div></li>
+</ul>
+
+<footer>
+  Desktop Buddy &middot; equipo Voz. Compilado el 2026-08-29.
+  <div class="src">
+    hardware/buddy-s3-audio.md &middot; spike/i2s-audio &middot; spike/i2s-mic &middot; docs/services.md &middot; docs/architecture.md &sect;7
+  </div>
+</footer>
+
+<script>
+document.getElementById("theme").addEventListener("click", () => {
+  const r = document.documentElement;
+  r.dataset.theme = r.dataset.theme === "dark" ? "" : "dark";
+});
+if (matchMedia("(prefers-color-scheme: dark)").matches)
+  document.documentElement.dataset.theme = "dark";
+</script>
+</body>
+</html>

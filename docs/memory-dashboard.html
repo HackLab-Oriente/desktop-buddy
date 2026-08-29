@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Panel de memoria — Desktop Buddy</title>
+<style>
+  :root {
+    --bg: #f7f5f0; --card: #ffffff; --ink: #1e2126; --ink2: #5a6068;
+    --muted: #8a9098; --line: #e3e0d8; --accent: #2563a8; --accent-ink: #ffffff;
+    --soft: #eef3f9;
+    --good-bg: #e3efe5; --good-ink: #1e6b34;
+    --warn-bg: #f5eedd; --warn-ink: #8a6410;
+    --bad-bg: #f7e5e2; --bad-ink: #9c3a2a;
+  }
+  :root[data-theme="dark"] {
+    --bg: #14161a; --card: #1e2126; --ink: #eceae4; --ink2: #b9bec6;
+    --muted: #7d838c; --line: #2e323a; --accent: #6aa7e0; --accent-ink: #10131a;
+    --soft: #232833;
+    --good-bg: #1c3324; --good-ink: #7fd096;
+    --warn-bg: #35301e; --warn-ink: #e0bd62;
+    --bad-bg: #3a211c; --bad-ink: #eb9a85;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    background: var(--bg); color: var(--ink); padding: 24px 20px 60px;
+    font: 17px/1.55 -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    max-width: 1080px; margin: 0 auto;
+  }
+  header { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 4px; }
+  h1 { font-size: 30px; letter-spacing: -0.02em; }
+  .sub { color: var(--ink2); font-size: 17px; }
+  h2 { font-size: 22px; margin: 34px 0 12px; padding-top: 16px; border-top: 1px solid var(--line); letter-spacing: -0.01em; }
+  h3 { font-size: 16px; margin: 20px 0 8px; color: var(--ink2); }
+  p { margin: 10px 0; color: var(--ink2); max-width: 72ch; }
+  p.lead { color: var(--ink); font-size: 18px; max-width: 74ch; }
+  b, strong { color: var(--ink); }
+  a { color: var(--accent); }
+  code { font: 14.5px ui-monospace, Menlo, monospace; background: var(--soft); border-radius: 5px; padding: 1px 5px; }
+  .num { font: inherit; font-variant-numeric: tabular-nums; font-family: ui-monospace, Menlo, monospace; }
+  #theme { margin-left: auto; background: var(--card); color: var(--ink);
+    border: 1px solid var(--line); border-radius: 10px; padding: 6px 14px;
+    font-size: 15px; cursor: pointer; }
+
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px,1fr)); gap: 10px; margin: 16px 0; }
+  .kpi { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 15px; }
+  .kpi .l { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 6px; }
+  .kpi .v { font: 700 24px ui-monospace, Menlo, monospace; }
+  .kpi .v small { font-size: 12px; color: var(--muted); font-weight: 500; }
+  .kpi .s { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .kpi .bar { height: 5px; background: var(--soft); border-radius: 3px; margin-top: 8px; overflow: hidden; }
+  .kpi .bar i { display: block; height: 100%; background: var(--good-ink); }
+  .kpi.warn .v { color: var(--warn-ink); } .kpi.warn .bar i { background: var(--warn-ink); }
+  .kpi.off .v { color: var(--muted); font-size: 15px; }
+
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; margin: 16px 0; }
+  .flashbar { display: flex; width: 100%; height: 34px; border-radius: 8px; overflow: hidden; border: 1px solid var(--line); }
+  .legend { display: flex; flex-wrap: wrap; gap: 10px 18px; margin-top: 12px; font-size: 13px; color: var(--ink2); }
+  .legend .sw { display:inline-block; width: 11px; height: 11px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+  .appzoom { margin-top: 18px; padding-top: 16px; border-top: 1px dashed var(--line); }
+  .appzoom .bar { height: 20px; border-radius: 6px; overflow: hidden; display: flex; border: 1px solid var(--line); }
+
+  .rambar-row { margin-bottom: 14px; } .rambar-row:last-child{margin-bottom:0;}
+  .rambar-head { display:flex; justify-content:space-between; font-size: 13px; margin-bottom: 5px; color: var(--ink2); }
+  .rambar-head .name { color: var(--ink); font-weight: 600; }
+  .rambar { height: 14px; border-radius: 5px; overflow: hidden; display: flex; background: var(--soft); border: 1px solid var(--line); }
+
+  .pill { font-size: 12.5px; font-weight: 700; border-radius: 7px; padding: 2px 9px; text-transform: uppercase; letter-spacing: .05em; display: inline-block; }
+  .pill.ok { background: var(--good-bg); color: var(--good-ink); }
+  .pill.pending { background: var(--warn-bg); color: var(--warn-ink); }
+  .pill.missing { background: var(--bad-bg); color: var(--bad-ink); }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px,1fr)); gap: 12px; margin: 14px 0; }
+  .refcard { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 15px 16px; }
+  .refcard .cat { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+  .refcard h4 { font-size: 15px; margin: 6px 0 6px; }
+  .refcard p { font-size: 13.5px; margin: 0 0 8px; }
+  .refcard .how { font: 12px ui-monospace, Menlo, monospace; background: var(--soft); border-radius: 6px; padding: 7px 9px; }
+
+  .term { background: var(--ink); color: var(--bg); border-radius: 10px; padding: 14px 16px;
+    font: 13px/1.7 ui-monospace, Menlo, monospace; overflow-x: auto; margin: 14px 0; }
+
+  footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--line); color: var(--muted); font-size: 15px; }
+  footer .src { font: 13px ui-monospace, Menlo, monospace; line-height: 1.9; margin-top: 6px; }
+  .back { color: var(--accent); font-size: 15px; text-decoration: none; }
+</style>
+</head>
+<body>
+
+<a class="back" href="index.html">&larr; documentación</a>
+<header>
+  <h1>Panel de memoria</h1>
+  <span class="sub">ESP32-S3 &middot; N16R8 &middot; 16&nbsp;MB flash / 8&nbsp;MB PSRAM</span>
+  <button id="theme">&#9680;</button>
+</header>
+<p class="lead">Instantánea de uso de flash y RAM del build actual, y qué otros parámetros de runtime vale la pena instrumentar en este proyecto.</p>
+<p class="sub">instantánea de build &middot; 2026-08-29 &middot; commit <code>74d4547</code></p>
+
+<div class="kpis">
+  <div class="kpi"><div class="l">Flash total usada</div><div class="v">69.2<small>%</small></div><div class="s">11,60&nbsp;MB / 16&nbsp;MB</div><div class="bar"><i style="width:69.2%"></i></div></div>
+  <div class="kpi"><div class="l">Partición app</div><div class="v">41.0<small>%</small></div><div class="s">1,23&nbsp;MB / 3&nbsp;MB &middot; 59% libre</div><div class="bar"><i style="width:41%"></i></div></div>
+  <div class="kpi"><div class="l">DIRAM estática</div><div class="v">34.6<small>%</small></div><div class="s">118,1&nbsp;KB / 333,8&nbsp;KB</div><div class="bar"><i style="width:34.6%"></i></div></div>
+  <div class="kpi warn"><div class="l">IRAM fija</div><div class="v">100<small>%</small></div><div class="s">16,4&nbsp;KB &middot; normal en IDF*</div><div class="bar"><i style="width:100%"></i></div></div>
+  <div class="kpi off"><div class="l">Heap dinámico</div><div class="v">sin medir</div><div class="s">requiere runtime</div></div>
+  <div class="kpi off"><div class="l">PSRAM en uso</div><div class="v">sin medir</div><div class="s">8&nbsp;MB disponibles</div></div>
+</div>
+
+<h2>Mapa de flash (16&nbsp;MB)</h2>
+<p>Distribución real de <code>firmware/partitions.csv</code> para el target <code>esp32s3</code>.</p>
+<div class="card">
+  <div class="flashbar" role="img" aria-label="Mapa de la flash de 16 megabytes por partición.">
+    <div style="width:0.7%;background:var(--muted)"></div>
+    <div style="width:18.75%;background:var(--good-ink)"></div>
+    <div style="width:25%;background:var(--accent)"></div>
+    <div style="width:25%;background:#7a4fae"></div>
+    <div style="width:30.55%;background:repeating-linear-gradient(45deg,var(--line) 0 6px,transparent 6px 12px)"></div>
+  </div>
+  <div class="legend">
+    <span><span class="sw" style="background:var(--muted)"></span>sistema (boot+ptable+nvs+phy) &middot; 65&nbsp;KB</span>
+    <span><span class="sw" style="background:var(--good-ink)"></span>factory / app &middot; 3&nbsp;MB</span>
+    <span><span class="sw" style="background:var(--accent)"></span>storage / packs &middot; 4&nbsp;MB</span>
+    <span><span class="sw" style="background:#7a4fae"></span>model (raw) &middot; 4&nbsp;MB</span>
+    <span><span class="sw" style="background:repeating-linear-gradient(45deg,var(--line) 0 3px,transparent 3px 6px)"></span>libre / OTA &middot; 4,94&nbsp;MB</span>
+  </div>
+  <div class="appzoom">
+    <div class="rambar-head"><span class="name">Detalle &mdash; partición <code>factory</code></span><span class="num">1.290.272&nbsp;B / 3.145.728&nbsp;B</span></div>
+    <div class="bar"><div style="width:41%;background:var(--good-ink)"></div><div style="width:59%;background:var(--soft)"></div></div>
+  </div>
+  <p style="margin-top:14px">
+    <span class="pill pending">storage: vacío &middot; pack.json aún no se lee (#21)</span>
+    &nbsp;<span class="pill pending">model: reservado, sin integrar</span>
+  </p>
+</div>
+
+<h2>Memoria estática enlazada (build-time)</h2>
+<p>Lo que el linker reserva en compilación para <code>.text</code>/<code>.data</code>/<code>.bss</code> &mdash;no el heap dinámico de runtime, que solo se mide con la placa corriendo.</p>
+<div class="card">
+  <div class="rambar-row">
+    <div class="rambar-head"><span class="name">DIRAM</span><span class="num">118.132&nbsp;/&nbsp;341.760&nbsp;B</span></div>
+    <div class="rambar">
+      <div style="width:21.64%;background:var(--good-ink)" title=".text 73.959 B"></div>
+      <div style="width:6.57%;background:var(--accent)" title=".data 22.437 B"></div>
+      <div style="width:6.36%;background:var(--warn-ink)" title=".bss 21.736 B"></div>
+    </div>
+  </div>
+  <div class="rambar-row">
+    <div class="rambar-head"><span class="name">IRAM (vectores + ISR)</span><span class="num">16.384&nbsp;/&nbsp;16.384&nbsp;B</span></div>
+    <div class="rambar"><div style="width:100%;background:var(--bad-ink)"></div></div>
+  </div>
+  <p style="font-size:13px;margin-top:12px">* 100% no es alarma: es una región fija y pequeña; el grueso del código (857,5&nbsp;KB) corre cacheado desde flash.</p>
+</div>
+
+<h2>Qué más monitorear &mdash; y cómo</h2>
+<p>Parámetros específicos de este proyecto, no una lista genérica de buenas prácticas.</p>
+<div class="grid">
+  <div class="refcard"><div class="cat">Memoria</div><h4>Heap interno vs. PSRAM</h4><p>DMA y WiFi solo en RAM interna &mdash;nunca PSRAM.</p><div class="how">heap_caps_get_free_size(MALLOC_CAP_INTERNAL)</div></div>
+  <div class="refcard"><div class="cat">Memoria</div><h4>Presupuesto TLS activo</h4><p>~50&nbsp;KB de RAM interna por conexión abierta.</p><div class="how">contar conexiones TLS vivas</div></div>
+  <div class="refcard"><div class="cat">Concurrencia</div><h4>Cola de brain.ask saturada</h4><p><code>brain_cloud.cpp:150</code> descarta en silencio si la cola (profundidad 4) está llena.</p><div class="how">contador propio en el drop</div></div>
+  <div class="refcard"><div class="cat">Concurrencia</div><h4>Stack por tarea</h4><p>Tareas <code>bus</code> (6144&nbsp;B) y <code>brain</code> (10240&nbsp;B), ambas core&nbsp;0.</p><div class="how">uxTaskGetStackHighWaterMark()</div></div>
+  <div class="refcard"><div class="cat">Rendimiento</div><h4>Balance core 0 / core 1</h4><p>Regla: audio en core&nbsp;1, red en core&nbsp;0.</p><div class="how">vTaskGetRunTimeStats()</div></div>
+  <div class="refcard"><div class="cat">Rendimiento</div><h4>Tiempo de frame</h4><p>Medido en 30,4&nbsp;ms (32,9&nbsp;fps) con caché por estado.</p><div class="how">esp_timer_get_time() en render+blit</div></div>
+  <div class="refcard"><div class="cat">Almacenamiento</div><h4>Libre en NVS</h4><p>Partición de solo 24&nbsp;KB, sin uso hoy.</p><div class="how">nvs_get_stats()</div></div>
+  <div class="refcard"><div class="cat">Almacenamiento</div><h4>Libre en storage (packs)</h4><p>4&nbsp;MB para caras, sonidos, reflejos.</p><div class="how">esp_littlefs_info("storage", ...)</div></div>
+  <div class="refcard"><div class="cat">Red</div><h4>RSSI y reconexiones</h4><p><code>boot.status</code> se queda ~4&nbsp;s en "connecting wifi" en un boot normal.</p><div class="how">esp_wifi_sta_get_ap_info()</div></div>
+</div>
+
+<h2>Cómo hacerlo en vivo</h2>
+<p>El <code>webui</code> ya corre un <code>httpd_server</code>. Un endpoint de solo lectura expondría estos números sin tocar el resto del framework:</p>
+<div class="term">GET /health &rarr; 200 application/json
+{
+  "heap_internal_free": 187342,
+  "heap_spiram_free": 7534221,
+  "brain_queue_drops": 0,
+  "wifi_rssi": -58,
+  "uptime_s": 4213
+}</div>
+
+<footer>
+  Desktop Buddy. Instantánea generada con <code>idf.py size</code> y <code>firmware/partitions.csv</code> el 2026-08-29.
+  <div class="src">
+    firmware/partitions.csv &middot; firmware/components/bus/bus_task.cpp &middot; firmware/components/brain/brain_cloud.cpp &middot; .kiro/steering/tech.md
+  </div>
+</footer>
+
+<script>
+document.getElementById("theme").addEventListener("click", () => {
+  const r = document.documentElement;
+  r.dataset.theme = r.dataset.theme === "dark" ? "" : "dark";
+});
+if (matchMedia("(prefers-color-scheme: dark)").matches)
+  document.documentElement.dataset.theme = "dark";
+</script>
+</body>
+</html>
