@@ -418,7 +418,7 @@ a elegir mal para alguien.
 ## Los sentidos: umbrales en el pack, decisiones en los reflejos
 
 **Propuesta.** El bus lleva eventos discretos; los sensores dan valores
-continuos. Alguien tiene que decidir que 12 lux «es de noche», y hoy ese
+continuos. Alguien tiene que decidir que 0,4 g «es que me levantaron», y hoy ese
 número estaría compilado en el firmware — el mismo error que tenía
 `kEmotions`.
 
@@ -433,18 +433,17 @@ El reparto:
 > deciden qué significan esos eventos.**
 
 Lo que *no* se propone es un sistema de condiciones declarativas en el pack
-(«cuando esté oscuro, ponte somnoliento»). Eso ya lo hacen los reflejos, en
+(«cuando lleve rato solo, ponte somnoliento»). Eso ya lo hacen los reflejos, en
 caliente y con toda la potencia de un lenguaje; una segunda capa de
 comportamiento en JSON sería la duplicación de #19 otra vez, ahora en el
-comportamiento. Y las condiciones crecen: «cuando esté oscuro» acaba siendo
-«cuando esté oscuro Y nadie me toque hace 30 s Y sean más de las diez», que es
+comportamiento. Y las condiciones crecen: «cuando lleve rato solo» acaba siendo
+«cuando lleve rato solo Y nadie me toque hace 30 s Y sean más de las diez», que es
 un lenguaje de scripting — y ya tenemos uno mejor.
 
 ```json
 "senses": {
   "touch":    { "pet_ms": 400 },
   "idle":     { "after_s": 300 },
-  "light":    { "dark_below_lux": 15, "bright_above_lux": 40 },
   "motion":   { "shake_g": 1.8, "pickup_g": 0.4 },
   "presence": { "arrive_after_s": 2, "leave_after_s": 30 }
 }
@@ -460,19 +459,15 @@ tocar un solo umbral sin declarar los demás.
 |---|---|---|
 | `touch.pet_ms` | **400** | el valor que ya está compilado; así nada cambia al adoptarlo |
 | `idle.after_s` | **300** | los 5 min del `timer.idle_5m` propuesto |
-| `light.dark_below_lux` | **15** | una habitación a oscuras da <10 lux; en penumbra, ~50 |
-| `light.bright_above_lux` | **40** | |
 | `motion.shake_g` | **1,8** | **provisional** — la capa de gestos necesita play-testing |
 | `motion.pickup_g` | **0,4** | **provisional**, ídem |
 | `presence.arrive_after_s` | **2** | el radar ve el movimiento antes de que te sientes |
 | `presence.leave_after_s` | **30** | irse cuesta más que llegar, a propósito |
 
 **Los umbrales van en pares, y ese hueco *es* la histéresis.** Un umbral único
-tartamudea en la frontera: a 15,0 lux exactos emitiría `dark`/`bright` en
-bucle. Por eso oscuro es «<15» y claro es «>40», con tierra de nadie en medio.
-Lo mismo en el tiempo con `presence`: llegar tarda 2 s y marcharse 30, para que
-asomarte fuera del alcance del radar no te «vaya» del escritorio. El driver del
-RC522 ya lleva histéresis de 3 fallos por esta misma razón.
+tartamudea en la frontera: en el umbral exacto emitiría el evento y su
+contrario en bucle. Por eso los umbrales van en pareja, con tierra de nadie en
+medio.
 
 Y una razón práctica que ya está escrita en
 [hardware.md](hardware.md): la capa de gestos del MPU6050 «necesita
@@ -503,20 +498,20 @@ consumidor de algo que ya estaba diseñado.
 
 **Por qué hace falta, y no basta con los eventos.** Los eventos dicen *cuándo
 cambió algo*; la instantánea dice *cómo están las cosas ahora*. Un reflejo que
-reacciona a `touch.pet` puede querer saber si está oscuro — y eso no es un
+reacciona a `touch.pet` puede querer saber si hace calor — y eso no es un
 evento, es estado ambiental. Sin API de lectura, cada pack acaba reconstruyendo
 ese estado a mano guardando cada evento en variables globales… **y esa
 reconstrucción está mal hasta que llega el primer evento.** Un buddy que
-arranca en una habitación a oscuras no sabría que está oscuro hasta que la luz
-*cambie*.
+arranca sin que nadie lo toque no sabría nada de su entorno hasta que
+algo cruce un umbral.
 
 **Pide varios de una vez cuando los necesites juntos.** Un handler que quiere
 luz, temperatura y presencia hace *una* llamada nativa y recibe un map con
 exactamente esos tres, en lugar de tres llamadas:
 
 ```berry
-var s = buddy.sense(["light", "temp", "presence"])
-if s["light"] != nil && s["light"] < 15 ... end
+var s = buddy.sense(["temp", "motion", "presence"])
+if s["temp"] != nil && s["temp"] > 28 ... end
 ```
 
 Esto es a propósito **lo contrario** de meter la instantánea entera en el
@@ -526,20 +521,20 @@ y el coste crecería con cada sensor que se añada, que es justo la dirección e
 la que va el proyecto. La mayoría de los handlers (`touch.pet`, `nfc.tag` del
 pack `zero`) no miran ningún sensor.
 
-**`nil` cuando no hay dato, y esto importa.** Si el BH1750 no está montado, o
-murió, o la lectura es vieja, `buddy.sense("light")` devuelve `nil` — no el
-último valor para siempre, y no cero. Un cero silencioso es «oscuridad total»
-para un reflejo, que es exactamente la clase de fallo que nadie depura.
+**`nil` cuando no hay dato, y esto importa.** Si el sensor no está montado, o
+murió, o la lectura es vieja, `buddy.sense("temp")` devuelve `nil` — no el
+último valor para siempre, y no cero. Un cero silencioso se lee como un dato
+válido, que es exactamente la clase de fallo que nadie depura.
 
-**Unidades reales, las mismas que los umbrales**: lux, °C, g. Así un pack puede
-razonar a la vez sobre `dark_below_lux: 15` y sobre lo que devuelve
-`buddy.sense("light")`, sin conversiones mentales.
+**Unidades reales, las mismas que los umbrales**: °C, g, segundos. Así un pack
+razona a la vez sobre `shake_g: 1.8` y sobre lo que devuelve
+`buddy.sense("motion")`, sin conversiones mentales.
 
 ```berry
 buddy.on("touch.pet", def (ev)
-  var lux = buddy.sense("light")
-  if lux != nil && lux < 15
-    buddy.led.mood("off")         # caricia de noche: no le des un flashazo
+  var t = buddy.sense("temp")
+  if t != nil && t > 28
+    buddy.face.emotion("sleepy")  # con calor, menos energía
   else
     buddy.face.emotion("happy")
   end
