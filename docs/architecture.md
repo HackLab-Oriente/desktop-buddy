@@ -72,8 +72,8 @@ claves.
 
 ## 4. Bus de eventos y primitivas
 
-Todo es un evento: `touch.pet`, `touch.poke`, `timer.idle_5m`,
-`sense.light.dark`, `brain.reply`, `webhook.*` (solo hub). Los comportamientos
+Todo es un evento: `touch.pet`, `touch.poke`, `timer.idle`,
+`brain.reply`, `webhook.*` (solo hub). Los comportamientos
 se suscriben a eventos y emiten acciones: `face.play(anim)`,
 `sound.chirp(mood)`, `say(text)`, `gpio.set(...)`, `brain.ask(...)`.
 
