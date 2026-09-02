@@ -49,6 +49,71 @@ Skills are located in `.claude/skills/kiro-*/SKILL.md`
 - `kiro-verify-completion` — fresh-evidence gate before success or completion claims
 - **If there is even a 1% chance a skill applies to the current task, invoke it.** Do not skip skills because the task seems simple.
 
+## Reviewing changes to the firmware
+
+Most of this firmware was generated fast and proven by running it, not by
+deciding it. That is a fine way to get to a working buddy and a bad way to
+keep one, so changes get reviewed by agents that did not write them.
+
+**Run the reviews before opening a PR, not after** — findings that arrive
+after the PR description is written tend to get argued with instead of fixed.
+
+### Which reviewers, and when
+
+| agent | run it when |
+|---|---|
+| `review-adversarial` | **always**, for any C/C++ change |
+| `review-performance` | the render path, the LED ring, anything per-frame or per-event, anything that allocates |
+| `review-architecture` | a new component, a changed public interface, anything touching the bus, anything moving data between firmware and packs |
+| `review-secrets` | config, NVS, the web UI, WiFi, TLS, an API key, NFC, or the Berry surface packs can call |
+
+Documentation-only changes need none of them.
+
+### How to run them
+
+**Launch them in one message so they run in parallel, and give each the same
+base**, which for a stacked PR is the branch below it and not `main`:
+
+```
+git diff <base>...HEAD
+```
+
+They are independent on purpose. Do not summarise one to another and do not
+run them in sequence — twice now they reached the same finding by different
+routes, and that agreement is the signal that it is real.
+
+### After they report
+
+1. **Wait for all of them before editing.** They read the same files; a fix
+   applied mid-flight invalidates the report still being written.
+2. **Verify before you act.** They are frequently right and occasionally
+   wrong. One claimed a branch deleted three published pages; the branch was
+   simply behind `main` and the diff said "deleted". Check the claim, then fix
+   the code.
+3. **Fix in one pass**, and say in the commit message which finding each
+   change answers. A commit that says what nearly went wrong is worth more
+   than one that says what was changed.
+4. **Every crash-class finding becomes a host test.** `firmware/host_test/`
+   under ASan and UBSan, with a CI step, and a comment naming the real defect
+   the case came from. That is the bar the NDEF decoder and the pack parser
+   already meet.
+5. **Say when you overrule one**, and why. A recommendation declined with a
+   reason recorded is a decision; declined silently it is an oversight.
+
+### What good findings look like
+
+A finding is a `file:line`, what goes wrong, and **a concrete trigger** — the
+bytes, not "if the input were malformed". Anything that cannot name the
+trigger is a suspicion, and should say so.
+
+The reviews have earned their keep on things nobody would have found by
+reading: a 200-byte `pack.json` that bricked the board through cJSON's
+recursion against an 8 KB stack, clamps that inverted on `1e999` and landed
+`period_ms` on exactly the value the range existed to forbid, and an
+`openness: 0` that passed every per-field check and blanked the panel. None of
+those are visible in a diff. Neither are the two cases where a reviewer
+corrected the author.
+
 ## Development Rules
 - 3-phase approval workflow: Requirements → Design → Tasks → Implementation
 - Human review required each phase; use `-y` only for intentional fast-track
