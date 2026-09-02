@@ -337,7 +337,7 @@ somnoliento: Aaah… así… sigue…
 llano: Gracias.
 ```
 
-**Situación: no has entendido lo que te han dicho**
+**Situación: no entendiste lo que te dijeron**
 
 ```
 cálido: Perdona, no te entendí. ¿Me repites?
@@ -349,7 +349,7 @@ somnoliento: ¿Mmm? Se me fue.
 llano: No entendí.
 ```
 
-**Situación: te han quitado la tarjeta**
+**Situación: te quitaron la tarjeta**
 
 ```
 cálido: Listo, la dejamos ahí. Cuando quieras.

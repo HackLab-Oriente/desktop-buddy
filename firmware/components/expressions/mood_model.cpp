@@ -22,6 +22,8 @@ std::vector<Mood>& table() {
   return t;
 }
 
+bool s_frozen = false;
+
 }  // namespace
 
 const Mood* moods() { return table().data(); }
@@ -34,7 +36,10 @@ int mood_index(const char* name) {
   return -1;
 }
 
+void freeze_moods() { s_frozen = true; }
+
 bool set_moods(std::vector<Mood> v) {
+  if (s_frozen) return false;   // the ring holds a reference for a whole frame
   if (v.empty()) return false;
   table() = std::move(v);
   return true;

@@ -25,6 +25,7 @@
 #include "webui.h"
 
 #include "cJSON.h"
+#include "esp_err.h"
 #include "esp_littlefs.h"
 #include "esp_log.h"
 #include "nvs_flash.h"
@@ -34,12 +35,20 @@ static const char* TAG = "buddy";
 
 namespace {
 
+// Deliberately NOT ESP_ERROR_CHECK. This now runs before face_start(), so an
+// abort here is a black screen and a silent boot loop -- the buddy would have
+// no way to say what happened. A missing or corrupt storage partition costs
+// the pack, not the creature: without it the built-in face and moods are
+// still there, which is the whole point of keeping built-ins.
 void mount_flash() {
   esp_vfs_littlefs_conf_t conf = {};
   conf.base_path = "/flash";
   conf.partition_label = "storage";
   conf.format_if_mount_failed = true;
-  ESP_ERROR_CHECK(esp_vfs_littlefs_register(&conf));
+  const esp_err_t err = esp_vfs_littlefs_register(&conf);
+  if (err != ESP_OK)
+    ESP_LOGE(TAG, "no /flash (%s) — built-in face, no pack and no reflexes",
+             esp_err_to_name(err));
 }
 
 

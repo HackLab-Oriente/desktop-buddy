@@ -30,7 +30,10 @@ namespace {
 // 12 LEDs of white would pull ~700 mA; cap brightness so the ring is a mood
 // glow, not a flashlight. Raise only if the ring has its own 5 V supply.
 constexpr float kMaxBright = 0.35f;
-constexpr int kFrameMs = 40;
+// Shared with the parser's period floor so the two cannot drift apart: below
+// two frames per cycle the phase snaps back to zero every frame and the ring
+// stops instead of going fast.
+constexpr int kFrameMs = kRingFrameMs;
 
 led_strip_handle_t s_strip = nullptr;
 int s_count = 12;
@@ -133,6 +136,7 @@ void select_mood(const char* name) {
 }  // namespace
 
 void led_start() {
+  freeze_moods();   // same reason as face_start(): the ring holds a reference
   s_count = CONFIG_BUDDY_WS2812_COUNT;
 
   led_strip_config_t cfg = {};

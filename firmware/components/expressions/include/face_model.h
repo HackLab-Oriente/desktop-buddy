@@ -31,10 +31,6 @@ struct Emotion {
   int blink_period_ms = 3800;      // mean ms between blinks — sets temperament
   uint8_t r = 0, g = 190, b = 255; // the eye tint AND the LED ring colour
   std::string mood;                // LED mood to request with it; empty = none
-  std::string register_;           // speech register ("register" is a reserved
-                                   // word). Conditions the local model; inert
-                                   // until #43, carried so packs can already
-                                   // declare it.
 };
 
 // The active table. Never empty: falls back to the built-ins.
@@ -47,6 +43,14 @@ int emotion_index(const char* name);
 // Replace the table. Ignored (and reported false) if `v` is empty or has no
 // entry named "neutral" — the renderer starts there, and a pack that cannot
 // render a neutral face is worse than no pack at all.
+//
+// BOOT ONLY, and enforced: once face_start() has run, freeze_emotions() is
+// called and any later swap is refused and logged. emotions() hands out a
+// pointer into the table's storage and the render task holds references to
+// entries for a whole frame, so a swap under it is a use-after-free. The
+// runtime pack switch needs a snapshot accessor rather than this call; the
+// guard is here so that until then a mistake is a log line, not a corruption.
 bool set_emotions(std::vector<Emotion> v);
+void freeze_emotions();
 
 }  // namespace buddy

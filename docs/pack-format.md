@@ -99,17 +99,27 @@ casi todas las decisiones abiertas de personalidad viven en esa confusión.
 
 Una **expresión** es un estado con nombre propio del pack: `huraño`, `festivo`,
 `resacoso`. Un **registro** es una *manera de hablar*: seco, cálido, urgente.
-Cada expresión declara a qué registro pertenece.
 
-La clave se llama `register` y no `registro` porque **las claves del esquema son
-código** y el código va en inglés ([CONTRIBUTING](../CONTRIBUTING.md#idiomas)).
-Los **valores** los escribe quien hace el pack, en su idioma.
+> **El registro quedó pospuesto en la sesión 1** ([#16]) y **el firmware no lo
+> lee**: no hay campo `register` en el parser ni en la tabla de expresiones.
+> Solo servía para condicionar el modelo local, y el proyecto arranca con banco
+> de frases y Markov, que van por expresión. Esta sección se conserva porque es
+> el punto de partida de la sesión de entrenamiento — su redacción definitiva
+> viene en el PR de las decisiones.
+
+[#16]: https://github.com/HackLab-Oriente/desktop-buddy/issues/16
+
+Si un pack declara `register`, el cargador lo ignora en silencio, que es lo que
+hace con cualquier clave que no conoce.
+
+Las claves del esquema van en inglés porque **son código**
+([CONTRIBUTING](../CONTRIBUTING.md#idiomas)); los **valores** los escribe quien
+hace el pack, en su idioma.
 
 ```json
 {
-  "huraño":  { "register": "seco",     "use_model": true  },
-  "festivo": { "register": "juguetón"                     },
-  "alerta":  { "register": "urgente",  "use_model": true  }
+  "huraño":  { "mood": "fuego",   "eye": { "openness": 45, "brow": 1 } },
+  "festivo": { "mood": "excited", "eye": { "lift": 14 } }
 }
 ```
 

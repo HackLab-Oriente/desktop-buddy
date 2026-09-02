@@ -169,7 +169,11 @@ void draw_eye(int cxi, int side, const Emotion& em, int open_pct, int gx, int gy
   // The squint must shrink with the eye. As an absolute offset it sat above
   // the shrunken eye mid-blink and removed all of it — happy did not blink,
   // it vanished and reappeared.
-  const float lift_px = e.lift * S * (open / full);
+  // full can be zero only if a pack asked for a zero-height or zero-openness
+  // eye; the parser floors both at 1, and this is the second lock. Dividing
+  // here gave lift_px = inf, which pushed every pixel of BOTH eyes out of
+  // range and left the panel completely black.
+  const float lift_px = full > 0.f ? e.lift * S * (open / full) : 0.f;
 
   const int gm = 10;  // glow margin
   const int x0 = static_cast<int>(cx - hw) - gm, x1 = static_cast<int>(cx + hw) + gm;
@@ -593,6 +597,14 @@ void face_task(void*) {
 }  // namespace
 
 void face_start() {
+  // From here the render task indexes the expression table every frame and
+  // holds references to its entries across a whole draw, so the table stops
+  // accepting swaps. A pack_load() after this point is refused and logged
+  // rather than freeing the vector out from under the renderer. It lives here
+  // and not in main() so that the invariant belongs to whoever starts the
+  // task, not to whoever remembers the ordering.
+  freeze_emotions();
+
   lcd.setBrightness(0);  // dark until there is something to show
   lcd.init();
 
