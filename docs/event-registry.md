@@ -135,6 +135,7 @@ Tres reglas para esta sección:
 | `timer.idle_5m` | — | Firmware | [architecture.md](architecture.md) | cinco minutos sin interacción |
 | `sense.light.dark` | — | Electrónica | [architecture.md](architecture.md), [hardware.md](hardware.md) | el sensor de luz dice que la sala está a oscuras → reflejo de dormir |
 | `storage.sd.gone` | — | Firmware | [pack-format.md](pack-format.md) | se quitó la tarjeta SD y los assets de `media/` dejan de resolver. Un evento, no un crash |
+| `pack.changed` | id del pack nuevo | Firmware | [pack-format.md](pack-format.md) | el pack terminó de cargarse y sus tablas ya están en pie. **Es un hecho, no una orden**: pedir el cambio es `buddy.pack_load()`, un método, justamente para que ningún reflejo pueda escuchar la orden y republicarla en bucle |
 | `webhook.*` | — | Firmware | [architecture.md](architecture.md) | **solo hub, v2+.** No es un evento del buddy; se lista para que nadie lo confunda con uno |
 
 ## Espacios de nombres
@@ -148,6 +149,7 @@ responsable de ese equipo.
 |---|---|---|
 | `touch.*`, `nfc.*`, `sense.*` | Electrónica | `touch.*` y `nfc.*` vivos; `sense.light.dark` propuesto |
 | `voice.*`, `sound.*` | Voz | **ninguno vivo**; 4 propuestos — los fija el equipo de voz |
+| `pack.*` | Firmware | **ninguno vivo**; 1 propuesto (`pack.changed`) |
 | `face.*`, `led.*` | Personalidad + Firmware | vivos |
 | `config.*` | Web UI | **ninguno vivo**; 2 propuestos en [config-api.md](config-api.md) |
 | `brain.*`, `boot.*`, `system.*`, `timer.*`, `storage.*` | Firmware y arquitectura | `brain.*`, `boot.*`, `system.*` vivos; `timer.*` y `storage.*` solo propuestos |
