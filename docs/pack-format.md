@@ -173,7 +173,30 @@ El nombre del archivo sigue a **la expresión**, que la inventa quien escribe el
 pack — no al vocabulario de registros. `huraño` → `lines/huraño.txt`. Que #16 y
 #19 sigan abiertas **no bloquea** escribir bancos de frases.
 
-Lo que sí hay que saber:
+**Pero el nombre del ARCHIVO no puede llevarlos, y eso está medido.** El
+generador de la imagen LittleFS (`littlefs-python`, el que usa
+`littlefs_create_partition_image`) codifica los nombres en **ASCII** al meterlos
+en la imagen y aborta el build:
+
+```
+UnicodeEncodeError: 'ascii' codec can't encode character '\xf1'
+```
+
+No es el locale — es el encoding por defecto de Cython en esa librería, así que
+`PYTHONUTF8` no lo cambia. Afecta a **cualquier pack que se flashee con el
+firmware**; un pack instalado en caliente por la web escribe con `fopen` y no
+pasa por esa herramienta.
+
+Consecuencia para el formato: **el nombre de la expresión puede llevar acentos
+y ñ —es una clave JSON y viaja bien—, pero el banco que le corresponde tiene
+que resolverse a un nombre de archivo ASCII.** Cómo se hace esa correspondencia
+está por decidir y es trabajo de [#58]: transliterar, declararlo explícitamente
+en la expresión, o nombrar los bancos por índice. `packs/zero` trae la
+expresión `huraño` justamente para que el caso esté a la vista.
+
+[#58]: https://github.com/HackLab-Oriente/desktop-buddy/issues/58
+
+Lo demás que hay que saber:
 
 - **La longitud no es problema.** `CONFIG_LITTLEFS_OBJ_NAME_LEN=64` incluyendo
   el terminador, y `huraño.txt` son 11 bytes en UTF-8. Harían falta ~30
