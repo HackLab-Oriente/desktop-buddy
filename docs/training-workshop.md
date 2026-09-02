@@ -294,7 +294,7 @@ pero el prefijo es el **registro**, no la emoción:
 ```
 cálido: Ahí estás. Te estaba esperando.
 seco: Ah. Eres tú.
-soñoliento: Mmm… ¿ya es de día?
+somnoliento: Mmm… ¿ya es de día?
 ```
 
 En generación el firmware alimenta `seco: ` como prompt y el modelo lo
@@ -321,7 +321,7 @@ juguetón: Mira quién se ha dignado a aparecer.
 curioso: ¿Y hoy qué traes?
 urgente: Por fin. Ven, ven.
 seco: Ah. Eres tú.
-soñoliento: Mmm… ¿ya es de día?
+somnoliento: Mmm… ¿ya es de día?
 llano: Hola.
 ```
 
@@ -333,7 +333,7 @@ juguetón: Uy, qué mimoso te has levantado.
 curioso: ¿Y eso por qué lo haces? No me quejo.
 urgente: Más. Ahora. No pares.
 seco: Bueno. Ya está.
-soñoliento: Aaah… así… sigue…
+somnoliento: Aaah… así… sigue…
 llano: Gracias.
 ```
 
@@ -345,7 +345,7 @@ juguetón: Ni idea de qué me has dicho, pero ha sonado importante.
 curioso: ¿Cómo? Dilo otra vez, que ahora me pica.
 urgente: No te oigo. Otra vez.
 seco: No.
-soñoliento: ¿Mmm? Se me ha ido.
+somnoliento: ¿Mmm? Se me ha ido.
 llano: No he entendido.
 ```
 
@@ -357,7 +357,7 @@ juguetón: Ya no está. Magia.
 curioso: ¿Ya? Si acabábamos de empezar.
 urgente: Eh, ¿y eso? Tráela.
 seco: Ya.
-soñoliento: ¿Se ha ido? Bueno.
+somnoliento: ¿Se ha ido? Bueno.
 llano: Tarjeta retirada.
 ```
 
