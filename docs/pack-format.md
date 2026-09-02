@@ -85,44 +85,67 @@ archivo de media si el reflejo lo nombra, TTS si no).
 
 
 
-## Tres capas: expresión, registro, presentación
+## Dos capas: expresión y presentación
 
-Antes del banco de frases conviene separar tres cosas que se confunden, porque
-casi todas las decisiones abiertas de personalidad viven en esa confusión.
+**Decidido en la sesión 1 (2026-08-29):** hay dos capas, no tres. El
+**registro** queda **pospuesto**, no descartado — ver más abajo.
 
 | capa | quién la define | cuántas hay |
 |---|---|---|
 | **expresión** | quien escribe el pack | **abiertas** — inventa las que quiera |
-| **registro** | el proyecto | **cerradas y pocas** |
-| **presentación** | firmware | animación de cara + `led.mood`, derivadas del registro |
+| **presentación** | el pack, sobre primitivas del firmware | una por expresión |
 
 Una **expresión** es un estado con nombre propio del pack: `huraño`, `festivo`,
-`resacoso`. Un **registro** es una *manera de hablar*: seco, cálido, urgente.
-Cada expresión declara a qué registro pertenece.
+`resacoso`. Trae consigo su banco de frases y su presentación — cara, color y
+mood del anillo.
 
 ```json
 {
-  "huraño":  { "registro": "seco",     "use_model": true  },
-  "festivo": { "registro": "juguetón"                     },
-  "alerta":  { "registro": "urgente",  "use_model": true  }
+  "huraño":  { "mood": "fuego" ,  "eye": { "width": 28, "openness": 55 } },
+  "festivo": { "mood": "excited", "eye": { "width": 30, "lift": 14 } }
 }
 ```
 
 Esto es lo que deshace el vocabulario duplicado de
-[#19](https://github.com/HackLab-Oriente/desktop-buddy/issues/19): en vez de dos
-listas paralelas (ocho `face.emotion` contra cuatro `led.mood`), hay **un solo
-vocabulario cerrado —el de registros— del que todo lo demás deriva**. Las
-expresiones son infinitas porque son del autor; los registros son pocos porque
-son el contrato.
+[#19](https://github.com/HackLab-Oriente/desktop-buddy/issues/19), y por una vía
+más simple que la que se había propuesto: en vez de un vocabulario cerrado del
+que todo deriva, **no queda ningún vocabulario cerrado**. Los moods los define
+el pack a partir de primitivas de animación, y la presentación también. El
+firmware deja de tener opinión sobre cómo se llaman las cosas.
+
+### El registro: por qué se pospone
+
+El registro —una *manera de hablar*: seco, cálido, urgente— tenía un solo
+trabajo real: **ser el parámetro del modelo local.** Se le alimenta `seco: ` y
+completa en ese tono.
+
+El proyecto arranca con **banco de frases y Markov**, y ninguno de los dos lo
+necesita: los dos van por expresión. Definir hoy un vocabulario cerrado sería
+comprar un compromiso caro de cambiar para resolver un problema aplazado.
+
+**La condición que lo reabre:** cuando se entrene el modelo, hará falta un eje
+por el que organizar el corpus, y ahí el registro vuelve con toda su fuerza. El
+juego propuesto y el método de rejilla siguen escritos más abajo, intactos,
+para esa sesión. Lo que no hay es un vocabulario que el firmware o los packs
+tengan que respetar hoy.
+
+Lo único que el firmware exige de una tabla de expresiones es que **exista
+`neutral`**. Ese es todo el contrato.
+
+Un detalle de vocabulario, porque muerde: en este proyecto **«registro»
+significa ya dos cosas** — esta capa lingüística y el *registro de eventos*
+(`event-registry.md`). Son cosas distintas; el segundo sigue muy vivo.
 
 ## De dónde salen las frases
 
-**Decidido: las dos fuentes, y se elige por expresión.**
-([#17](https://github.com/HackLab-Oriente/desktop-buddy/issues/17))
+**Decidido: todas las fuentes son añadidos sobre el banco, y se eligen por
+expresión.** ([#17](https://github.com/HackLab-Oriente/desktop-buddy/issues/17))
 
 - El **banco** vive en `lines/<expresión>.txt`, una frase por línea. Siempre.
-- **`use_model: true`** añade el modelo local, condicionado por el **registro**
-  de esa expresión.
+- **`use_markov: true`** recombina ese mismo banco. Activo desde la v1.
+- **`use_model: true`** añade el modelo local. **Pospuesto junto con el
+  registro**: la sección sigue especificada porque no cambia, pero no hay nada
+  que implementar hasta que exista el modelo entrenado.
 
 ### `use_model` es un añadido, no una alternativa
 
@@ -155,8 +178,8 @@ garantiza.
 ### Nombres de archivo con acentos
 
 El nombre del archivo sigue a **la expresión**, que la inventa quien escribe el
-pack — no al vocabulario de registros. `huraño` → `lines/huraño.txt`. Que #16 y
-#19 sigan abiertas **no bloquea** escribir bancos de frases.
+pack. `huraño` → `lines/huraño.txt`. Con #16 pospuesta y #19 resuelta, **el
+nombre del banco no depende de ninguna decisión pendiente**: se escribe ya.
 
 Lo que sí hay que saber:
 
@@ -175,10 +198,14 @@ Lo que sí hay que saber:
   (acentos, ñ, ¿, ¡). Un nombre de expresión en japonés o con emoji se
   imprimiría vacío.
 
-## Los registros — juego inicial propuesto
+## Los registros — material para cuando se entrene el modelo
 
-**Propuesta, no decisión**: el juego lo cierra el equipo de personalidad
-(#16, #19). Siete, porque son el vocabulario cerrado y deben caber en la cabeza.
+**Pospuesto, no descartado** (#16, sesión 1). Nada de esta sección aplica hoy:
+ni el firmware ni los packs conocen los registros. Se conserva entera porque es
+el punto de partida de la sesión de entrenamiento, y porque el método de
+rejilla de más abajo es la parte que de verdad cuesta descubrir.
+
+Siete, porque serían el vocabulario cerrado y deben caber en la cabeza.
 
 | registro | la manera | `led.mood` sugerido |
 |---|---|---|
@@ -254,7 +281,7 @@ frase larga es un rato largo sin poder escucharte.
 
 ## Los moods también son del pack
 
-**Propuesta.** Hoy `led.mood` acepta cuatro valores fijos en C++
+**Decidido en la sesión 1 (#19).** Hoy `led.mood` acepta cuatro valores fijos en C++
 (`calm|excited|thinking|off`), que es una segunda lista cerrada compitiendo con
 las ocho emociones — la mitad del problema de #19. Si los moods pasan a ser
 datos del pack, esa lista deja de existir como vocabulario rival y se convierte
@@ -262,15 +289,15 @@ en un espacio de nombres abierto que cada pack llena.
 
 ```json
 "moods": {
-  "brasa":  { "anim": "breathe", "colors": ["#ff3300", "#ff8800"], "period_ms": 2400 },
+  "fuego":  { "anim": "pulse",   "colors": ["#ff3300", "#ff8800"], "period_ms": 1800 },
   "chispa": { "anim": "spin",    "colors": ["#ffcc00"], "period_ms": 600, "dir": "cw" },
   "duerme": { "anim": "pulse",   "colors": ["#101030"], "period_ms": 5000 }
 }
 ```
 
-Y la cadena completa queda coherente con las tres capas:
+Y la cadena completa queda, sin ningún vocabulario cerrado en medio:
 
-**registro** (cerrado, del proyecto) → **mood** (nombre, del pack) → **animación** (parámetros, del pack)
+**expresión** (nombre, del pack) → **mood** (nombre, del pack) → **animación** (primitiva del firmware + parámetros del pack)
 
 ### Primitivas cerradas, no un lenguaje
 
@@ -300,16 +327,16 @@ los reflejos existentes siguen valiendo tal cual.
 
 ## Markov como tercera fuente de frases (propuesta)
 
-El banco y el modelo ya están decididos (#17). Queda encajar la tercera fuente
-—recombinar el banco con una cadena de Markov— y **encaja como el modelo, no
-como un sistema aparte**: un booleano por expresión, que *añade* sobre el banco
-y nunca lo sustituye.
+El banco ya estaba decidido (#17), y con el modelo pospuesto **Markov es la
+única fuente generativa de la v1**. Encaja como iba a encajar el modelo, no
+como un sistema aparte: un booleano por expresión, que *añade* sobre el banco y
+nunca lo sustituye.
 
 ```json
 {
-  "huraño":  { "registro": "seco",     "use_markov": true, "markov": { "order": 1 } },
-  "festivo": { "registro": "juguetón", "use_markov": true },
-  "alerta":  { "registro": "urgente",  "use_model": true  }
+  "huraño":  { "use_markov": true, "markov": { "order": 1, "pool": "ariscas" } },
+  "festivo": { "use_markov": true },
+  "alerta":  { "use_markov": true, "markov": { "max_words": 8 } }
 }
 ```
 
@@ -320,7 +347,8 @@ sin banco no hay nada.
 ### Mandos, con sus valores por defecto en `pack.json`
 
 ```json
-"markov": { "order": 2, "mix": 0.5, "max_words": 18, "no_repeat_last": 12, "pool": "registro" }
+"markov": { "order": 2, "mix": 0.5, "max_words": 18, "no_repeat_last": 12 },
+"pools":  { "ariscas": ["huraño", "alerta"] }
 ```
 
 | campo | por defecto | qué hace |
@@ -329,7 +357,7 @@ sin banco no hay nada.
 | `mix` | `0.5` | probabilidad de usar una frase generada en vez de una escrita. `0.0` = nunca generar |
 | `max_words` | `20` | corta el fallo típico de Markov: la frase que se enrolla y no termina |
 | `no_repeat_last` | `0` | no repetir las últimas N frases dichas. Mucha variedad percibida por muy poca memoria |
-| `pool` | `"registro"` | de dónde salen las frases que recombina: solo las de la expresión, o las de **todas las expresiones del mismo registro** |
+| `pool` | *(ninguno)* | nombre de un grupo declarado en `pools`. Sin él, recombina solo el banco de su propia expresión |
 | `speak` | hereda de `voice.mode` | si la frase generada va también al TTS; se puede apagar por expresión |
 
 Cualquiera de ellos puede sobrescribirse por expresión, como el `order: 1` del
@@ -337,19 +365,29 @@ ejemplo.
 
 ### Por qué `pool` y por qué `order` por expresión
 
-Los dos salen de la misma medida, y el registro `seco` de este documento es
-justo el caso. Con orden 2, en el corpus de prueba, `tierno` y `juguetón`
-recombinaron bien —comparten trozos como «yo te»— pero `seco` y `dramático`
-produjeron **cero** frases nuevas: sus frases son cortas y muy distintas entre
-sí, así que no hay ningún par de palabras donde empalmar. Míralo en las frases
-de ejemplo de `seco` de más arriba —«Ya.», «Si tú lo dices.», «HMPH.»— y se ve
-por qué: no comparten nada.
+Los dos salen de la misma medida. Con orden 2, en el corpus de prueba, las
+expresiones de tono tierno o juguetón recombinaron bien —comparten trozos como
+«yo te»—, pero las secas y las dramáticas produjeron **cero** frases nuevas:
+sus frases son cortas y muy distintas entre sí, así que no hay ningún par de
+palabras donde empalmar. Míralo en unas frases secas típicas —«Ya.», «Si tú lo
+dices.», «HMPH.»— y se ve por qué: no comparten nada.
 
-De ahí los dos mandos. `order: 1` deja generar a un registro seco, aceptando
-más frases raras. Y `pool: "registro"` junta los bancos de todas las
-expresiones que comparten registro, que es la otra forma de tener suficiente
-material: más frases = más puntos de empalme. Un `order` único global obligaría
-a elegir mal para alguien.
+De ahí los dos mandos. `order: 1` deja generar a una expresión seca, aceptando
+más frases raras. Y **`pool` junta los bancos de varias expresiones**, que es
+la otra forma de tener material suficiente: más frases = más puntos de empalme.
+Un `order` único global obligaría a elegir mal para alguien.
+
+**Los grupos los declara el pack, no el proyecto** (decidido en la sesión 1).
+En la propuesta anterior el pool era el registro, con la lista cerrada que eso
+traía. Al posponerse el registro se conserva el mecanismo y se tira el
+vocabulario: en `pools` el autor agrupa las expresiones que quiera y les pone
+el nombre que quiera. Es lo mismo que ya se hizo con los moods — quien escribe
+el pack nombra sus propias cosas.
+
+Y es un mando que **importa más de lo que parece con pools pequeños**: la
+variedad medida fue de 12,8 % de frases nuevas con 60 líneas de corpus y 44,7 %
+con 920. Una expresión sola, con quince frases, vive en la peor parte de esa
+curva.
 
 ### Lo que esto deliberadamente NO hace
 
@@ -358,7 +396,7 @@ a elegir mal para alguien.
   devolver su salida no añade ni un estado ni una frase alcanzable — solo
   refuerza los caminos trillados y baja la variedad. Si alguien quiere más
   frases nuevas, se escriben a mano; es la única fuente de material nuevo.
-- **No elige registro ni expresión.** Eso ya lo deciden las tres capas.
+- **No elige expresión.** Eso lo decide el reflejo o el cerebro, no la cadena.
 
 ### Reglas que el validador impone
 
@@ -368,6 +406,74 @@ a elegir mal para alguien.
   banco — la misma caída que ya protege a `use_model`.
 - `use_markov` sin `lines/<expresión>.txt` es un pack roto, y el validador ya
   exige ese fichero para toda expresión.
+
+## Animaciones de entrada y salida (propuesta)
+
+**Idea de la sesión 1.** Cada pack trae una animación de **salida** y una de
+**entrada**, y el cambio de pack se cuenta con ellas. Nace como una cuestión de
+presentación —tapar el tiempo que tarda la carga— pero resuelve además el único
+problema técnico serio del cambio en caliente.
+
+### El orden importa, y es lo que hace que funcione
+
+```
+salida (pack viejo)  →  logo del HackLab (firmware)  →  entrada (pack nuevo)
+                              ↑
+                        aquí ocurre pack_load()
+```
+
+La clave es **qué se está dibujando durante el intercambio**. Si la transición
+se pinta con datos del firmware —el logo, compilado dentro— entonces mientras
+dura, la tarea de render **no lee ni una tabla del pack**. Ya no hay que
+detenerla ni hacer doble buffer: el peligro desaparece porque nadie está
+mirando lo que se reemplaza.
+
+De ahí el reparto:
+
+1. **Salida** — la pone el pack viejo, que en ese momento sigue siendo válido
+   por completo.
+2. **Logo** — firmware puro. Es la ventana segura, y es donde ocurre el
+   `pack_load()`. El logo del HackLab es el valor por defecto, no un relleno.
+3. **Entrada** — la pone el pack nuevo, ya cargado.
+
+El requisito de presentación y el de seguridad resultan ser el mismo requisito.
+
+### Reglas
+
+- **Salida del fallo.** Si el pack nuevo no carga, la entrada nunca llega: se
+  vuelve a la cara del pack viejo y se dice que algo pasó. Sin esto el logo se
+  queda en pantalla para siempre.
+- **Tope de duración.** Un pack no puede secuestrar la pantalla con una salida
+  de treinta segundos. El firmware corta.
+- **Ambas son opcionales.** Sin ellas se ve solo el logo, que es exactamente el
+  comportamiento correcto.
+- Reutiliza la máquina del splash de arranque, que ya existe con su glitch.
+
+### Formato: recomendación sin medir
+
+**No está medido en nuestra placa, y conviene decirlo antes que la
+recomendación.** Lo que se descarta con confianza:
+
+- **Lottie**: vectorial, necesita un rasterizador en tiempo real. Dependencia
+  cara para lo que da en un ESP32.
+- **Canvas HTML**: en el dispositivo no hay navegador. Sirve como herramienta
+  de autoría, no como formato.
+
+Lo que se pelea de verdad:
+
+| | autoría | coste en la placa |
+|---|---|---|
+| **Secuencia de frames** (RGB565 crudo) | exportar desde cualquier cosa | **115 KB por frame** a 240×240. 30 frames = 3,4 MB. Solo viable en una zona pequeña o con muy pocos frames |
+| **GIF** | **cualquiera puede hacer uno** — el móvil, ffmpeg, herramientas de diseño | paleta + compresión; hay decodificadores pequeños y probados para ESP32 |
+
+La recomendación es **GIF**, y el criterio no es cuál se dibuja mejor: es
+**cuál puede crear alguien del lab que no programa**. Un solo archivo,
+exportable desde cualquier herramienta, y la compresión por paleta va bien con
+arte tipo logo.
+
+Es una afirmación sin medir con la forma exacta de un spike: *¿cuánto cuesta
+decodificar un GIF de 240×240 en el S3, y a cuántos fps?* Una pregunta, un
+número, desechable.
 
 ## Superficie de la API de scripts (Berry)
 
@@ -390,7 +496,41 @@ buddy.hint(text)                  # solo pantalla, nunca se pronuncia
 
 buddy.lang                        # active language code, from pack + device config
 buddy.pack.meta                   # own manifest as a map
+buddy.pack_load(name)             # pide cambiar de pack; ocurre DESPUÉS del dispatch
 ```
+
+**`buddy.pack_load` es un método y no un evento, a propósito** (sesión 1). Dos
+razones, y la segunda es la que decide:
+
+- Nadie puede suscribirse a una llamada de función. Si fuera un evento del bus,
+  un reflejo podría escucharlo y volver a publicarlo: bucle de recarga.
+- **La bandera colapsa duplicados gratis.** Si tres handlers del mismo evento
+  piden cargar, la bandera se sobrescribe y se carga una vez. Una cola de
+  eventos habría encolado tres cargas.
+
+Encaja con la distinción que ya hace el registro de eventos: **el bus lleva
+hechos, no órdenes.** Cargar un pack es una orden, así que es un método. Que el
+pack cambió es un hecho, así que sale como evento `pack.changed` cuando el
+nuevo ya está en pie — y ahí es donde los reflejos del pack nuevo pueden
+reaccionar.
+
+Tres reglas que hacen que esto no muerda:
+
+1. **Se difiere hasta el final del dispatch completo, no del handler.** Si no,
+   los demás handlers del mismo evento seguirían corriendo contra las tablas
+   del pack nuevo. Los eventos en cola del pack viejo se descartan.
+2. **Fallo = no pasa nada.** Si el pack no existe o está malformado, se queda el
+   actual y sale un evento de error. Es «nunca un ladrillo»: un cartucho mal
+   grabado no puede dejar el bicho tieso.
+3. **Guarda contra el bucle.** El pack A carga el B, cuyo reflejo de arranque
+   carga el A. Es un error que un autor bien intencionado escribe sin querer, y
+   desde fuera se ve como un cuelgue. Un cambio por dispatch.
+
+Por qué hace falta diferir, y no es estilo: `dispatch()` ejecuta el handler
+**dentro** de la VM, así que recargar el pack desde el reflejo sería liberar el
+intérprete que está corriendo. Y `set_emotions()` hace `table() = std::move(v)`
+—reemplaza el vector entero— mientras la tarea de render lo lee cada frame. Por
+eso en `main.cpp` el `pack_load()` va **antes** de `face_start()`.
 
 Ejemplo — el flujo central completo del explicador de juegos de mesa:
 
@@ -433,17 +573,41 @@ solo durante subidas desde la web. La ausencia de tarjeta es un evento
 
 
 
-## Mapeo NFC: dos capas
+## Mapeo NFC: toda la gramática vive en el pack
 
-1. **Payloads semánticos** (preferido): el texto NDEF de la pegatina lleva el
-  significado (`game:catan`, `pack:pirate`, `mode:focus`). Se escribe una
-   vez con cualquier móvil; funciona en todo buddy cuyo pack entienda el
-   prefijo.
-2. **Registro del dispositivo** (para tags vírgenes/solo-UID): la web mapea
-  UID → payload sintético. Los reflejos solo ven payloads, siempre.
+**Decidido en la sesión 1 (#24): el firmware no define ninguna gramática.** No
+hay verbos reservados, ni prefijos con significado, ni lista de usos
+permitidos. El firmware entrega tres hechos y se aparta:
 
-Reglas de seguridad (reiteradas del doc de hardware): los tags disparan solo
-acciones de lista blanca — nunca autenticación, nunca texto crudo al Brain.
+| evento | qué trae |
+|---|---|
+| `nfc.tag` | el UID, siempre |
+| `nfc.text` | el texto NDEF, tal cual, **solo si** la etiqueta lleva alguno |
+| `nfc.gone` | la etiqueta salió del campo |
+
+Qué significa `game:catan` o `pack:pirata` lo decide un reflejo del pack. Si la
+gramática viviera en C++, cada verbo nuevo pediría reflashear — justo lo
+contrario del compromiso «el comportamiento es datos».
+
+Cuatro usos que el punto de partida contemplaba, y que ahora son simplemente
+cosas que un pack *puede* hacer, no una lista cerrada: identidad por UID, una
+frase que el buddy dice, cambiar de pack, y un estado sostenido mientras la
+etiqueta esté encima.
+
+Tres cosas que hay que saber al escribir esos reflejos:
+
+- **`nfc.tag` llega antes que `nfc.text`** en la misma presentación. Si
+  necesitas identidad *y* contenido, guarda el UID al recibir el primero.
+- **Una etiqueta en blanco solo emite `nfc.tag`.** La ausencia de `nfc.text` es
+  la señal; no hay caso especial de cadena vacía.
+- **Dejarla puesta no repite eventos** — uno al llegar, `nfc.gone` al irse. Eso
+  convierte «dejar la etiqueta encima» en un gesto sostenido, no en un
+  interruptor. Y un gesto sostenido **no sobrevive a un cambio de pack**: el
+  `nfc.gone` le llegaría al pack nuevo, que nunca vio la llegada.
+
+Reglas de seguridad (reiteradas del doc de hardware): una etiqueta **nunca
+autentica** y su texto **nunca va crudo al Brain**. Que la gramática sea del
+pack no cambia esto — son límites del firmware, no del vocabulario.
 
 ## Validación y autoría
 
@@ -475,7 +639,10 @@ terminal.
 - Esquema de definición de animaciones (`*.anim.json`) — paramétrico (estilo
 m5stack-avatar) vs sprite-sheet, o ambos.
 - Semántica del cambio de pack: qué estado sobrevive (¿volumen? ¿idioma?) y
-qué se resetea.
+qué se resetea. El *mecanismo* ya está decidido (`buddy.pack_load` diferido);
+lo que queda abierto es qué se conserva.
+- Formato de las animaciones de entrada/salida: GIF es la recomendación, sin
+medir. Pendiente del spike de decodificación en el S3.
 - Multi-pack: una personalidad activa + "packs de contenido" pasivos, ¿o
 estrictamente un pack a la vez? (El buddy del café sugiere que la división
 personalidad + contenido puede valer la pena.)

@@ -27,7 +27,7 @@ hecho el sábado se hace en la sala o no se hace.
 | equipo | responsable | prefijo de eventos |
 |---|---|---|
 | Firmware | Daniel Pérez (@dapanas) | `brain.*`, `boot.*`, `system.*`, `timer.*`, `storage.*` |
-| Voz | Elkin Botero (@cybux) | `voice.*`, `sound.*` |
+| Voz | Elkin Botero (@cybux), con Juan David (@ingjuang) | `voice.*`, `sound.*` |
 | Web | Juan Esteban Londoño (@jelondoca) | `config.*` |
 | Electrónica | Diego Isaza (@Dsaoro) | `touch.*`, `nfc.*`, `sense.*` |
 | CAD | Juan Sebastián Carrasquilla (@Juansess) | — |
@@ -100,16 +100,16 @@ cerradas, y cada equipo termina la tarde con algo suyo en el repo.**
 las cuatro sesiones, y ahora tiene material real — cinco issues etiquetadas
 `needs-decision`, cada una con su contexto ya escrito:
 
-| # | decisión | bloquea a |
+| # | decisión | qué se decidió |
 |---|---|---|
-| #20 | ¿seguimos redondos? | **CAD — no puede empezar sin esto** |
-| #19 | `face.emotion` (8) vs `led.mood` (4): vocabulario duplicado | personalidad, firmware |
-| #16 | cómo se llama el set de estados | personalidad |
-| #24 | qué puede poner una pegatina NFC | personalidad |
-| #27 | autenticación del web UI: hoy no hay ninguna | firmware, web |
+| #20 | ¿seguimos redondos? | **Sí.** CAD explora una carcasa que permita sobreponer la pantalla; hasta que exista, el firmware no soporta cuadrada |
+| #19 | `face.emotion` (8) vs `led.mood` (4) | **Resuelto por el pack**: moods y presentación se definen sobre primitivas del firmware. Deja de haber vocabularios rivales |
+| #16 | cómo se llama el set de estados | **Pospuesta, no descartada.** El registro solo servía para entrenar el modelo; se arranca con banco + Markov, que van por expresión |
+| #24 | qué puede poner una pegatina NFC | **Ninguna gramática en el firmware.** Los tres eventos NFC ya existen; todo se interpreta en reflejos del pack |
+| #27 | autenticación del web UI | **Selector en configuración: `none` / `pin` / `password`**, en v1. Desarrollo en `none`, fábrica con auth |
 
-#20 va primero y sin discusión larga: es la única que deja a un equipo entero
-sin poder trabajar el resto de la tarde.
+Las cuatro se cerraron en la sesión 1. El detalle y el porqué de cada una está
+en su issue y en [pack-format.md](pack-format.md).
 
 Después, en paralelo:
 
