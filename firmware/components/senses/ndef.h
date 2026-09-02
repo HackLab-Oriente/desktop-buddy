@@ -27,6 +27,25 @@ inline const char* uri_prefix(uint8_t code) {
 //
 // Every length in here came off the tag, so every one is treated as a lie
 // until clamped against what was actually read.
+// Back off to the last complete UTF-8 character. The read window truncates at
+// a fixed byte count, so a Spanish label ending in `ñ` otherwise puts a lone
+// 0xC3 on the bus.
+inline int utf8_trim(const uint8_t* s, int n) {
+  if (n <= 0) return 0;
+  int k = 0;                                   // continuation bytes at the end
+  while (n - 1 - k >= 0 && (s[n - 1 - k] & 0xC0) == 0x80 && k < 3) k++;
+  const int lead_i = n - 1 - k;
+  if (lead_i < 0) return 0;                    // nothing but continuations
+  const uint8_t lead = s[lead_i];
+  int need;
+  if ((lead & 0x80) == 0x00) need = 1;
+  else if ((lead & 0xE0) == 0xC0) need = 2;
+  else if ((lead & 0xF0) == 0xE0) need = 3;
+  else if ((lead & 0xF8) == 0xF0) need = 4;
+  else return lead_i;                          // invalid lead: drop it
+  return (k + 1 == need) ? n : lead_i;         // complete, or cut the partial
+}
+
 inline int first_record(const uint8_t* d, int n, char* out, int out_max) {
   if (!d || !out || out_max < 1) return 0;
   int i = 0;
@@ -77,10 +96,17 @@ inline int first_record(const uint8_t* d, int n, char* out, int out_max) {
     const uint8_t* payload = m + p;
 
     if (type[0] == 'T') {                    // status byte + language + text
+      // Bit 7 = UTF-16 (RTD-Text). Copied as UTF-8 it published an empty
+      // nfc.text, which the registry promises cannot happen.
+      if (payload[0] & 0x80) return 0;
       const int lang = payload[0] & 0x3F;
       int tl = payload_len - 1 - lang;
       if (tl <= 0) return 0;
       if (tl > out_max - 1) tl = out_max - 1;
+      // A NUL would make the returned length disagree with the published string.
+      if (memchr(payload + 1 + lang, '\0', static_cast<size_t>(tl))) return 0;
+      tl = utf8_trim(payload + 1 + lang, tl);
+      if (tl <= 0) return 0;
       memcpy(out, payload + 1 + lang, tl);
       out[tl] = '\0';
       return tl;
@@ -92,6 +118,8 @@ inline int first_record(const uint8_t* d, int n, char* out, int out_max) {
       if (rl < 0) return 0;
       if (pl > out_max - 1) pl = out_max - 1;
       if (pl + rl > out_max - 1) rl = out_max - 1 - pl;
+      if (rl > 0 && memchr(payload + 1, '\0', static_cast<size_t>(rl))) return 0;
+      rl = utf8_trim(payload + 1, rl);
       memcpy(out, pre, pl);
       memcpy(out + pl, payload + 1, rl);
       out[pl + rl] = '\0';

@@ -61,7 +61,7 @@ oro: **nunca brick** — sin red sigue vivo, sin nube sigue siendo tuyo.
   WS2812 como halo difuso tras el bisel · pads capacitivos de cobre bajo la
   carcasa ("acariciar", no tocar pantalla) · botón.
 - **Kit de consciencia (sensores integrados):** temp/humedad/presión
-  (AHT20+BMP280), luz (BH1750), IMU (MPU6050: `motion.pickup`, `motion.shake`),
+  (AHT20+BMP280), IMU (MPU6050: `motion.pickup`, `motion.shake`),
   **radar de presencia mmWave LD2410C** (te detecta llegar/sentarte/irte *a
   través del plástico*, cero agujeros), ToF opcional (mano acercándose).
   Todos alimentan el `sensor_snapshot` del Brain → consciencia conversacional
