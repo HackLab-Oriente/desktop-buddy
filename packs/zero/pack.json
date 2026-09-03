@@ -1,0 +1,20 @@
+{
+  "id": "zero",
+  "name": "Buddy Zero",
+  "version": "0.1.0",
+  "api_level": 1,
+  "author": "HackLab Oriente",
+  "language": "es",
+
+  "expressions": { "map": "faces/expressions.json" },
+
+  "moods": {
+    "calm":     { "anim": "breathe", "period_ms": 3200, "floor": 0.06 },
+    "excited":  { "anim": "breathe", "period_ms": 700,  "floor": 0.18 },
+    "thinking": { "anim": "spin",    "period_ms": 480,  "dir": "cw" },
+    "off":      { "anim": "off" },
+
+    "fuego":    { "anim": "pulse",   "period_ms": 1800, "floor": 0.10,
+                  "colors": ["#ff3300", "#ff8800"] }
+  }
+}

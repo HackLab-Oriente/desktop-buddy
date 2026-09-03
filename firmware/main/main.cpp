@@ -20,10 +20,12 @@
 #include "bus.h"
 #include "expressions.h"
 #include "face_model.h"
+#include "pack.h"
 #include "senses.h"
 #include "webui.h"
 
 #include "cJSON.h"
+#include "esp_err.h"
 #include "esp_littlefs.h"
 #include "esp_log.h"
 #include "nvs_flash.h"
@@ -33,12 +35,20 @@ static const char* TAG = "buddy";
 
 namespace {
 
+// Deliberately NOT ESP_ERROR_CHECK. This now runs before face_start(), so an
+// abort here is a black screen and a silent boot loop -- the buddy would have
+// no way to say what happened. A missing or corrupt storage partition costs
+// the pack, not the creature: without it the built-in face and moods are
+// still there, which is the whole point of keeping built-ins.
 void mount_flash() {
   esp_vfs_littlefs_conf_t conf = {};
   conf.base_path = "/flash";
   conf.partition_label = "storage";
   conf.format_if_mount_failed = true;
-  ESP_ERROR_CHECK(esp_vfs_littlefs_register(&conf));
+  const esp_err_t err = esp_vfs_littlefs_register(&conf);
+  if (err != ESP_OK)
+    ESP_LOGE(TAG, "no /flash (%s) — built-in face, no pack and no reflexes",
+             esp_err_to_name(err));
 }
 
 
@@ -66,14 +76,20 @@ extern "C" void app_main() {
   });
 #endif
 
-  // The face comes up first so the boot splash is on screen while everything
-  // slower happens behind it. Each step below announces itself on the bus, and
-  // the splash shows that as its status line — a real step, not a fake timer.
+  // Flash and the pack come before the face, and that ordering is not
+  // cosmetic. The pack REPLACES the expression and mood tables, and the render
+  // task reads those tables every frame — swapping them under a running
+  // renderer is a use-after-free, not a style question. Both are fast because
+  // the build flashes a prepared LittleFS image; only a board flashed without
+  // one pays for a format here.
+  mount_flash();
+  buddy::pack_load();
+
+  // Now the face, so the boot splash is on screen while everything slower
+  // happens behind it. Each step below announces itself on the bus, and the
+  // splash shows that as its status line — a real step, not a fake timer.
   buddy::face_start();  // GC9A01 round color face + boot splash
   buddy::led_start();   // WS2812 mood ring
-
-  buddy::bus().publish("boot.status", "mounting packs");
-  mount_flash();
 
   // Reflex layer: Berry when present, C fallback otherwise.
   buddy::bus().publish("boot.status", "loading reflexes");

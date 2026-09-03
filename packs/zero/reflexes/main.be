@@ -3,7 +3,8 @@
 #
 # API: buddy.on(pattern, fn)
 #      buddy.face.emotion(neutral|happy|curious|sleepy|surprised|angry|sad)
-#      buddy.led.mood(calm|excited|thinking|off)
+#      buddy.led.mood(name)  → any mood this pack declares in pack.json;
+#                            omit it and the expression's own mood is used
 #      buddy.say(text)   → these exact words appear on screen
 #      buddy.ask(prompt) → ask the Brain; IT decides what the buddy says
 #      buddy.emit(name, payload) · buddy.log(msg)
@@ -25,8 +26,10 @@ end)
 buddy.on("touch.poke", def (ev)
   poke_count += 1
   if poke_count >= 3
+    # No led.mood here on purpose: `angry` declares mood "fuego" in
+    # expressions.json, and an explicit mood would override it. This is the
+    # pack's own mood lighting up, which is the whole point of the format.
     buddy.face.emotion("angry")   # sulking, now with proper eyebrows
-    buddy.led.mood("calm")        # slow red pulse — brooding, not off
     buddy.say("HMPH.")
     buddy.log("hmph. poked " + str(poke_count) + " times")
   else

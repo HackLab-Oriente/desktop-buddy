@@ -101,10 +101,10 @@ a esos dos, no a la respuesta cruda.
 
 | evento | payload | lo consume | notas |
 |---|---|---|---|
-| `face.emotion` | nombre de emoción (`happy`, `sad`…) | round_face, led_ring | el anillo copia el color de la cara |
+| `face.emotion` | nombre de expresión, **el que declare el pack** | round_face, led_ring | el anillo copia el color de la cara **y adopta el mood que esa expresión declare**, salvo que llegue un `led.mood` explícito después |
 | `face.say` | texto | round_face | palabras **en pantalla**. Es lo que publica `buddy.hint()` |
 | `face.look` | objetivo de mirada | round_face | **suscrito, nunca publicado** — ver agujeros |
-| `led.mood` | `calm` \| `excited` \| `thinking` \| `off` | led_ring | estilo de animación, no color |
+| `led.mood` | nombre de mood, **abierto: lo define el pack** | led_ring | estilo de animación, no color. Ya **no** es una lista cerrada: un pack declara los suyos sobre primitivas cerradas del firmware (`breathe`, `spin`, `pulse`, `solid`, `off`). Un nombre desconocido deja el mood actual y avisa |
 
 ### Habla
 
@@ -193,14 +193,13 @@ y estado.*
 2. **El payload no tiene esquema.** `brain.reply` ya lleva JSON dentro del
    string. Tolerable hoy; dolerá cuando la web consuma eventos. Si aparece
    un segundo payload estructurado, revisar antes de que haya un tercero.
-3. **El vocabulario de emociones está duplicado.** `face.emotion` acepta los
-   ocho nombres de `face_model.cpp`, mientras `led.mood` acepta solo
-   `calm|excited|thinking|off`. Dos vocabularios solapados para un concepto —
-   lo que el grupo decida sobre expresiones tiene que reconciliarlos.
+3. ~~**El vocabulario de emociones está duplicado.**~~ **Cerrado** (#19,
+   sesión 1). Ya no hay dos listas cerradas: el pack declara sus expresiones y
+   sus moods, y el firmware solo aporta las primitivas de animación. Un
+   `led.mood` desconocido deja el mood actual en vez de fallar.
 4. ~~**`brain.error` no tiene suscriptor.**~~ **Cerrado.** Lo escuchan los
-   reflejos del pack semilla y los de respaldo en C, así que la garantía
-   sobrevive aunque no esté el submódulo de Berry. Y ahora se publica en todas
-   las rutas, incluidas las dos que antes retornaban en silencio.
+   reflejos del pack semilla, así que la garantía sobrevive. Y ahora se publica
+   en todas las rutas, incluidas las dos que antes retornaban en silencio.
 
 5. **`time.synced` no tiene suscriptor.** Inofensivo hoy, pero significa que
    nada espera al reloj; cualquier cosa basada en la hora lo necesitará.
