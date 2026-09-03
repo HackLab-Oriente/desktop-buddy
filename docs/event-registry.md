@@ -21,6 +21,13 @@ publicación y suscripción: [event-registry.html](event-registry.html).
 - `bus().publish(name, payload)` encola; la entrega ocurre en `pump()`,
   ejecutado por la tarea del bus. **Los handlers por tanto nunca corren en
   paralelo** y no necesitan locks propios.
+- **La capa de reflejos se suscribe a `*`** y pasa todo a la VM de Berry salvo
+  `system.reload`. Por eso un pack puede reaccionar a cualquier evento de esta
+  página sin tocar el firmware — es la forma más concreta que tiene «el
+  comportamiento es datos». Y por eso las columnas de suscriptores de abajo
+  están incompletas por diseño: cuentan el firmware, no los packs.
+- Lo que un reflejo **no** puede publicar: `system.*`, `config.*`, `boot.*` y
+  `pack.*`. Son de firmware y de la web, y la regla la aplica el código.
 - `bus().subscribe(pattern, fn)` donde `pattern` es un nombre exacto, un
   comodín de prefijo (`touch.*`) o `*` para todo.
 - `Event` es `{ std::string name; std::string payload; }` —

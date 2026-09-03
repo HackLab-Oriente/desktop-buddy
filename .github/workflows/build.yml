@@ -39,7 +39,7 @@ jobs:
         working-directory: firmware/components/berry_host/berry
         run: |
           mkdir -p generate
-          python3 tools/coc/coc -o generate src default -c default/berry_conf.h
+          python3 tools/coc/coc -o generate src default -c ../port/berry_conf.h
           test -f generate/be_const_strtab.h
 
       - name: Build
