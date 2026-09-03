@@ -110,6 +110,10 @@ bool nesting_ok(const std::string& src) {
 // Prelude: the `buddy` API surface, in Berry itself. Handlers live in a
 // Berry-side list; C only ever calls _dispatch(name, payload).
 //
+// say goes to speech.say, not face.say: the words the buddy says out loud are
+// not the same thing as text on its screen, and they stop being the same event
+// the moment voice lands. hint is the screen-only one.
+//
 // Naming rule, learned the hard way: a verb means the same thing in Berry as
 // it does on the bus. `say` used to publish brain.ask while `show` published
 // face.say -- so "say" meant utter-these-words at one layer and ask-the-model
@@ -126,7 +130,8 @@ buddy.led = module('led')
 buddy.led.mood = def (m) bz_emit('led.mood', m) end
 buddy.face = module('face')
 buddy.face.emotion = def (e) bz_emit('face.emotion', e) end
-buddy.say = def (text) bz_emit('face.say', str(text)) end
+buddy.say = def (text) bz_emit('speech.say', str(text)) end
+buddy.hint = def (text) bz_emit('face.say', str(text)) end
 buddy.ask = def (prompt) bz_emit('brain.ask', prompt) end
 buddy.log = def (msg) bz_log(str(msg)) end
 
