@@ -97,6 +97,24 @@ jobs:
             -I../components/senses test_ndef.cpp -o test_ndef
           ./test_ndef
 
+      - name: Markov generator (with sanitizers)
+        # Third of the same family: it walks corpus text supplied by a pack,
+        # and a pack is untrusted. The reviewed spike version wrote past a
+        # fixed offset table at 4095 unique words, spun forever on a full hash
+        # table, and called abort() on a long word -- turning a corpus edit
+        # into a boot loop. Every one of those is a case in here now.
+        # markov.c is C, so it compiles separately and links.
+        working-directory: firmware/host_test
+        run: |
+          SAN="-fsanitize=address,undefined -fno-sanitize-recover=all"
+          cc -std=c11 -Wall -Wextra $SAN \
+            -I../components/markov/include \
+            -c ../components/markov/markov.c -o markov.o
+          c++ -std=c++17 -Wall -Wextra $SAN \
+            -I../components/markov/include \
+            test_markov.cpp markov.o -o test_markov
+          ./test_markov
+
       - name: Latin-1 text normaliser (with sanitizers)
         # Same shape of code, same reason: it walks UTF-8 from an LLM into a
         # fixed buffer. The interesting cases are truncated sequences and a
