@@ -1,72 +1,266 @@
-#pragma once
-// Berry build configuration for the buddy — a PACK SANDBOX, not a desktop REPL.
-//
-// This file shadows berry/default/berry_conf.h, which is upstream's reference
-// configuration for a desktop interpreter. It shipped onto the device
-// unmodified, so a reflex had the OS module, the file system, introspection
-// and a bytecode loader. Reflexes arrive over HTTP and inside shared packs.
-//
-// It lives here and not in the submodule because an edit there is erased by
-// the next dependabot bump.
-//
-// If you change anything below, the coc codegen must be re-run against THIS
-// file — the constant tables are generated per configuration. See
-// .github/workflows/build.yml and the comment in ../CMakeLists.txt.
+/* Berry build configuration for the buddy — a PACK SANDBOX, not a desktop REPL.
+ *
+ * A full copy of berry/default/berry_conf.h, shadowing it on the include path,
+ * with the options below changed. It is a copy and not an #include_next
+ * because coc does not follow that, and the constant tables it generates have
+ * to agree with what the compiler sees.
+ *
+ * Changed from upstream:
+ *   BE_USE_INTROSPECT_MODULE  0  fromptr() casts an arbitrary integer to a live
+ *                                heap object: read/write anywhere, from a text file
+ *   BE_USE_BYTECODE_LOADER    0  no verifier, and import tries .bec before .be
+ *   BE_USE_BYTECODE_SAVER     0
+ *   BE_USE_FILE_SYSTEM        0  open() is unrooted: one pack rewrites another's files
+ *   BE_USE_OS_MODULE          0  os.remove / os.listdir, same reason
+ *   BE_USE_GLOBAL_MODULE      0  setmember can replace bz_emit itself
+ *   BE_USE_SOLIDIFY_MODULE    0  host-side dev tool
+ *   BE_USE_DEBUG_MODULE       0  host-side dev tool
+ *   BE_USE_SYS_MODULE         0  one inert function; costs flash
+ *   BE_USE_SHARED_LIB         0  dead on xtensa, and it warns on every build
+ *   BE_STACK_TOTAL_MAX     2000  20000 is ~234 KB on Xtensa; Tasmota runs 2000
+ *
+ * The prelude uses none of what is turned off. Re-running coc is mandatory
+ * after any change here — see ../CMakeLists.txt.
+ */
+/********************************************************************
+** Copyright (c) 2018-2020 Guan Wenliang
+** This file is part of the Berry default interpreter.
+** skiars@qq.com, https://github.com/Skiars/berry
+** See Copyright Notice in the LICENSE file or at
+** https://github.com/Skiars/berry/blob/master/LICENSE
+********************************************************************/
+#ifndef BERRY_CONF_H
+#define BERRY_CONF_H
 
-#include_next "berry_conf.h"
+#include <assert.h>
 
-// --- What a reflex may reach ------------------------------------------------
-//
-// The prelude uses none of these. Each one was measured against the API
-// surface in docs/pack-format.md before being turned off.
+/* Macro: BE_DEBUG
+ * Berry interpreter debug switch.
+ * Default: 0
+ **/
+#ifndef BE_DEBUG
+#define BE_DEBUG                        0
+#endif
 
-// introspect.fromptr(n) casts an arbitrary integer to a heap object and hands
-// it back live: arbitrary read/write anywhere in the address space, from a
-// text file, on a chip with no MMU.
-#undef BE_USE_INTROSPECT_MODULE
-#define BE_USE_INTROSPECT_MODULE 0
+/* Macro: BE_LONGLONG_INT
+ * Select integer length.
+ * If the value is 0, use an integer of type int, use a long
+ * integer type when the value is 1, and use a long long integer
+ * type when the value is 2.
+ * Default: 2
+ */
+#define BE_INTGER_TYPE                  2
 
-// The bytecode loader reads an attacker-chosen 32-bit count and multiplies it
-// into an allocation, then trusts every opcode and the register-window sizes.
-// There is no verifier. `import` also tries .bec BEFORE .be, so leaving this
-// on means any future module path prefers unvalidated bytecode over source.
-#undef BE_USE_BYTECODE_LOADER
-#define BE_USE_BYTECODE_LOADER 0
-#undef BE_USE_BYTECODE_SAVER
-#define BE_USE_BYTECODE_SAVER 0
+/* Macro: BE_USE_SINGLE_FLOAT
+ * Select floating point precision.
+ * Use double-precision floating-point numbers when the value
+ * is 0 (default), otherwise use single-precision floating-point
+ * numbers.
+ * Default: 0
+ **/
+#define BE_USE_SINGLE_FLOAT             0
 
-// open(), os.remove, os.listdir, os.chdir. Unrooted, so one pack can read and
-// rewrite another pack's files -- installing a cartridge would edit the
-// cartridges you already had. Re-enable behind a path root in be_port.c, not
-// before.
-#undef BE_USE_FILE_SYSTEM
-#define BE_USE_FILE_SYSTEM 0
-#undef BE_USE_OS_MODULE
-#define BE_USE_OS_MODULE 0
+/* Macro: BE_BYTES_MAX_SIZE
+ * Maximum size in bytes of a `bytes()` object.
+ * Putting too much pressure on the memory allocator can do
+ * harm, so we limit the maximum size.
+ * Default: 32kb
+ **/
+#define BE_BYTES_MAX_SIZE               (32*1024)   /* 32 kb default value */
 
-// global.setmember/undef can replace bz_emit itself.
-#undef BE_USE_GLOBAL_MODULE
-#define BE_USE_GLOBAL_MODULE 0
+/* Macro: BE_USE_PRECOMPILED_OBJECT
+ * Use precompiled objects to avoid creating these objects at
+ * runtime. Enable this macro can greatly optimize RAM usage.
+ * Default: 1
+ **/
+#define BE_USE_PRECOMPILED_OBJECT       1
 
-// Host-side development tools with no runtime use on the device.
-#undef BE_USE_SOLIDIFY_MODULE
-#define BE_USE_SOLIDIFY_MODULE 0
-#undef BE_USE_DEBUG_MODULE
-#define BE_USE_DEBUG_MODULE 0
+/* Macro: BE_DEBUG_SOURCE_FILE
+ * Indicate if each function remembers its source file name
+ * 0: do not keep the file name (saves 4 bytes per function)
+ * 1: keep the source file name
+ * Default: 1
+ **/
+#define BE_DEBUG_SOURCE_FILE            1
 
-// One function returning a fresh copy of the module path. Inert; costs flash.
-#undef BE_USE_SYS_MODULE
-#define BE_USE_SYS_MODULE 0
+/* Macro: BE_DEBUG_RUNTIME_INFO
+ * Set runtime error debugging information.
+ * 0: unable to output source file and line number at runtime.
+ * 1: output source file and line number information at runtime.
+ * 2: the information use uint16_t type (save space).
+ * Default: 1
+ **/
+#define BE_DEBUG_RUNTIME_INFO           1
 
-// __POSIX_OS__ is never defined on xtensa, so this is dead code that emits a
-// #warning on every build.
-#undef BE_USE_SHARED_LIB
-#define BE_USE_SHARED_LIB 0
+/* Macro: BE_DEBUG_VAR_INFO
+ * Set variable debugging tracking information.
+ * 0: disable variable debugging tracking information at runtime.
+ * 1: enable variable debugging tracking information at runtime.
+ * Default: 1
+ **/
+#define BE_DEBUG_VAR_INFO               1
 
-// --- Sizing -----------------------------------------------------------------
+/* Macro: BE_USE_PERF_COUNTERS
+ * Use the obshook function to report low-level actions.
+ * Default: 1
+ **/
+#define BE_USE_PERF_COUNTERS            1
 
-// Upstream's 20000 is a desktop number: 20000 * sizeof(bvalue) is ~234 KB on
-// Xtensa, so a runaway recursion in a pack exhausts the heap before Berry
-// notices. 2000 is what Tasmota runs on the same silicon.
-#undef BE_STACK_TOTAL_MAX
-#define BE_STACK_TOTAL_MAX 2000
+/* Macro: BE_VM_OBSERVABILITY_SAMPLING
+ * If BE_USE_PERF_COUNTERS == 1
+ * then the observability hook is called regularly in the VM loop
+ * allowing to stop infinite loops or too-long running code.
+ * The value is a power of 2.
+ * Default: 20 - which translates to 2^20 or ~1 million instructions
+ **/
+#define BE_VM_OBSERVABILITY_SAMPLING    20
+
+/* Macro: BE_STACK_TOTAL_MAX
+ * Set the maximum total stack size.
+ * Default: 20000
+ **/
+#define BE_STACK_TOTAL_MAX              2000
+
+/* Macro: BE_STACK_FREE_MIN
+ * Set the minimum free count of the stack. The stack idles will
+ * be checked when a function is called, and the stack will be
+ * expanded if the number of free is less than BE_STACK_FREE_MIN.
+ * Default: 10
+ **/
+#define BE_STACK_FREE_MIN               10
+
+/* Macro: BE_STACK_START
+ * Set the starting size of the stack at VM creation.
+ * Default: 50
+ **/
+#define BE_STACK_START                  50
+
+/* Macro: BE_CONST_SEARCH_SIZE
+ * Constants in function are limited to 255. However the compiler
+ * will look for a maximum of pre-existing constants to avoid
+ * performance degradation. This may cause the number of constants
+ * to be higher than required.
+ * Increase is you need to solidify functions.
+ * Default: 50
+ **/
+#define BE_CONST_SEARCH_SIZE            50
+
+/* Macro: BE_STACK_FREE_MIN
+ * The short string will hold the hash value when the value is
+ * true. It may be faster but requires more RAM.
+ * Default: 0
+ **/
+#define BE_USE_STR_HASH_CACHE           0
+
+/* Macro: BE_USE_FILE_SYSTEM
+ * The file system interface will be used when this macro is true
+ * or when using the OS module. Otherwise the file system interface
+ * will not be used.
+ * Default: 0
+ **/
+#define BE_USE_FILE_SYSTEM              0
+
+/* Macro: BE_USE_SCRIPT_COMPILER
+ * Enable compiler when BE_USE_SCRIPT_COMPILER is not 0, otherwise
+ * disable the compiler.
+ * Default: 1
+ **/
+#define BE_USE_SCRIPT_COMPILER          1
+
+/* Macro: BE_USE_BYTECODE_SAVER
+ * Enable save bytecode to file when BE_USE_BYTECODE_SAVER is not 0,
+ * otherwise disable the feature.
+ * Default: 1
+ **/
+#define BE_USE_BYTECODE_SAVER           0
+
+/* Macro: BE_USE_BYTECODE_LOADER
+ * Enable load bytecode from file when BE_USE_BYTECODE_LOADER is not 0,
+ * otherwise disable the feature.
+ * Default: 1
+ **/
+#define BE_USE_BYTECODE_LOADER          0
+
+/* Macro: BE_USE_SHARED_LIB
+ * Enable shared library  when BE_USE_SHARED_LIB is not 0,
+ * otherwise disable the feature.
+ * Default: 1
+ **/
+#define BE_USE_SHARED_LIB               0
+
+/* Macro: BE_USE_OVERLOAD_HASH
+ * Allows instances to overload hash methods for use in the
+ * built-in Map class. Disable this feature to crop the code
+ * size.
+ * Default: 1
+ **/
+#define BE_USE_OVERLOAD_HASH            1
+
+/* Macro: BE_USE_DEBUG_HOOK
+ * Berry debug hook switch.
+ * Default: 0
+ **/
+#define BE_USE_DEBUG_HOOK               0
+
+/* Macro: BE_USE_DEBUG_GC
+ * Enable GC debug mode. This causes an actual gc after each
+ * allocation. It's much slower and should not be used
+ * in production code.
+ * Default: 0
+ **/
+#define BE_USE_DEBUG_GC                  0
+
+/* Macro: BE_USE_DEBUG_STACK
+ * Enable Stack Resize debug mode. At each function call
+ * the stack is reallocated at a different memory location
+ * and the previous location is cleared with toxic data.
+ * Default: 0
+ **/
+#define BE_USE_DEBUG_STACK               0
+
+/* Macro: BE_USE_MEM_ALIGNED
+ * Some embedded processors have special memory areas
+ * with read/write constraints of being aligned to 32 bits boundaries.
+ * This options tries to move such memory areas to this region.
+ * Default: 0
+ **/
+#define BE_USE_MEM_ALIGNED               0
+
+/* Macro: BE_USE_XXX_MODULE
+ * These macros control whether the related module is compiled.
+ * When they are true, they will enable related modules. At this
+ * point you can use the import statement to import the module.
+ * They will not compile related modules when they are false.
+ **/
+#define BE_USE_STRING_MODULE            1
+#define BE_USE_JSON_MODULE              1
+#define BE_USE_MATH_MODULE              1
+#define BE_USE_TIME_MODULE              1
+#define BE_USE_OS_MODULE                0
+#define BE_USE_GLOBAL_MODULE            0
+#define BE_USE_SYS_MODULE               0
+#define BE_USE_DEBUG_MODULE             0
+#define BE_USE_GC_MODULE                1
+#define BE_USE_SOLIDIFY_MODULE          0
+#define BE_USE_INTROSPECT_MODULE        0
+#define BE_USE_STRICT_MODULE            1
+
+/* Macro: BE_EXPLICIT_XXX
+ * If these macros are defined, the corresponding function will
+ * use the version defined by these macros. These macro definitions
+ * are not required.
+ * The default is to use the functions in the standard library.
+ **/
+#define BE_EXPLICIT_ABORT               abort
+#define BE_EXPLICIT_EXIT                exit
+#define BE_EXPLICIT_MALLOC              malloc
+#define BE_EXPLICIT_FREE                free
+#define BE_EXPLICIT_REALLOC             realloc
+
+/* Macro: be_assert
+ * Berry debug assertion. Only enabled when BE_DEBUG is active.
+ * Default: use the assert() function of the standard library.
+ **/
+#define be_assert(expr)                 assert(expr)
+
+#endif
