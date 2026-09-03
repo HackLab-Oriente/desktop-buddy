@@ -21,6 +21,7 @@ if(EXISTS ${BERRY_DIR}/generate/be_const_strtab.h)
     SRCS "berry_host.cpp" ${BERRY_SRC}
     INCLUDE_DIRS "include" "port" "berry/src" "berry/default" "berry/generate"
     REQUIRES bus
+    PRIV_REQUIRES esp_timer
   )
   target_compile_definitions(${COMPONENT_LIB} PRIVATE HAVE_BERRY=1)
   # Only the upstream C sources get the relaxations. Applied to the component
