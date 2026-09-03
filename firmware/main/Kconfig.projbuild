@@ -100,9 +100,16 @@ endmenu
 
 config BUDDY_DEBUG
     bool "Verbose debug logging (event bus trace, brain HTTP, touch values)"
-    default y
+    default n
     help
       Logs every bus event, brain request/response bodies, and periodic
-      raw touch readings. Turn off once the PoC behaves.
+      raw touch readings.
+
+      Default OFF, and not just for tidiness: the tracer is subscribed FIRST
+      and logs from inside the bus dispatch loop, and the UART console
+      busy-waits on the TX FIFO. At 115200 baud that is 87 us per character —
+      3.5 ms for a short event line, 13 ms for a brain reply. One pet gesture
+      publishes four events, so it blocks the bus for 15-20 ms, ahead of the
+      face and the LEDs. Everything else in the bus costs microseconds.
 
 endmenu

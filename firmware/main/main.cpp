@@ -1,6 +1,20 @@
 // Buddy Zero — the framework seed, wired up. ESP32-S3: a touch wire for
 // petting, the GC9A01 round color face, a WS2812 mood ring, and a real Brain.
 // Everything talks through the event bus; nothing here calls a driver directly.
+//
+// Consumes: brain.reply  (the {emotion, utterance} contract, fanned out)
+//           speech.say   (routed to face.say until voice subscribes too)
+// Emits:    boot.status · boot.ready · face.emotion · face.say · led.mood
+//
+// FOUR RULES GOVERN THE ORDER BELOW. Three of them are invisible in the code:
+//
+//   1. Subscribers before publishers. The bus has no replay — an event
+//      published before its subscriber exists is gone, not delivered late.
+//   2. The face first, because everything after it is slow. wifi_start alone
+//      is up to 25 s, and the splash is what covers it.
+//   3. Flash before reflexes: the reflex layer reads /flash.
+//   4. Reflexes before senses. Start touch first and the first pet does
+//      nothing — the failure a workshop attendee cannot diagnose.
 #include "berry_host.h"
 #include "brain.h"
 #include "bus.h"
@@ -27,37 +41,21 @@ void mount_flash() {
   ESP_ERROR_CHECK(esp_vfs_littlefs_register(&conf));
 }
 
-// Fallback reflexes in C, used only when the Berry submodule isn't built.
-// A subset of packs/zero/reflexes/main.be: no nfc.text, no poke counting.
-void c_reflexes() {
-  using buddy::bus;
-  using buddy::Event;
-
-  bus().subscribe("touch.pet", [](const Event&) {
-    bus().publish("face.emotion", "happy");
-    bus().publish("led.mood", "excited");
-    bus().publish("brain.ask", "The user just petted you gently.");
-  });
-  bus().subscribe("touch.poke", [](const Event&) {
-    bus().publish("face.emotion", "surprised");
-  });
-  bus().subscribe("brain.error", [](const Event& ev) {
-    bus().publish("face.emotion", "sad");
-    bus().publish("face.say", ev.payload == "no_key" ? "sin cerebro todavía"
-                                                     : "no pude pensar");
-  });
-  bus().subscribe("nfc.tag", [](const Event& ev) {
-    bus().publish("face.emotion", "curious");
-    bus().publish("brain.ask",
-                  std::string("The user showed you a card with id ") + ev.payload +
-                      ". React playfully.");
-  });
-}
 
 }  // namespace
 
 extern "C" void app_main() {
-  ESP_ERROR_CHECK(nvs_flash_init());
+  // Not ESP_ERROR_CHECK. NO_FREE_PAGES and NEW_VERSION_FOUND are ordinary
+  // outcomes after an OTA or a partition-table change, and aborting here is a
+  // dark screen and a reboot loop with the reason only on a serial console
+  // nobody at a workshop has attached.
+  esp_err_t nvs = nvs_flash_init();
+  if (nvs == ESP_ERR_NVS_NO_FREE_PAGES || nvs == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+    ESP_LOGW(TAG, "nvs needs erasing (%s)", esp_err_to_name(nvs));
+    if (nvs_flash_erase() == ESP_OK) nvs = nvs_flash_init();
+  }
+  if (nvs != ESP_OK) ESP_LOGE(TAG, "no nvs (%s) — wifi will not start",
+                              esp_err_to_name(nvs));
   buddy::bus_start();
 
 #if CONFIG_BUDDY_DEBUG
@@ -79,23 +77,27 @@ extern "C" void app_main() {
 
   // Reflex layer: Berry when present, C fallback otherwise.
   buddy::bus().publish("boot.status", "loading reflexes");
-  if (!buddy::berry_host_start()) c_reflexes();
+  // No C fallback. It was a second copy of the seed behaviour that had
+  // already drifted from packs/zero, and its trigger is a build mistake — a
+  // clone without --recursive — not a device state. "Never a brick" protects
+  // the creature from its environment; it does not owe anyone a quieter,
+  // wronger demo that looks like the real one.
+  if (!buddy::berry_host_start())
+    buddy::bus().publish("boot.status", "sin reflejos");
 
   // brain.reply is the one contract-level reflex the framework owns:
   // parse {utterance, emotion} and fan out to expressions.
   buddy::bus().subscribe("brain.reply", [](const buddy::Event& ev) {
-    // LLMs love wrapping JSON in ```json fences despite instructions.
-    // Parse the outermost {...} slice instead of trusting the framing.
+    // LLMs wrap JSON in fences despite instructions, and describe the format
+    // in prose before emitting it. Anchoring on the FIRST '{' broke on
+    // "the format {utterance, emotion}: {...}" — an ordinary reply — so every
+    // '{' is tried in turn until one parses. cJSON tolerates trailing text.
     const std::string& p = ev.payload;
-    const size_t open = p.find('{');
-    const size_t close = p.rfind('}');
-    if (open == std::string::npos || close == std::string::npos || close < open) {
-      ESP_LOGW(TAG, "brain reply has no JSON object: %.200s", p.c_str());
-      return;
-    }
-    const std::string body = p.substr(open, close - open + 1);
-    cJSON* j = cJSON_Parse(body.c_str());
-    if (!j) { ESP_LOGW(TAG, "brain reply not JSON: %.200s", body.c_str()); return; }
+    cJSON* j = nullptr;
+    for (size_t at = p.find('{'); at != std::string::npos && !j;
+         at = p.find('{', at + 1))
+      j = cJSON_Parse(p.c_str() + at);
+    if (!j) { ESP_LOGW(TAG, "brain reply has no JSON object: %.200s", p.c_str()); return; }
     cJSON* emotion = cJSON_GetObjectItem(j, "emotion");
     cJSON* utterance = cJSON_GetObjectItem(j, "utterance");
     // Validated here, not downstream: the registry documents face.emotion as
@@ -132,8 +134,9 @@ extern "C" void app_main() {
 #endif
 
   // Network layer — optional by design ("never brick"). This is the slow part:
-  // wifi_start blocks for up to 15 s, which is exactly why the splash exists.
-  buddy::bus().publish("boot.status", "connecting wifi");
+  // Up to 25 s: 15 waiting for the association, then 10 more for SNTP. That
+  // second one is the common case on guest wifi, where UDP/123 is blocked.
+  buddy::bus().publish("boot.status", "conectando wifi");
   const bool online = buddy::wifi_start(CONFIG_BUDDY_WIFI_SSID, CONFIG_BUDDY_WIFI_PASS);
 
   // Outside the branch on purpose: the provisioning portal is FOR the buddy
