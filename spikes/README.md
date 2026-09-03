@@ -21,3 +21,9 @@ números, barato de tirar si la respuesta es «no». La disciplina:
   (4,85×), con cada paso medido y commiteado. Sus conclusiones están en
   [../docs/local-model-bringup.md](../docs/local-model-bringup.md) y
   [../docs/training-workshop.md](../docs/training-workshop.md).
+- **`claude-desktop-buddy/`** (rama `claude/desktop-buddy-spike-kshx2i`) — ¿qué
+  del buddy de Anthropic nos sirve? Respuesta: **el protocolo**, no el
+  proyecto. Su puente BLE entra como un Sense (`claude.*`) y trae con él un
+  decodificador probado — 158 comprobaciones bajo sanitizers — más media
+  docena de lecciones sobre NVS, instalación de packs y animación barata.
+  Falta el número que importa: si BLE cabe junto a WiFi + TLS en el S3.
