@@ -21,6 +21,13 @@ publicación y suscripción: [event-registry.html](event-registry.html).
 - `bus().publish(name, payload)` encola; la entrega ocurre en `pump()`,
   ejecutado por la tarea del bus. **Los handlers por tanto nunca corren en
   paralelo** y no necesitan locks propios.
+- **La capa de reflejos se suscribe a `*`** y pasa todo a la VM de Berry salvo
+  `system.reload`. Por eso un pack puede reaccionar a cualquier evento de esta
+  página sin tocar el firmware — es la forma más concreta que tiene «el
+  comportamiento es datos». Y por eso las columnas de suscriptores de abajo
+  están incompletas por diseño: cuentan el firmware, no los packs.
+- Lo que un reflejo **no** puede publicar: `system.*`, `config.*`, `boot.*` y
+  `pack.*`. Son de firmware y de la web, y la regla la aplica el código.
 - `bus().subscribe(pattern, fn)` donde `pattern` es un nombre exacto, un
   comodín de prefijo (`touch.*`) o `*` para todo.
 - `Event` es `{ std::string name; std::string payload; }` —
@@ -95,9 +102,21 @@ a esos dos, no a la respuesta cruda.
 | evento | payload | lo consume | notas |
 |---|---|---|---|
 | `face.emotion` | nombre de emoción (`happy`, `sad`…) | round_face, led_ring | el anillo copia el color de la cara |
-| `face.say` | texto | round_face | palabras en pantalla |
+| `face.say` | texto | round_face | palabras **en pantalla**. Es lo que publica `buddy.hint()` |
 | `face.look` | objetivo de mirada | round_face | **suscrito, nunca publicado** — ver agujeros |
 | `led.mood` | `calm` \| `excited` \| `thinking` \| `off` | led_ring | estilo de animación, no color |
+
+### Habla
+
+| evento | payload | lo consume | notas |
+|---|---|---|---|
+| `speech.say` | texto | main → `face.say` | **estas palabras exactas salen**, por todos los canales que tenga el buddy. Hoy solo la pantalla; cuando llegue la voz, el TTS se suscribe aquí y **ningún reflejo cambia**. Es lo que publica `buddy.say()` |
+
+Por qué separado de `face.say`: son cosas distintas que hoy coinciden. Lo que
+el buddy *dice* y lo que *muestra* dejan de ser el mismo evento en cuanto haya
+altavoz, y `face.*` es prefijo de Personalidad, no de Voz — así que sin esta
+separación el equipo de voz tendría que suscribirse a un espacio ajeno, o cada
+reflejo diría las cosas dos veces.
 
 ### Sistema
 
@@ -149,6 +168,7 @@ responsable de ese equipo.
 | `touch.*`, `nfc.*`, `sense.*` | Electrónica | `touch.*` y `nfc.*` vivos; ningún `sense.*` propuesto |
 | `voice.*`, `sound.*` | Voz | **ninguno vivo**; 4 propuestos — los fija el equipo de voz |
 | `face.*`, `led.*` | Personalidad + Firmware | vivos |
+| `speech.*` | Firmware | `speech.say` vivo |
 | `config.*` | Web UI | **ninguno vivo**; 2 propuestos en [config-api.md](config-api.md) |
 | `time.*` | Firmware | `time.synced` vivo. Hoy lo publica `webui.cpp`, que es donde vive el SNTP; se muda con el componente `net` |
 | `brain.*`, `boot.*`, `system.*`, `timer.*`, `storage.*` | Firmware y arquitectura | `brain.*`, `boot.*`, `system.*` vivos; `timer.*` y `storage.*` solo propuestos |

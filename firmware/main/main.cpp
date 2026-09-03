@@ -112,6 +112,14 @@ extern "C" void app_main() {
     cJSON_Delete(j);
   });
 
+  // speech.say is "these exact words come out", through every channel the
+  // buddy has. Today that is the screen; when voice lands, TTS subscribes here
+  // too and no reflex changes. face.say stays what it always was — screen
+  // only, which is what buddy.hint() publishes.
+  buddy::bus().subscribe("speech.say", [](const buddy::Event& ev) {
+    buddy::bus().publish("face.say", ev.payload);
+  });
+
   // Senses.
   buddy::bus().publish("boot.status", "waking senses");
   buddy::touch_start(CONFIG_BUDDY_PIN_TOUCH);
