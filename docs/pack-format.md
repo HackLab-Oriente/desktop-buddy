@@ -568,9 +568,10 @@ buddy.face.play(anim)             # by name from faces/
 buddy.screen.show(rel)            # image from pack, C++ decodes/blits
 buddy.sound.play(rel, done_cb)    # streamed by C++; callback on sound.done
 buddy.led.mood(name)              # ✅ el mood que declare el pack
-buddy.say(text)                   # ✅ estas palabras exactas salen (pantalla; + TTS cuando llegue la voz)
+buddy.say(text)                   # ✅ publica speech.say: estas palabras exactas
+                                  #    salen por todos los canales que haya
 buddy.ask(prompt)                 # ✅ le preguntas al Brain; ÉL decide qué dice el buddy
-buddy.hint(text)                  # solo pantalla, nunca se pronuncia
+buddy.hint(text)                  # ✅ publica face.say: solo pantalla, nunca se pronuncia
 
 buddy.sense(name)                 # lectura cacheada de un sensor; nil si falta o está vieja
 buddy.sense([n1, n2])             # varios de golpe -> map, una sola llamada
