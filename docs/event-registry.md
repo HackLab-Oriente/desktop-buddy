@@ -82,9 +82,9 @@ cartuchos la define el equipo de personalidad.
 
 | evento | payload | lo emite | cuándo |
 |---|---|---|---|
-| `brain.ask` | texto del prompt | reflejos | algo quiere una respuesta |
-| `brain.reply` | JSON `{"utterance": "...", "emotion": "..."}` | brain_cloud | el modelo contestó |
-| `brain.error` | `"no_reply"` | brain_cloud | la petición falló |
+| `brain.ask` | texto del prompt | reflejos | algo quiere una respuesta. Se encola con hueco para 4; más allá se descarta con `brain.error "busy"` |
+| `brain.reply` | JSON `{"emotion": "...", "utterance": "..."}` | brain | el modelo contestó. `emotion` va primero para que al transmitir en streaming la cara la reciba antes que las palabras |
+| `brain.error` | `offline` \| `no_key` \| `auth` \| `rate_limit` \| `timeout` \| `bad_reply` \| `busy` | brain | la pregunta no produjo respuesta. **Siempre se publica**: sin clave, sin red o con la cola llena, un `brain.ask` produce esto y no silencio |
 
 `brain.reply` se parsea centralmente en [main.cpp](../firmware/main/main.cpp)
 y se reparte en `face.emotion` + `face.say`; los packs normalmente reaccionan
@@ -177,11 +177,11 @@ y estado.*
    ocho nombres de `face_model.cpp`, mientras `led.mood` acepta solo
    `calm|excited|thinking|off`. Dos vocabularios solapados para un concepto —
    lo que el grupo decida sobre expresiones tiene que reconciliarlos.
-4. **`brain.error` no tiene suscriptor.** El cerebro cloud lo publica al
-   fallar y nada reacciona, así que una petición fallida es silenciosa: el
-   buddy simplemente no contesta nunca. Es el único agujero que contradice
-   un principio declarado ("nunca un ladrillo") — como mínimo debería mover
-   una cara.
+4. ~~**`brain.error` no tiene suscriptor.**~~ **Cerrado.** Lo escuchan los
+   reflejos del pack semilla y los de respaldo en C, así que la garantía
+   sobrevive aunque no esté el submódulo de Berry. Y ahora se publica en todas
+   las rutas, incluidas las dos que antes retornaban en silencio.
+
 5. **`time.synced` no tiene suscriptor.** Inofensivo hoy, pero significa que
    nada espera al reloj; cualquier cosa basada en la hora lo necesitará.
 

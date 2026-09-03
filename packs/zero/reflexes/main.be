@@ -73,6 +73,17 @@ buddy.on("nfc.text", def (ev)
   end
 end)
 
+buddy.on("brain.error", def (ev)
+  # El cerebro no contestó y hay que decirlo: callarse es como parecer roto.
+  if ev['payload'] == "no_key"
+    buddy.face.emotion("sleepy")
+    buddy.say("Todavía no tengo cerebro.")
+  else
+    buddy.face.emotion("sad")
+    buddy.say("No pude pensar eso.")
+  end
+end)
+
 buddy.on("nfc.gone", def (ev)
   # Quitar la tarjeta deshace lo que hizo. Esto es lo que hace que "mantener
   # la tarjeta puesta" sea un gesto y no un interruptor.
