@@ -551,21 +551,25 @@ conversación que la seguridad de instalar packs (#21, #24), no en esta.
 
 ## Superficie de la API de scripts (Berry)
 
-```berry
-import buddy
+**Lo marcado ✅ existe hoy; el resto está especificado y sin implementar.**
+No hace falta `import buddy` — el prelude lo deja como global, y un `import`
+falla porque los globales no se resuelven por ahí.
 
-buddy.on(event, handler)          # subscribe: "nfc.tag", "touch.pet", "timer.*", "brain.reply", …
-buddy.emit(event, payload)        # custom events between reflexes
+```berry
+buddy.on(event, handler)          # ✅ "nfc.tag", "touch.pet", "timer.*", …
+buddy.emit(event, payload)        # ✅ eventos propios entre reflejos
+buddy.log(msg)                    # ✅ al log serie
 
 buddy.asset.json(rel)             # small JSON → Berry map (≤4 KB), nil if missing
 buddy.asset.exists(rel)           # cheap existence probe
 
+buddy.face.emotion(name)          # ✅ la expresión que declare el pack
 buddy.face.play(anim)             # by name from faces/
 buddy.screen.show(rel)            # image from pack, C++ decodes/blits
 buddy.sound.play(rel, done_cb)    # streamed by C++; callback on sound.done
-buddy.led.mood(name)
-buddy.say(text)                   # estas palabras exactas salen (pantalla; + TTS cuando llegue la voz)
-buddy.ask(prompt)                 # le preguntas al Brain; ÉL decide qué dice el buddy
+buddy.led.mood(name)              # ✅ el mood que declare el pack
+buddy.say(text)                   # ✅ estas palabras exactas salen (pantalla; + TTS cuando llegue la voz)
+buddy.ask(prompt)                 # ✅ le preguntas al Brain; ÉL decide qué dice el buddy
 buddy.hint(text)                  # solo pantalla, nunca se pronuncia
 
 buddy.sense(name)                 # lectura cacheada de un sensor; nil si falta o está vieja
@@ -578,8 +582,10 @@ Ejemplo — el flujo central completo del explicador de juegos de mesa:
 
 ```berry
 buddy.on("nfc.tag", def (ev)
-  if !ev.payload || !ev.payload.startswith("game:") return end
-  var game = ev.payload[5..]
+  # ev es un MAPA: ev['payload'], no ev.payload.
+  var t = ev['payload']
+  if !t || size(t) < 6 || t[0..4] != "game:" return end
+  var game = t[5..]
   var meta = buddy.asset.json(f"media/games/{game}/meta.json")
   if meta == nil
     buddy.face.play("confused")
