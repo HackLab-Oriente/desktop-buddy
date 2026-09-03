@@ -32,7 +32,7 @@ int64_t s_deadline_us = 0;
 constexpr size_t kMaxScriptBytes = 32 * 1024;
 constexpr size_t kMaxEventName = 64;
 constexpr size_t kMaxPayload = 1024;
-constexpr int kMaxNesting = 32;
+constexpr int kMaxNesting = 12;
 constexpr int64_t kHandlerBudgetUs = 500 * 1000;
 
 // Prefixes a reflex may not publish into. The registry already assigns these
@@ -83,10 +83,11 @@ void obs_hook(bvm* vm, int event, ...) {
 }
 
 // The parser is recursive descent with no depth limit and runs on the bus
-// task's 6144-byte stack, at ~270 bytes per nesting level -- so about twenty
-// parentheses in an uploaded script overflow it. That is not an error return,
-// it is a panic, and since the script persists and is recompiled at every
-// boot, it is a boot loop that only reflashing clears.
+// task's 6144 bytes. sub_expr's frame is 240 bytes, measured from the ELF, so
+// the stack is gone at ~24 levels -- and that is a panic, not an error return.
+// The script persists and is recompiled at every boot, so one upload is a boot
+// loop that only reflashing clears. 12 is half the ceiling, and four more than
+// anything in packs/zero.
 bool nesting_ok(const std::string& src) {
   int depth = 0;
   bool in_str = false, in_comment = false;
