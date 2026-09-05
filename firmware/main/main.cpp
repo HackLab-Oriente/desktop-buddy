@@ -115,9 +115,15 @@ extern "C" void app_main() {
   // Network layer — optional by design ("never brick"). This is the slow part:
   // wifi_start blocks for up to 15 s, which is exactly why the splash exists.
   buddy::bus().publish("boot.status", "connecting wifi");
-  if (buddy::wifi_start(CONFIG_BUDDY_WIFI_SSID, CONFIG_BUDDY_WIFI_PASS)) {
+  const bool online = buddy::wifi_start(CONFIG_BUDDY_WIFI_SSID, CONFIG_BUDDY_WIFI_PASS);
+
+  // Outside the branch on purpose: the provisioning portal is FOR the buddy
+  // that could not join, so putting its door behind "did we join" made it
+  // unreachable exactly when it is needed.
+  buddy::webui_start();
+
+  if (online) {
     buddy::bus().publish("boot.status", "waking brain");
-    buddy::webui_start();
     buddy::brain_cloud_start({
         .api_key = CONFIG_BUDDY_ANTHROPIC_API_KEY,
         .model = "claude-haiku-4-5",

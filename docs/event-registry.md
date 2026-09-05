@@ -150,6 +150,7 @@ responsable de ese equipo.
 | `voice.*`, `sound.*` | Voz | **ninguno vivo**; 4 propuestos — los fija el equipo de voz |
 | `face.*`, `led.*` | Personalidad + Firmware | vivos |
 | `config.*` | Web UI | **ninguno vivo**; 2 propuestos en [config-api.md](config-api.md) |
+| `time.*` | Firmware | `time.synced` vivo. Hoy lo publica `webui.cpp`, que es donde vive el SNTP; se muda con el componente `net` |
 | `brain.*`, `boot.*`, `system.*`, `timer.*`, `storage.*` | Firmware y arquitectura | `brain.*`, `boot.*`, `system.*` vivos; `timer.*` y `storage.*` solo propuestos |
 
 Por qué esta división: si firmware tiene que nombrar cada evento, los demás
