@@ -38,6 +38,7 @@ size_t Bus::pump() {
   std::vector<Sub> subs_snapshot;
   {
     std::lock_guard<std::mutex> lock(mu_);
+    if (queue_.empty()) return 0;   // idle: don't copy the subscriber list
     batch.swap(queue_);
     subs_snapshot = subs_;  // handlers may (un)subscribe while we dispatch
   }
