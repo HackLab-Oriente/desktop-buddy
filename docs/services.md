@@ -19,12 +19,25 @@ viven en la NVS del dispositivo, se meten por la web UI y nunca van en packs.
 
 | Proveedor / modelo | Precio (in/out por MTok) | Por qué sí / por qué no |
 |---|---|---|
-| **Anthropic Claude Haiku 4.5** ⭐ | $1 / $5 | Rápido, barato y con carácter — para un compañero, la calidad de la personalidad ES el producto. Streaming + prompt caching (el system prompt = personalidad se cachea de maravilla). |
+| **Anthropic Claude Haiku 4.5** ⭐ | $1 / $5 | Rápido, barato y con carácter — para un compañero, la calidad de la personalidad ES el producto. Streaming. **El prompt caching no aplica todavía** — ver abajo. |
 | OpenAI clase gpt-4o-mini | ~$0.60 / $2.40 | Algo más barato; su atractivo real es la comodidad de una sola cuenta (ver stacks abajo). |
 | Anthropic Claude Sonnet 5 | $3 / $15 ($2/$10 intro) | Sobredimensionado para charla ligera; interesante después para Skills/herramientas en el hub. |
 
-Una interacción típica ≈ 1.200 tokens de entrada + 150 de salida →
-**~$0.002 con Haiku**, y menos con caché sobre el prompt de personalidad.
+Una interacción típica, **medida sobre el cuerpo que envía el firmware hoy**:
+~200 tokens de entrada y ~45 de salida → **~$0.0004 con Haiku**. La estimación
+anterior (1.200 in / 150 out, ~$0.002) era unas 4,6 veces pesimista.
+
+**El prompt caching no recorta nada con este prompt.** El prefijo mínimo
+cacheable de Claude Haiku 4.5 son **4.096 tokens** y el system prompt de
+personalidad son ~160: veinticinco veces corto, así que un `cache_control`
+se ignoraría en silencio. Y aunque aplicara, a 50 interacciones diarias
+ahorraría ~$0,22 al mes — y como el TTL por defecto son 5 minutos, un buddy
+al que se acaricia cada pocas horas fallaría la caché casi siempre y pagaría
+el recargo de escritura de 1,25×, saliendo **más caro**.
+
+Mantener el prompt estable byte a byte sigue siendo buena práctica; el ahorro
+llega el día que un pack empuje el system prompt más allá de 4.096 tokens
+(~16 KB de texto), no antes.
 
 ## STT — de voz a texto
 
@@ -145,7 +158,7 @@ caracteres:
 | Pieza | Stack recomendado | Coste |
 |---|---|---|
 | STT (OpenAI mini-transcribe) | 8 s a $0.003/min | ~$0.0004 |
-| LLM (Haiku 4.5) | ~1,2k in / 150 out | ~$0.002 |
+| LLM (Haiku 4.5) | ~200 in / 45 out | ~$0.0004 |
 | TTS (OpenAI mini-tts) | ~10 s de audio | ~$0.0025 |
 
 El TTS es la partida más grande de las tres — y con ElevenLabs sería **$0,05**,

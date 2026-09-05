@@ -5,6 +5,7 @@
 #include "brain.h"
 #include "bus.h"
 #include "expressions.h"
+#include "face_model.h"
 #include "senses.h"
 #include "webui.h"
 
@@ -39,6 +40,11 @@ void c_reflexes() {
   });
   bus().subscribe("touch.poke", [](const Event&) {
     bus().publish("face.emotion", "surprised");
+  });
+  bus().subscribe("brain.error", [](const Event& ev) {
+    bus().publish("face.emotion", "sad");
+    bus().publish("face.say", ev.payload == "no_key" ? "sin cerebro todavía"
+                                                     : "no pude pensar");
   });
   bus().subscribe("nfc.tag", [](const Event& ev) {
     bus().publish("face.emotion", "curious");
@@ -92,12 +98,17 @@ extern "C" void app_main() {
     if (!j) { ESP_LOGW(TAG, "brain reply not JSON: %.200s", body.c_str()); return; }
     cJSON* emotion = cJSON_GetObjectItem(j, "emotion");
     cJSON* utterance = cJSON_GetObjectItem(j, "utterance");
-    if (cJSON_IsString(emotion)) buddy::bus().publish("face.emotion", emotion->valuestring);
+    // Validated here, not downstream: the registry documents face.emotion as
+    // a name from the table, and packs subscribe to the bus. A contract has to
+    // hold at the publisher.
+    if (cJSON_IsString(emotion) && buddy::emotion_index(emotion->valuestring) >= 0)
+      buddy::bus().publish("face.emotion", emotion->valuestring);
+    else if (cJSON_IsString(emotion))
+      ESP_LOGW(TAG, "brain returned an unknown emotion: %.32s", emotion->valuestring);
     if (cJSON_IsString(utterance)) {
-      ESP_LOGI(TAG, "buddy says: %s", utterance->valuestring);
+      ESP_LOGI(TAG, "buddy says: %.120s", utterance->valuestring);
       buddy::bus().publish("face.say", utterance->valuestring);
     }
-    buddy::bus().publish("led.mood", "calm");
     cJSON_Delete(j);
   });
 
@@ -124,7 +135,7 @@ extern "C" void app_main() {
 
   if (online) {
     buddy::bus().publish("boot.status", "waking brain");
-    buddy::brain_cloud_start({
+    buddy::brain_start({
         .api_key = CONFIG_BUDDY_ANTHROPIC_API_KEY,
         .model = "claude-haiku-4-5",
         .system_prompt =
@@ -134,6 +145,10 @@ extern "C" void app_main() {
     });
   } else {
     buddy::bus().publish("boot.status", "offline");
+    // Still start it: with no network it answers every ask with brain.error
+    // "no_key"/"offline" instead of swallowing them, so a pack can tell
+    // "thinking" from "there is no brain".
+    buddy::brain_start({.api_key = "", .model = "", .system_prompt = ""});
   }
 
   buddy::bus().publish("face.emotion", "neutral");

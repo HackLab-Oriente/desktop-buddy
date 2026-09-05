@@ -16,3 +16,15 @@ CONFIG_ESP_TASK_WDT_TIMEOUT_S=15
 # Hosyond/clone boards ship BOYA flash chips; the generic driver works but
 # the dedicated one enables proper suspend/resume support.
 CONFIG_SPI_FLASH_SUPPORT_BOYA_CHIP=y
+
+# cJSON recurses ~96 bytes of stack per nesting level and defaults to allowing
+# 1000 -- about 96 KB. The bus task has 6144 and parses brain replies inline,
+# so a document 64 levels deep walks off the end of it, and the canary is only
+# checked at a context switch. 20 is past anything our own formats need.
+CONFIG_CJSON_NESTING_LIMIT=20
+
+# TLS session tickets. Without them every reconnect after an idle drop pays a
+# full handshake (~1.9 s measured on the S3) instead of a resumed one. This is
+# also what makes esp_http_client_config_t::save_client_session exist at all.
+CONFIG_ESP_TLS_CLIENT_SESSION_TICKETS=y
+CONFIG_MBEDTLS_CLIENT_SSL_SESSION_TICKETS=y
