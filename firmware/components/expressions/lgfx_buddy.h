@@ -10,6 +10,8 @@
 #define LGFX_USE_V1
 #include <LovyanGFX.hpp>
 
+#include "driver/spi_common.h"
+#include "esp_log.h"
 #include "sdkconfig.h"
 
 class LGFX_Buddy : public lgfx::LGFX_Device {
@@ -66,5 +68,65 @@ class LGFX_Buddy : public lgfx::LGFX_Device {
     }
 #endif
     setPanel(&_panel);
+  }
+
+  // Claim the SPI bus ourselves, before init().
+  //
+  // LovyanGFX fills spi_bus_config_t with 0xFF and then writes back only the
+  // fields it knows about. Every int it leaves alone becomes -1, which is the
+  // correct "unused" sentinel for a pin — so this was harmless until ESP-IDF
+  // 6.1 added dma_burst_size, which is not a pin. GDMA gets 0xFFFFFFFF,
+  // rejects it as not a power of two, and spi_bus_initialize() then panics in
+  // its own cleanup path, freeing a DMA context it never allocated. The board
+  // reboots before a single pixel.
+  //
+  // Initialising the bus here first means LovyanGFX's own call bails at its
+  // very first check with ESP_ERR_INVALID_STATE, before it can reach the
+  // 0xFF struct, and it attaches its device to this bus instead. Bus_SPI::init
+  // still finds its GDMA channel afterwards by scanning the peripheral
+  // registers (search_dma_out_ch), which is the non-obvious reason the
+  // hand-off works at all.
+  //
+  // Two log lines per boot are expected, and neither is a fault:
+  //   E spi: spi_bus_initialize(897): SPI bus already initialized.
+  //   W LGFX: Failed to spi_bus_initialize.
+  //
+  // Delete this when the following prints 0:
+  //   grep -c 'memset(&buscfg' components/LovyanGFX/src/lgfx/v1/platforms/esp32/common.cpp
+  // Still 1 on upstream develop @57ca5a7, checked 2026-09-05. Not needed on
+  // ESP-IDF <= 6.0 (no such field), nor on chips without a configurable GDMA
+  // burst size, where spi_common.c ignores the field outright.
+  //
+  // The pins come off _bus.config() and not from CONFIG_* so that the header
+  // above stays the one place where the wiring lives. senses/rc522.cpp does
+  // the same thing the easy way — its spi_bus_config_t is `= {}` already.
+  bool claim_bus() {
+    const auto& b = _bus.config();
+    spi_bus_config_t cfg = {};  // the whole point: actually zero-initialised
+    cfg.mosi_io_num = b.pin_mosi;
+    cfg.miso_io_num = b.pin_miso;
+    cfg.sclk_io_num = b.pin_sclk;
+    cfg.quadwp_io_num = -1;  // unused pins must say -1: 0 is a real GPIO
+    cfg.quadhd_io_num = -1;
+    cfg.data4_io_num = -1;
+    cfg.data5_io_num = -1;
+    cfg.data6_io_num = -1;
+    cfg.data7_io_num = -1;
+    cfg.max_transfer_sz = 1;  // what LovyanGFX asks for itself: it programs
+                              // GDMA directly and never uses the IDF
+                              // transaction path this would size a pool for
+    cfg.flags = SPICOMMON_BUSFLAG_MASTER;
+    const esp_err_t err = spi_bus_initialize(
+        static_cast<spi_host_device_t>(b.spi_host), &cfg,
+        static_cast<spi_dma_chan_t>(b.dma_channel));
+    // Never ESP_ERROR_CHECK. This is the first hardware call of the boot, so
+    // an abort here is the black screen and silent reboot loop this function
+    // exists to prevent — and it would take the web UI with it, which is the
+    // only way to recover without a serial cable. If it failed, LovyanGFX is
+    // about to try for itself and log its own complaint.
+    if (err != ESP_OK)
+      ESP_LOGW("LGFX_Buddy", "could not claim SPI%d: %s", b.spi_host + 1,
+               esp_err_to_name(err));
+    return err == ESP_OK;
   }
 };
