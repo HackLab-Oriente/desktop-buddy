@@ -43,8 +43,7 @@ lidera esa zona; no hace falta que sepas a quién etiquetar.
 
 ## Ramas y spikes
 
-- `main` siempre compila (los **dos** targets: `esp32s3` y `esp32`) y sus
-  docs cuentan la verdad.
+- `main` siempre compila (target `esp32s3`) y sus docs cuentan la verdad.
 - Trabajo normal: rama corta → PR → merge. Sin ceremonias.
 - **Experimentos: rama `spike/<nombre>` con proyecto propio en `spikes/`.**
   Un spike es desechable por diseño; lo único que se mergea a `main` son sus
@@ -101,21 +100,16 @@ nunca bytes.
 ## Firmware: reglas de la casa
 
 - **ESP-IDF v6.1.** La v5 no está soportada; no pierdas el día intentándolo.
-- Antes de un PR que toque `firmware/`, compila los dos targets:
+- Antes de un PR que toque `firmware/`, compila:
 
 ```bash
 cd firmware && idf.py set-target esp32s3 && idf.py build
 ```
 
-```bash
-cd firmware && idf.py set-target esp32 && idf.py build
-```
-
 - Los tests de host del bus corren sin placa: `firmware/host_test/`.
 - Pines: se cambian en `menuconfig` (Kconfig), nunca hardcodeados. Ojo con
-  las minas por chip — en el S3: 33–37 (PSRAM), 19/20 (USB), 26–32 (flash),
-  0/3/45/46 (strapping); en el clásico: 6–11 (flash), 12/15 (strapping),
-  34–39 (solo entrada).
+  las minas del S3: 33–37 (PSRAM), 19/20 (USB), 26–32 (flash), 0/3/45/46
+  (strapping).
 - Si el build se queja de que el entorno "is not consistent": tienes dos
   Pythons cruzados. `idf.py fullclean` una vez y a seguir.
 
@@ -137,8 +131,8 @@ Los de actions se mergean con el CI en verde y ya está.
 Los de submódulos **no**. Llevan la etiqueta `needs-hardware-check` por un
 motivo concreto: Dependabot sigue la rama por defecto del submódulo, no sus
 releases — así que el PR cambia un pin deliberado (LovyanGFX está parado en el
-tag 1.2.26) por lo que haya hoy en master, sin changelog. Y el CI compila para
-los dos targets, pero **el CI no ve la pantalla**. LovyanGFX es la capa
+tag 1.2.26) por lo que haya hoy en master, sin changelog. Y el CI compila,
+pero **el CI no ve la pantalla**. LovyanGFX es la capa
 gráfica; ya nos mordió una vez con el endianness de los sprites de 16 bpp, que
 compila perfecto y pinta franjas arcoíris. Verde significa "compila", no "la
 cara está bien". Flashea una placa antes de mergear.

@@ -29,10 +29,9 @@ CONFIG_CJSON_NESTING_LIMIT=20
 CONFIG_ESP_TLS_CLIENT_SESSION_TICKETS=y
 CONFIG_MBEDTLS_CLIENT_SSL_SESSION_TICKETS=y
 
-# Both targets reach 240 MHz and both were running at 160. Measured against
-# the recorded budgets, this is worth far less to the S3 than it sounds and
-# far more to the classic: 76% of the S3's 30.4 ms frame is SPI wire time at a
-# fixed 40 MHz, so its face gains ~7%, while the classic's frame is 67% CPU
-# and gains ~25% (14.4 -> ~18 fps). The CPU-bound paths that do scale are the
-# TLS handshake, the SDF eyes and sentence generation.
+# The S3 reaches 240 MHz and was running at 160. This is worth less to the
+# face than it sounds: 76% of the 30.4 ms frame is SPI wire time at a fixed
+# 40 MHz, which no core speed touches, so the frame goes to about 27.9 ms
+# (~35.8 fps). What takes the full 1.5x is everything off the panel — the TLS
+# handshake, the SDF eye renderer and sentence generation.
 CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y

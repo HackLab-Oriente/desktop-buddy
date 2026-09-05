@@ -44,7 +44,7 @@ updates:
   # into whatever is on master that day, with no changelog and often many
   # unreleased commits of drift.
   #
-  # CI proves it still compiles for both targets. CI cannot see the screen.
+  # CI proves it still compiles. CI cannot see the screen.
   # LovyanGFX owns sprite memory layout, and this project already has a scar
   # there — 16 bpp sprites are stored big-endian, and getting that wrong turns
   # gradients into rainbow banding while compiling perfectly clean. A green

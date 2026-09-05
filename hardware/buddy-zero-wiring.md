@@ -7,10 +7,15 @@
 > placa, no porque siga vigente. Los pines que cita ya no están en
 > `Kconfig.projbuild`. Para la placa de referencia:
 > [buddy-s3-display.md](buddy-s3-display.md).
+>
+> El código del target vivió hasta `0376794`; lo retiró el commit siguiente,
+> que explica por qué. Restaurarlo es revertir ese commit. El diagrama
+> `buddy-zero.wireviz.yml` que acompaña a esta guía se renderiza con
+> [WireViz](https://github.com/wireviz/WireViz).
 
-La misma cara a color que el S3, en la placa que muchos ya tienen en el cajón.
-**Sigue las etiquetas de la serigrafía, no la posición del pin** — los clones
-del DevKit V1 barajan el orden entre fabricantes.
+Era la misma cara a color que el S3, en la placa que muchos ya tenían en el
+cajón. **Sigue las etiquetas de la serigrafía, no la posición del pin** — los
+clones del DevKit V1 barajan el orden entre fabricantes.
 
 > **Estado**: verificado en placa real con pantalla cableada — arranque,
 > animación de boot, ojos, 5 bandas de 23 KB sin costuras visibles, LittleFS y

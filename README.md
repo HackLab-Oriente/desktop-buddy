@@ -120,7 +120,7 @@ de ESP-IDF, no el del sistema:
    (`~/.espressif/tools/xtensa-esp-elf/…/bin/xtensa-esp32s3-elf-gcc`).
 3. En *CMake profiles*, añade a las opciones:
    `-DCMAKE_TOOLCHAIN_FILE=$IDF_PATH/tools/cmake/toolchain-esp32s3.cmake
-   -DTARGET=esp32s3` (cambia `esp32s3` por `esp32` para la placa clásica), y
+   -DTARGET=esp32s3`, y
    arranca CLion desde una terminal donde hayas hecho `source` del script de
    activación de ESP-IDF, para que herede `IDF_PATH`.
 4. Flash y monitor siguen siendo `idf.py -p PUERTO flash monitor` en la

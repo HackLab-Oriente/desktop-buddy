@@ -3,10 +3,10 @@
 El núcleo del framework: bus de eventos, host de Berry, drivers de Senses y
 Expressions, el adaptador de cerebro cloud y la web de recarga en caliente.
 
-## Dos targets
+## Un target
 
-| | `esp32s3` (referencia) | `esp32` (clásico, DevKit V1) |
-|---|---|---|
+| | `esp32s3` (referencia) |
+|---|---|
 | Bus, Berry, web UI, cerebro cloud, tacto, NFC | ✓ |
 | Cara GC9A01 a color | ✓ frame completo + caché PSRAM, **33 fps medidos** |
 | Modelo local / voz | ✓ / planificado |

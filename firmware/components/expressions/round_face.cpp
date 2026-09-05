@@ -57,7 +57,7 @@ constexpr int kLevelCount = 3;
 // firmware makes. Three eye levels are cached in PSRAM so a blink is a blit
 // rather than three renders.
 LGFX_Buddy lcd;
-LGFX_Sprite spr(&lcd);                 // the working frame (one band tall)
+LGFX_Sprite spr(&lcd);                 // the working frame, full screen
 LGFX_Sprite cache[kLevelCount] = {LGFX_Sprite(&lcd), LGFX_Sprite(&lcd), LGFX_Sprite(&lcd)};
 uint16_t* fb = nullptr;                // spr's buffer: fb[y * W + x]
 int cached_emotion = -1;
@@ -220,9 +220,9 @@ void build_cache(int emo) {
 }
 
 // How long a full eye frame costs, averaged over a window. Cheap enough to
-// leave in (two timer reads per frame) and it is the first number anyone
-// bringing up a new board wants: the cached and banded paths differ by an
-// order of magnitude, so "is this board slow?" has an answer in the log.
+// leave in (two timer reads per frame) and it is what catches a regression:
+// the recorded budget is ~27.9 ms/frame at 240 MHz, of which 23.1 ms is the
+// SPI push and cannot move, so anything well above that is the CPU half.
 #if CONFIG_BUDDY_DEBUG
 void report_frame(int64_t us) {
   static int64_t sum = 0;
@@ -244,9 +244,9 @@ void draw_eyes_inner(int open_pct, int gx, int gy) {
   int li = 0;
   for (int i = 1; i < kLevelCount; i++)
     if (abs(kLevels[i] - open_pct) < abs(kLevels[li] - open_pct)) li = i;
-  spr.fillScreen(TFT_BLACK);
-  cache[li].pushSprite(&spr, gx, gy, TFT_BLACK);  // black = transparent
-  spr.pushSprite(0, 0);
+  render_frame([&] {
+    cache[li].pushSprite(&spr, gx, gy, TFT_BLACK);  // black = transparent
+  });
 }
 
 void draw_eyes(int open_pct, int gx, int gy) {
@@ -264,8 +264,8 @@ void draw_eyes(int open_pct, int gx, int gy) {
 // shipped a buffer overrun that rebooted the device on long replies; letting
 // the library measure and draw removes the whole class of bug.
 void draw_text(const char* text) {
-  // Wrapping is measured once, outside the band loop — it only needs the font
-  // metrics, not the pixels.
+  // Wrapping is measured before any drawing — it only needs the font metrics,
+  // not the pixels.
   spr.setFont(&FontLatin);
   const Emotion& em = emotions()[s_emotion];
   spr.setTextColor(spr.color565(em.r, em.g, em.b));
@@ -355,12 +355,11 @@ inline uint16_t scale_rgb(uint16_t c, float k) {
 
 // CRT / VHS damage, applied to the finished frame. amt 1 is barely a signal,
 // 0 is clean. Effects in the order a real bad signal applies them.
-// Every effect below is ROW-LOCAL — none of them reads a row other than the
-// one being written — which is the property that lets the glitch survive being
-// rendered in bands. The one thing that would NOT survive is esp_random():
-// each band would draw different damage and the seams would show. So the
-// caller passes a per-frame seed and this replays the identical sequence in
-// every band, clipping to whichever rows are in front of it.
+// Every effect below is ROW-LOCAL: none of them reads a row other than the one
+// being written. The seed comes from the caller rather than esp_random() here
+// so that one frame's damage is one reproducible sequence — it is what made
+// the effect survive being drawn in horizontal bands, back when the classic
+// ESP32 had to, and it is still what makes a frame replayable when debugging.
 // xorshift32, not an LCG: the snow reads bits 20-24 for brightness and 0-8 for
 // position, and an LCG's low bits are too regular for that (and a shifted-down
 // LCG loses the high bits entirely, which silently turned every fleck grey).

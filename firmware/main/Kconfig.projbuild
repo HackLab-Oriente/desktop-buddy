@@ -38,11 +38,10 @@ config BUDDY_GC9A01_BL
 endmenu
 
 config BUDDY_PIN_TOUCH
-    int "Petting pad GPIO (must be touch-capable on your chip)"
+    int "Petting pad GPIO (must be touch-capable)"
     default 4
     help
-      GPIO 4 is touch-capable on both the ESP32-S3 (T1-T14 span GPIO 1-14)
-      and the classic ESP32 (T0 = GPIO 4).
+      GPIO 4 is touch-capable on the ESP32-S3, where T1-T14 span GPIO 1-14.
 
 menu "WS2812 mood ring"
 config BUDDY_WS2812_PIN
@@ -57,7 +56,8 @@ config BUDDY_RC522_ENABLED
     bool "Enable RC522 RFID reader"
     default n
     help
-      Untested on the S3. The pins below are S3-safe defaults on SPI3, chosen
+      Verified on the S3 (MFRC522 0x92, first attempt). The pins below are
+      S3-safe defaults on SPI3, chosen
       to avoid the display bus, USB (19/20), flash (26-32), octal PSRAM
       (33-37) and the strapping pins (0/3/45/46). Feed it 3V3, never 5V.
 

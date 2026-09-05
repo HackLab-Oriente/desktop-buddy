@@ -35,9 +35,8 @@ idf.py menuconfig              # Buddy Zero → WiFi + clave de Anthropic (opcio
 idf.py build flash monitor
 ```
 
-El ESP32-S3 + GC9A01 es el target de referencia. El **ESP32 clásico también
-está soportado** — misma cara a color, renderizada por bandas al no tener
-PSRAM, con otros pines por defecto: ver
+El ESP32-S3 + GC9A01 es el único target. El ESP32 clásico estuvo soportado y
+se retiró; su cableado se conserva como registro en
 [buddy-zero-wiring.md](buddy-zero-wiring.md).
 
 ## Checklist de primer arranque (idf.py monitor)
