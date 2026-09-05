@@ -22,3 +22,7 @@ firmware/.cache
 firmware/.vscode/settings.json
 .vscode/settings.local.json
 firmware/.vscode/settings.local.json
+
+# Binarios de las pruebas de host
+firmware/host_test/test_markov
+firmware/host_test/*.o
