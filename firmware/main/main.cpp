@@ -26,8 +26,8 @@ void mount_flash() {
   ESP_ERROR_CHECK(esp_vfs_littlefs_register(&conf));
 }
 
-// Fallback reflexes in C — used only when the Berry submodule isn't built.
-// Deliberately mirrors packs/zero/reflexes/main.be so the demo is identical.
+// Fallback reflexes in C, used only when the Berry submodule isn't built.
+// A subset of packs/zero/reflexes/main.be: no nfc.text, no poke counting.
 void c_reflexes() {
   using buddy::bus;
   using buddy::Event;
@@ -103,9 +103,9 @@ extern "C" void app_main() {
 
   // Senses.
   buddy::bus().publish("boot.status", "waking senses");
-  buddy::touch_sense_start(CONFIG_BUDDY_PIN_TOUCH);
+  buddy::touch_start(CONFIG_BUDDY_PIN_TOUCH);
 #if CONFIG_BUDDY_RC522_ENABLED
-  buddy::rc522_start({.sck = CONFIG_BUDDY_RC522_SCK,
+  buddy::nfc_start({.sck = CONFIG_BUDDY_RC522_SCK,
                       .miso = CONFIG_BUDDY_RC522_MISO,
                       .mosi = CONFIG_BUDDY_RC522_MOSI,
                       .cs = CONFIG_BUDDY_RC522_CS,

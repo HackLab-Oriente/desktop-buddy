@@ -82,8 +82,6 @@ son colocación, montaje y ajuste — anotados por sensor.
 
 - [ ] Combo AHT20 + BMP280 temp/humedad/presión, I2C, pack de 5 — [B0G1RDY1Y8](https://www.amazon.com/dp/B0G1RDY1Y8) (~$8)
   — colocación: en la rejilla de entrada, bajo en la carcasa (el autocalentamiento del recinto lee 3–5 °C de más). La tendencia de presión = charla del tiempo.
-- [ ] BH1750 (GY-302) luz ambiente, I2C, pack de 3 (HiLetgo) — [B00M0F29OS](https://www.amazon.com/dp/B00M0F29OS) (~$6)
-  — colocación: ventanita de alfiler o asomando por las rejillas. Eventos: `sense.light.dark` → reflejo de dormir.
 - [ ] MPU6050 (GY-521) acelerómetro + giroscopio, I2C, pack de 5 (AITRIP) — [B07RXQGGJX](https://www.amazon.com/dp/B07RXQGGJX) (~$10)
   — montaje: rígido, atornillado o bien pegado a la carcasa (no flotando de los cables). La capa de gestos (`motion.pickup`, `motion.shake`, `motion.tilt`) la escribe la IA pero necesita play-testing humano para ajustar umbrales — presupuesta una hora divertida.
 - [ ] Radar de presencia mmWave LD2410C, UART/GPIO, pack de 3 — [B0FKBF3CT4](https://www.amazon.com/dp/B0FKBF3CT4) ($19)

@@ -480,7 +480,7 @@ end)</div>
 <p class="lede2">Pulsa un gesto y sigue el recorrido. Es exactamente la lógica del <code>main.be</code> de arriba — incluido que se enfada al tercer toque, porque los reflejos tienen memoria.</p>
 
 <div class="triggers" id="triggers"></div>
-<p class="note" style="margin:-4px 0 12px">* <code>timer.idle_5m</code> todavía no existe en el firmware — los otros tres sí. Está en el plan, y es un ejemplo de evento nuevo que alguien tendrá que definir.</p>
+<p class="note" style="margin:-4px 0 12px">* <code>timer.idle</code> todavía no existe en el firmware — los otros tres sí. Está en el plan, y es un ejemplo de evento nuevo que alguien tendrá que definir.</p>
 <div class="demo">
   <div>
     <div class="demoface" id="demoface"></div>
@@ -683,7 +683,6 @@ end)</div>
     <ul>
       <li><span class="tick">&#9675;</span><span><b>USB-C de panel</b> <span class="m">&mdash; entrada de 5 V de la carcasa</span></span></li>
       <li><span class="tick">&#9675;</span><span><b>AHT20 + BMP280</b> <span class="m">&mdash; temp/humedad/presi&oacute;n, I2C</span></span></li>
-      <li><span class="tick">&#9675;</span><span><b>BH1750</b> <span class="m">&mdash; luz ambiente, I2C</span></span></li>
       <li><span class="tick">&#9675;</span><span><b>MPU6050</b> <span class="m">&mdash; aceler&oacute;metro, I2C</span></span></li>
       <li><span class="tick">&#9675;</span><span><b>LD2410C</b> <span class="m">&mdash; radar de presencia, atraviesa el PLA</span></span></li>
       <li><span class="tick">&#9675;</span><span><b>PN532</b> <span class="m">&mdash; NFC por I2C (sustituye al RC522)</span></span></li>
@@ -842,7 +841,7 @@ const TRIGGERS = [
   {label:"Acariciar",       ev:"touch.pet"},
   {label:"Dar un toque",    ev:"touch.poke"},
   {label:"Enseñar tarjeta", ev:"nfc.tag", payload:"game:catan"},
-  {label:"Dejarlo solo *",  ev:"timer.idle_5m"},
+  {label:"Dejarlo solo *",  ev:"timer.idle"},
 ];
 let pokes = 0, seq = 0;
 

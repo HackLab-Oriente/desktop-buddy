@@ -54,8 +54,8 @@ publicación y suscripción: [event-registry.html](event-registry.html).
 | `touch.down` | `"pad0"` | [touch_sense.cpp](../firmware/components/senses/touch_sense.cpp) | el dedo hace contacto |
 | `touch.poke` | `"pad0"` | touch_sense | soltado en **< 400 ms** |
 | `touch.pet` | `"pad0"` | touch_sense | soltado en **≥ 400 ms** |
-| `nfc.tag` | UID hex, 8 o 14 dígitos | rc522 | tarjeta presentada |
-| `nfc.text` | texto NDEF decodificado (máx. 128) | rc522 | **solo si** la tarjeta lleva contenido legible |
+| `nfc.tag` | UID hex, 8 o 14 dígitos | rc522 | tarjeta presentada. **Distingue tarjetas, no autentica a nadie**: un UID se clona con cualquier móvil |
+| `nfc.text` | texto NDEF decodificado (máx. 128) | rc522 | **solo si** la tarjeta lleva contenido legible y en UTF-8; una etiqueta en UTF-16 cuenta como sin contenido |
 | `nfc.gone` | — | rc522 | la tarjeta salió del campo |
 | `time.synced` | — | wifi/SNTP | reloj puesto en hora tras conectar |
 
@@ -63,8 +63,8 @@ Tres garantías de los eventos `nfc.*` que conviene tener por escrito, porque no
 se pueden adivinar leyendo el código:
 
 1. **`nfc.tag` siempre llega antes que `nfc.text`** en la misma presentación.
-   Un reflejo que necesite identidad *y* contenido guarda el UID al recibir
-   `nfc.tag` y lo usa cuando llega el texto.
+   Un reflejo que necesite el UID *y* el contenido guarda el primero al
+   recibir `nfc.tag` y lo usa cuando llega el texto.
 2. **Una tarjeta en blanco solo emite `nfc.tag`.** La ausencia de `nfc.text` es
    la señal; no hay caso especial de cadena vacía.
 3. **Mantener la tarjeta puesta no repite eventos.** Se emite al llegar y
@@ -132,8 +132,8 @@ Tres reglas para esta sección:
 | `sound.error` | razón | Voz | [pack-format.md](pack-format.md) | no se pudo reproducir |
 | `config.changed` | nombres de sección separados por coma (`"wifi,brain"`) | Web UI | [config-api.md](config-api.md) | cambió la configuración. **Nunca valores**: los packs Berry están suscritos al bus, así que un payload con la config dentro es una clave de API legible desde un pack |
 | `config.setup` | SSID del AP (`"buddy-a3f2"`) | Web UI | [config-api.md](config-api.md) | el buddy entró en modo aprovisionamiento; la cara puede enseñar el QR |
-| `timer.idle_5m` | — | Firmware | [architecture.md](architecture.md) | cinco minutos sin interacción |
-| `sense.light.dark` | — | Electrónica | [architecture.md](architecture.md), [hardware.md](hardware.md) | el sensor de luz dice que la sala está a oscuras → reflejo de dormir |
+| `timer.idle` | — | Firmware | [architecture.md](architecture.md) | pasó el tiempo sin interacción que fije el pack (300 s por defecto). **Sin el `_5m` en el nombre**: la propuesta de sentidos hace el intervalo configurable, y un nombre con el número dentro se vuelve falso el día que alguien lo cambie |
+| `timer.active` | — | Firmware | [architecture.md](architecture.md) | vuelve la interacción tras un `timer.idle`. Va en pareja: un umbral suelto tartamudea en el borde |
 | `storage.sd.gone` | — | Firmware | [pack-format.md](pack-format.md) | se quitó la tarjeta SD y los assets de `media/` dejan de resolver. Un evento, no un crash |
 | `webhook.*` | — | Firmware | [architecture.md](architecture.md) | **solo hub, v2+.** No es un evento del buddy; se lista para que nadie lo confunda con uno |
 
@@ -146,7 +146,7 @@ responsable de ese equipo.
 
 | prefijo | dueño | estado |
 |---|---|---|
-| `touch.*`, `nfc.*`, `sense.*` | Electrónica | `touch.*` y `nfc.*` vivos; `sense.light.dark` propuesto |
+| `touch.*`, `nfc.*`, `sense.*` | Electrónica | `touch.*` y `nfc.*` vivos; ningún `sense.*` propuesto |
 | `voice.*`, `sound.*` | Voz | **ninguno vivo**; 4 propuestos — los fija el equipo de voz |
 | `face.*`, `led.*` | Personalidad + Firmware | vivos |
 | `config.*` | Web UI | **ninguno vivo**; 2 propuestos en [config-api.md](config-api.md) |

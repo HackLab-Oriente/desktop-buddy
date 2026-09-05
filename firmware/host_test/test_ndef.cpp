@@ -131,6 +131,31 @@ int main() {
     check("non-short record, huge length", tlv(m), "abc");
   }
 
+  printf("ndef: encoding\n");
+  {  // UTF-16 (status bit 7). Copied as UTF-8 this published an empty string,
+     // which the event registry says cannot happen.
+    std::vector<uint8_t> m{0xD1, 0x01, 0x07, 'T', 0x82, 'e', 'n',
+                           0x00, 'h', 0x00, 'i'};
+    check("utf-16 text is no content", tlv(m), "");
+    std::vector<uint8_t> b{0xD1, 0x01, 0x09, 'T', 0x82, 'e', 'n',
+                           0xFE, 0xFF, 0x00, 'h', 0x00, 'i'};
+    check("utf-16 with BOM is no content", tlv(b), "");
+  }
+  {  // an embedded NUL made the returned length disagree with the string
+    std::vector<uint8_t> m{0xD1, 0x01, 0x08, 'T', 0x02, 'e', 'n',
+                           'a', 'b', 0x00, 'c'};
+    check("embedded NUL is no content", tlv(m), "");
+  }
+  {  // the read window cuts at a byte count, and the content is Spanish
+    std::string body(54, 'a');
+    body += "\xc3";                                 // lone lead byte of 'ñ'
+    check("split utf-8 is trimmed", tlv(text_record(body)), std::string(54, 'a').c_str());
+    std::string whole(54, 'a');
+    whole += "\xc3\xb1";                            // complete 'ñ'
+    check("complete utf-8 survives", tlv(text_record(whole)), whole.c_str());
+    check("accents pass through", tlv(text_record("ñoño áé")), "ñoño áé");
+  }
+
   printf("ndef: output clamping\n");
   check("out_max clamps text", tlv(text_record("mood:happy")), "mood", 5);
   check("out_max clamps uri prefix", tlv(uri_record(0x04, "example.com")), "http", 5);

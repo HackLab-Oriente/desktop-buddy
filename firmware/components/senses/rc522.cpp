@@ -1,18 +1,7 @@
-// MFRC522 driver: detect an ISO14443A tag, read its UID and, if it carries an
-// NDEF message, the text inside it.
+// MFRC522: detect an ISO14443A tag, read its UID and any NDEF text.
 //
-// The firmware deliberately stops at "here is a string". It does NOT parse
-// `mood:happy` or act on it — the cartridge grammar lives in a Berry reflex,
-// so it is hot-reloadable and owned by whoever writes packs. Teaching C++ the
-// verbs would mean a reflash per verb, which is the opposite of the point.
-//
-// Three events, all plain strings:
-//   nfc.tag   UID hex        every presentation
-//   nfc.text  decoded text   only when the tag carries readable content
-//   nfc.gone  (empty)        the tag left the field
-// nfc.tag always precedes nfc.text for the same presentation, so a reflex that
-// needs both identity and content can stash the UID and use it when the text
-// arrives.
+// The firmware stops at "here is a string" -- cartridge grammar lives in a
+// Berry reflex, so a new verb costs an edit and not a reflash (#24).
 #include "bus.h"
 #include "ndef.h"
 #include "senses.h"
@@ -42,10 +31,11 @@ enum Reg : uint8_t {
 };
 enum Cmd : uint8_t { Idle = 0x00, CalcCRC = 0x03, Transceive = 0x0C, SoftReset = 0x0F };
 
-// A tag presentation is at most this much text on the bus. NTAG215 holds 504
-// bytes, but a cartridge label is a verb and an argument; anything longer is
-// almost certainly not meant for us.
 constexpr int kMaxText = 128;
+// Enough pages that a full kMaxText payload fits with room for the TLV and
+// record headers; the read window used to be 64 bytes, which capped real text
+// at 56 while the registry promised 128.
+constexpr int kReadBytes = 160;
 
 spi_device_handle_t s_dev;
 
@@ -113,7 +103,10 @@ void calc_crc(const uint8_t* data, uint8_t len, uint8_t* out) {
 int select_level(uint8_t cascade_cmd, uint8_t* uid_out) {
   uint8_t ac[2] = {cascade_cmd, 0x20}, resp[5];
   if (transceive(ac, 2, 0, resp, 5) != 5) return -1;
-  if ((resp[0] ^ resp[1] ^ resp[2] ^ resp[3]) != resp[4]) return -1;  // BCC
+  if ((resp[0] ^ resp[1] ^ resp[2] ^ resp[3]) != resp[4]) {
+    ESP_LOGD(TAG, "BCC mismatch — collision or noise");   // two tags look like none
+    return -1;
+  }
   memcpy(uid_out, resp, 4);
 
   uint8_t sel[9] = {cascade_cmd, 0x70, resp[0], resp[1], resp[2], resp[3], resp[4]};
@@ -164,16 +157,25 @@ void halt() {
 // Read user memory (from page 4) and decode it. Bounded on purpose: enough for
 // a label or a URL, nowhere near NTAG215's 504 bytes.
 int read_ndef(char* out, int out_max) {
-  uint8_t buf[64];
+  uint8_t buf[kReadBytes];
   int have = 0;
   for (uint8_t page = 4; have + 16 <= static_cast<int>(sizeof buf); page += 4) {
     if (!read_pages(page, buf + have)) break;
+    // Only the new pages: 0xFE is a terminator in TLV position and an ordinary
+    // data byte anywhere else.
+    const bool done = memchr(buf + have, 0xFE, 16) != nullptr;
     have += 16;
-    // A terminator means the message ended inside what we already hold.
-    if (memchr(buf, 0xFE, have)) break;
+    if (done) break;
   }
   if (have == 0) return 0;
   return ndef::first_record(buf, have, out, out_max);
+}
+
+// The log's other end is a terminal that honours escape sequences.
+void strip_controls(char* s) {
+  for (; *s; s++)
+    if (static_cast<unsigned char>(*s) < 0x20 || static_cast<unsigned char>(*s) == 0x7F)
+      *s = ' ';
 }
 
 void rc522_task(void*) {
@@ -194,14 +196,17 @@ void rc522_task(void*) {
       for (int i = 0; i < uid_len; i++) snprintf(hex + i * 2, 3, "%02x", uid[i]);
 
       if (strcmp(hex, last_uid) != 0) {      // a new arrival, not a hold
+        // A swap inside one poll used to emit tag A then tag B with no gone.
+        if (last_uid[0]) bus().publish("nfc.gone", "");
         strcpy(last_uid, hex);
         bus().publish("nfc.tag", hex);
         ESP_LOGI(TAG, "tag %s", hex);
 
         char text[kMaxText];
         if (read_ndef(text, sizeof text) > 0) {
-          ESP_LOGI(TAG, "text \"%s\"", text);
           bus().publish("nfc.text", text);
+          strip_controls(text);
+          ESP_LOGI(TAG, "text \"%s\"", text);
         }
       }
       misses = 0;
@@ -222,7 +227,18 @@ void rc522_task(void*) {
 
 }  // namespace
 
-void rc522_start(const Rc522Pins& p) {
+// Never ESP_ERROR_CHECK: a loose wire aborted the main task and the buddy came
+// up black until someone found the cable.
+#define TRY(expr, what)                                                   \
+  do {                                                                    \
+    const esp_err_t _e = (expr);                                          \
+    if (_e != ESP_OK) {                                                   \
+      ESP_LOGE(TAG, "%s: %s — no NFC", what, esp_err_to_name(_e));        \
+      return false;                                                       \
+    }                                                                     \
+  } while (0)
+
+bool nfc_start(const Rc522Pins& p) {
   gpio_set_direction(static_cast<gpio_num_t>(p.rst), GPIO_MODE_OUTPUT);
   gpio_set_level(static_cast<gpio_num_t>(p.rst), 1);
 
@@ -232,14 +248,14 @@ void rc522_start(const Rc522Pins& p) {
   bus_cfg.mosi_io_num = p.mosi;
   bus_cfg.quadwp_io_num = -1;
   bus_cfg.quadhd_io_num = -1;
-  ESP_ERROR_CHECK(spi_bus_initialize(SPI3_HOST, &bus_cfg, SPI_DMA_CH_AUTO));
+  TRY(spi_bus_initialize(SPI3_HOST, &bus_cfg, SPI_DMA_CH_AUTO), "SPI3 bus");
 
   spi_device_interface_config_t dev_cfg = {};
   dev_cfg.clock_speed_hz = 4 * 1000 * 1000;
   dev_cfg.mode = 0;
   dev_cfg.spics_io_num = p.cs;
   dev_cfg.queue_size = 4;
-  ESP_ERROR_CHECK(spi_bus_add_device(SPI3_HOST, &dev_cfg, &s_dev));
+  TRY(spi_bus_add_device(SPI3_HOST, &dev_cfg, &s_dev), "RC522 device");
 
   wr(CommandReg, SoftReset);
   vTaskDelay(pdMS_TO_TICKS(50));
@@ -251,8 +267,15 @@ void rc522_start(const Rc522Pins& p) {
   wr(ModeReg, 0x3D);         // CRC preset 0x6363
   wr(TxControlReg, rd(TxControlReg) | 0x03);  // antenna on
 
-  ESP_LOGI(TAG, "MFRC522 version 0x%02x", rd(VersionReg));  // expect 0x91/0x92
+  const uint8_t ver = rd(VersionReg);
+  if (ver != 0x91 && ver != 0x92) {
+    ESP_LOGE(TAG, "no MFRC522 (VersionReg 0x%02x) — check wiring", ver);
+    return false;
+  }
+  ESP_LOGI(TAG, "MFRC522 version 0x%02x", ver);
   xTaskCreatePinnedToCore(rc522_task, "rc522", 4096, nullptr, 4, nullptr, 1);
+  return true;
 }
+#undef TRY
 
 }  // namespace buddy
