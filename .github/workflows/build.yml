@@ -66,7 +66,10 @@ jobs:
           "
 
   host-tests:
-    name: host tests · bus + ndef
+    # Not enumerated on purpose: it said "bus + ndef" while running latin1 too,
+    # and the list only grows. What every step here has in common is the
+    # sanitizers, and that is the part worth naming.
+    name: host tests · sanitizers
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -76,6 +79,7 @@ jobs:
         working-directory: firmware/host_test
         run: |
           c++ -std=c++17 -Wall -Wextra -Wno-unused-parameter \
+            -fsanitize=address,undefined -fno-sanitize-recover=all \
             -I../components/bus/include \
             test_bus.cpp ../components/bus/bus.cpp -o test_bus
           ./test_bus

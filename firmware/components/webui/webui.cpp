@@ -169,6 +169,9 @@ bool wifi_start(const char* ssid, const char* pass) {
     // TLS certificate validation needs real time — the chip boots in 1970.
     esp_sntp_config_t sntp_cfg = ESP_NETIF_SNTP_DEFAULT_CONFIG("pool.ntp.org");
     esp_netif_sntp_init(&sntp_cfg);
+    // Its own status line: this wait is ten seconds long and the splash was
+    // still saying "connecting wifi", which by then is not true.
+    bus().publish("boot.status", "sincronizando hora");
     if (esp_netif_sntp_sync_wait(pdMS_TO_TICKS(10000)) == ESP_OK) {
       time_t now = time(nullptr);
       ESP_LOGI(TAG, "time synced: %s", ctime(&now));

@@ -18,9 +18,28 @@ void Bus::unsubscribe(HandlerId id) {
               subs_.end());
 }
 
+// Dropped rather than queued without limit. With exceptions off, a failed
+// reallocation is abort(), so an unbounded queue turns a runaway publisher
+// into a panic on the bus task instead of a lost event. brain made the same
+// call for its own queue.
+//
+// It is also the only defence against a self-sustaining chain: pump() sleeps
+// only when the queue drains, so one-event-in-one-event-out keeps the bus task
+// spinning forever, and the task watchdog is set to warn rather than reset.
 void Bus::publish(Event ev) {
   std::lock_guard<std::mutex> lock(mu_);
+  if (queue_.size() >= kMaxQueued) {
+    dropped_++;
+    return;
+  }
   queue_.push_back(std::move(ev));
+}
+
+size_t Bus::dropped() {
+  std::lock_guard<std::mutex> lock(mu_);
+  const size_t n = dropped_;
+  dropped_ = 0;
+  return n;
 }
 
 bool Bus::matches(const std::string& pattern, const std::string& name) {
@@ -39,6 +58,8 @@ size_t Bus::pump() {
   {
     std::lock_guard<std::mutex> lock(mu_);
     if (queue_.empty()) return 0;   // idle: don't copy the subscriber list
+    // swap, never iterate queue_ in place: a handler that publishes would
+    // invalidate the iterator, and publishing from a handler is normal.
     batch.swap(queue_);
     subs_snapshot = subs_;  // handlers may (un)subscribe while we dispatch
   }

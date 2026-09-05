@@ -3,6 +3,6 @@
 # esp32 halves of the team), which means these ranges are the only thing
 # standing between a clean clone and a surprise major version.
 dependencies:
-  idf: ">=5.1"
+  idf: ">=6.0"        # v5 is not supported — see CONTRIBUTING.md
   joltwallet/littlefs: "^1.22.3"   # 1.x only
   espressif/cjson: "~1.7.19"       # 1.7.x only

@@ -56,6 +56,69 @@ int main() {
   b.pump();
   assert(seen == std::vector<std::string>{"chained"});
 
+  // The wildcard is RECURSIVE, and it needs the dot. Both surprised a reviewer
+  // reading only the header, and the second one fails silently.
+  assert(Bus::matches("touch.*", "touch.pet.hard"));
+  assert(Bus::matches("touch.*", "touch."));
+  assert(!Bus::matches("touch*", "touch.pet"));
+  assert(!Bus::matches("touch*", "touchy"));
+  assert(!Bus::matches("*.*", "a.b"));
+  assert(Bus::matches("", ""));
+  assert(!Bus::matches("touch.pet", "touch"));
+
+  // Unsubscribing mid-batch does NOT stop delivery for the rest of that batch:
+  // pump() dispatches from a snapshot. Documented in bus.h because anything
+  // that unsubscribes and then frees what it captured is a use-after-free.
+  {
+    Bus c;
+    std::vector<std::string> got;
+    buddy::HandlerId second = 0;
+    c.subscribe("x", [&](const Event&) { c.unsubscribe(second); });
+    second = c.subscribe("x", [&](const Event&) { got.push_back("still here"); });
+    c.publish("x");
+    c.pump();
+    assert(got.size() == 1);      // the snapshot still held it
+    c.publish("x");
+    c.pump();
+    assert(got.size() == 1);      // and it is gone by the next pump
+  }
+
+  // Subscribing mid-batch does not see the batch it was added during.
+  {
+    Bus c;
+    std::vector<std::string> got;
+    c.subscribe("y", [&](const Event&) {
+      c.subscribe("y", [&](const Event&) { got.push_back("late"); });
+    });
+    c.publish("y");
+    c.publish("y");
+    c.pump();
+    assert(got.empty());
+  }
+
+  // The queue is capped: over kMaxQueued events are dropped and counted, not
+  // queued until the allocator fails -- which with exceptions off is abort().
+  {
+    Bus c;
+    int delivered = 0;
+    c.subscribe("z", [&](const Event&) { delivered++; });
+    for (size_t i = 0; i < Bus::kMaxQueued + 25; i++) c.publish("z");
+    assert(c.dropped() == 25);
+    assert(c.dropped() == 0);     // reading resets
+    c.pump();
+    assert(delivered == static_cast<int>(Bus::kMaxQueued));
+  }
+
+  // A payload with an embedded NUL keeps its length through the bus.
+  {
+    Bus c;
+    size_t len = 0;
+    c.subscribe("n", [&](const Event& ev) { len = ev.payload.size(); });
+    c.publish("n", std::string("ab\0cd", 5));
+    c.pump();
+    assert(len == 5);
+  }
+
   printf("bus: all tests passed\n");
   return 0;
 }
