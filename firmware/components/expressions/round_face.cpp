@@ -605,8 +605,14 @@ void face_start() {
   // task, not to whoever remembers the ordering.
   freeze_emotions();
 
-  lcd.setBrightness(0);  // dark until there is something to show
+  lcd.claim_bus();  // before init(); see the comment on the method
   lcd.init();
+  // Dark until there is something to show. This has to come AFTER init():
+  // LGFX_Device starts at _brightness = 127 and init_impl() replays that
+  // value at the very end, so a setBrightness(0) beforehand is both undone
+  // and, since the PWM light is not up yet, good for two LEDC errors in the
+  // log. Afterwards it costs nothing and actually holds.
+  lcd.setBrightness(0);
 
   spr.setColorDepth(16);
   spr.setPsram(false);  // internal RAM is ~2x faster to draw into, and it fits
