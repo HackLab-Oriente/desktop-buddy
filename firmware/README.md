@@ -7,16 +7,10 @@ Expressions, el adaptador de cerebro cloud y la web de recarga en caliente.
 
 | | `esp32s3` (referencia) | `esp32` (clásico, DevKit V1) |
 |---|---|---|
-| Bus, Berry, web UI, cerebro cloud, tacto, NFC | ✓ | ✓ |
-| Cara GC9A01 a color | ✓ 1 banda + caché PSRAM, **33 fps medidos** | ✓ 5 bandas de 23 KB, **14,4 fps medidos** |
-| Modelo local / voz | ✓ / planificado | ✗ (sin PSRAM) |
-| Verificado | en hardware, completo | en hardware, completo |
-
-El truco que hace posible el clásico: los 460 KB de PSRAM que la cara parece
-necesitar son la **caché** de niveles de ojo, no el renderizado. Dibujar
-necesita un frame, y un frame se puede construir por bandas horizontales
-(240×48 = 23 KB). En el S3 `kBandH == H` — una sola banda, exactamente el
-código de siempre. Todo esto vive en `components/expressions/round_face.cpp`.
+| Bus, Berry, web UI, cerebro cloud, tacto, NFC | ✓ |
+| Cara GC9A01 a color | ✓ frame completo + caché PSRAM, **33 fps medidos** |
+| Modelo local / voz | ✓ / planificado |
+| Verificado | en hardware, completo |
 
 ## La capa gráfica
 
@@ -76,31 +70,27 @@ idf.py build flash monitor
 ```
 
 `set-target` regenera `sdkconfig` desde `sdkconfig.defaults` +
-`sdkconfig.defaults.<target>`, y elige la tabla de particiones (16 MB con
-partición de modelo en el S3; 4 MB sin ella en el clásico).
+`sdkconfig.defaults.esp32s3`, con la tabla de particiones de 16 MB e imagen
+de modelo local.
 
 ## Cableado
 
-Los pines por defecto **difieren por chip** — los rangos libres no coinciden
-(en el clásico, los pines de display del S3 son la flash). Siempre en
-`menuconfig`, nunca hardcodeados.
+Los pines viven en `menuconfig`, nunca hardcodeados.
 
-| Periférico | ESP32-S3 | ESP32 clásico |
-|---|---|---|
-| GC9A01 (SPI, **3V3**) | SCL 12 · SDA 11 · CS 10 · DC 9 · RST 8 · BL 7 | SCL 18 · SDA 23 · CS 5 · DC 27 · RST 26 · BL 25 |
-| Almohadilla táctil | GPIO 4 | GPIO 4 |
-| Anillo WS2812 (**5V**) | DIN 21 | DIN 21 |
-| RC522 (opcional, **3V3**) | SCK 39 · MISO 40 · MOSI 41 · SDA/CS 42 · RST 38 | SCK 14 · MISO 34 · MOSI 13 · SDA/CS 15 · RST 32 |
+| Periférico | ESP32-S3 |
+|---|---|
+| GC9A01 (SPI, **3V3**) | SCL 12 · SDA 11 · CS 10 · DC 9 · RST 8 · BL 7 |
+| Almohadilla táctil | GPIO 4 |
+| Anillo WS2812 (**5V**) | DIN 21 |
+| RC522 (opcional, **3V3**) | SCK 39 · MISO 40 · MOSI 41 · SDA/CS 42 · RST 38 |
 
 En el RC522 no hay ningún pin marcado «CS»: el módulo serigrafía **`SDA`**, que
 en SPI es el chip select. El `IRQ` va sin conectar — el driver hace polling.
 
-Guías paso a paso con checklist de primer arranque:
-[../hardware/buddy-s3-display.md](../hardware/buddy-s3-display.md) (S3) y
-[../hardware/buddy-zero-wiring.md](../hardware/buddy-zero-wiring.md) (clásico).
+Guía paso a paso con checklist de primer arranque:
+[../hardware/buddy-s3-display.md](../hardware/buddy-s3-display.md).
 
-Minas por chip — **S3**: 33–37 PSRAM octal, 19/20 USB, 26–32 flash, 0/3/45/46
-strapping. **Clásico**: 6–11 flash, 12 y 15 strapping, 34–39 solo entrada.
+Minas del S3: 33–37 PSRAM octal, 19/20 USB, 26–32 flash, 0/3/45/46 strapping.
 
 ## La escalera de PoCs
 
@@ -155,11 +145,8 @@ c++ -std=c++17 -Wall -fsanitize=address,undefined -fno-sanitize-recover=all \
 
 ## Estado
 
-- **Verificado**: ambos targets compilan en ESP-IDF v6.1; el bus pasa sus
-  tests de host; el S3 completo funciona en hardware (cara, anillo, tacto,
-  WiFi, cerebro Claude). Render medido: **30,3 ms/frame (33,0 fps)**.
-- **Verificado en el clásico**: con pantalla cableada — arranque, animación de
-  boot, ojos, 5 bandas sin costuras visibles, LittleFS, polaridad táctil V1.
-  Render medido: **69 ms/frame (14,4 fps)**.
+- **Verificado**: compila en ESP-IDF v6.1; el bus pasa sus tests de host; el
+  S3 completo funciona en hardware (cara, anillo, tacto, WiFi, cerebro
+  Claude). Render medido: **30,3 ms/frame (33,0 fps)**.
 - **Sin cablear todavía**: audio (INMP441/MAX98357A), tarjeta SD, sensores
-  I2C; RC522 sin probar en el clásico (verificado en el S3).
+  I2C.

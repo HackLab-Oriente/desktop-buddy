@@ -1,9 +1,16 @@
-# Cableado — ESP32 clásico (DevKit V1, 30 pines)
+# Cableado — ESP32 clásico (DevKit V1, 30 pines) · HISTÓRICO
+
+> **El firmware ya no compila para este target.** Se retiró el soporte del
+> ESP32 clásico: sin PSRAM no hay caché de ojos ni modelo local, y mantener
+> el segundo camino de render —el dibujado por bandas— costaba más de lo que
+> daba. Esta guía se conserva porque documenta trabajo hecho y verificado en
+> placa, no porque siga vigente. Los pines que cita ya no están en
+> `Kconfig.projbuild`. Para la placa de referencia:
+> [buddy-s3-display.md](buddy-s3-display.md).
 
 La misma cara a color que el S3, en la placa que muchos ya tienen en el cajón.
-Coincide con los defaults de `firmware/main/Kconfig.projbuild` para el target
-`esp32`. **Sigue las etiquetas de la serigrafía, no la posición del pin** —
-los clones del DevKit V1 barajan el orden entre fabricantes.
+**Sigue las etiquetas de la serigrafía, no la posición del pin** — los clones
+del DevKit V1 barajan el orden entre fabricantes.
 
 > **Estado**: verificado en placa real con pantalla cableada — arranque,
 > animación de boot, ojos, 5 bandas de 23 KB sin costuras visibles, LittleFS y

@@ -20,11 +20,9 @@ jobs:
     name: firmware · ${{ matrix.target }}
     runs-on: ubuntu-latest
     strategy:
-      # Both targets always report. Knowing "S3 fine, classic broken" on the
-      # first run beats finding out after fixing the S3.
       fail-fast: false
       matrix:
-        target: [esp32s3, esp32]
+        target: [esp32s3]
     steps:
       - uses: actions/checkout@v7
         with:

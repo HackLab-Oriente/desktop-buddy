@@ -49,15 +49,16 @@ en [docs/pack-format.md](docs/pack-format.md).
 ## Arranque en 5 minutos
 
 Necesitas [ESP-IDF v6.x](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/)
-(la v5 **no** sirve para este proyecto) y una placa: **ESP32-S3** (la de referencia) o un
-**ESP32 clásico** DevKit V1 (funciona casi todo — ver la tabla abajo).
+(la v5 **no** sirve para este proyecto) y una placa **ESP32-S3** — la N16R8 es
+la de referencia. La PSRAM no es opcional: la caché de la cara y el modelo
+local viven ahí.
 
 ```bash
 # --recursive importa: sin los submódulos (Berry y LovyanGFX) no compila
 git clone --recursive git@github.com:HackLab-Oriente/desktop-buddy.git
 cd desktop-buddy/firmware
 
-idf.py set-target esp32s3   # o: esp32
+idf.py set-target esp32s3
 idf.py menuconfig           # menú "Buddy Zero": WiFi, API key (opcional)
 idf.py build flash monitor
 ```
@@ -138,14 +139,12 @@ source ~/.espressif/tools/activate_idf_v6.1.sh
 cd firmware && idf.py build flash monitor
 ```
 
-### ¿Qué placa tengo y qué me da?
+### ¿Qué placa necesito?
 
-| | ESP32-S3 N16R8 | ESP32 clásico (DevKit V1) |
-|---|---|---|
-| Bus de eventos, reflejos Berry, web UI, cerebro cloud, tacto, NFC | ✓ | ✓ |
-| Cara redonda a color | ✓ **33 fps medidos** (caché en PSRAM) | ✓ por bandas, **14,4 fps medidos** |
-| Modelo de IA local | ✓ medido | ✗ necesita PSRAM |
-| Voz (v1) | ✓ planificado | ✗ sin RAM para audio+TLS |
+Un **ESP32-S3 con PSRAM**; la referencia es la N16R8 (16 MB de flash, 8 MB de
+PSRAM). El ESP32 clásico estuvo soportado y funcionaba —la cara se dibujaba
+por bandas a 14,4 fps— pero se retiró: sin PSRAM no hay caché de ojos ni
+modelo local, y mantener dos caminos de render costaba más de lo que daba.
 
 ## ¿Dónde me meto?
 
