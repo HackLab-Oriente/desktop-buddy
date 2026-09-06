@@ -154,6 +154,7 @@ Tres reglas para esta sección:
 | `timer.idle` | — | Firmware | [architecture.md](architecture.md) | pasó el tiempo sin interacción que fije el pack (300 s por defecto). **Sin el `_5m` en el nombre**: la propuesta de sentidos hace el intervalo configurable, y un nombre con el número dentro se vuelve falso el día que alguien lo cambie |
 | `timer.active` | — | Firmware | [architecture.md](architecture.md) | vuelve la interacción tras un `timer.idle`. Va en pareja: un umbral suelto tartamudea en el borde |
 | `storage.sd.gone` | — | Firmware | [pack-format.md](pack-format.md) | se quitó la tarjeta SD y los assets de `media/` dejan de resolver. Un evento, no un crash |
+| `pack.changed` | id del pack nuevo | Firmware | [pack-format.md](pack-format.md) | el pack terminó de cargarse y sus tablas ya están en pie. **Es un hecho, no una orden**: pedir el cambio es `buddy.pack_load()`, un método, justamente para que ningún reflejo pueda escuchar la orden y republicarla en bucle |
 | `webhook.*` | — | Firmware | [architecture.md](architecture.md) | **solo hub, v2+.** No es un evento del buddy; se lista para que nadie lo confunda con uno |
 
 ## Espacios de nombres
@@ -167,6 +168,7 @@ responsable de ese equipo.
 |---|---|---|
 | `touch.*`, `nfc.*`, `sense.*` | Electrónica | `touch.*` y `nfc.*` vivos; ningún `sense.*` propuesto |
 | `voice.*`, `sound.*` | Voz | **ninguno vivo**; 4 propuestos — los fija el equipo de voz |
+| `pack.*` | Firmware | **ninguno vivo**; 1 propuesto (`pack.changed`) |
 | `face.*`, `led.*` | Personalidad + Firmware | vivos |
 | `speech.*` | Firmware | `speech.say` vivo |
 | `config.*` | Web UI | **ninguno vivo**; 2 propuestos en [config-api.md](config-api.md) |
