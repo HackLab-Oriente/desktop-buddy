@@ -58,31 +58,31 @@ constexpr char kPage[] =
     "<script>fetch('/reflex').then(r=>r.text()).then(t=>s.value=t)</script>";
 
 constexpr char kSetupPage[] =
-    "<!doctype html><title>Buddy Setup</title>"
+    "<!doctype html><meta charset='utf-8'><title>Configuraci&oacute;n de Buddy</title>"
     "<meta name='viewport' content='width=device-width, initial-scale=1.0'>"
     "<body style='font-family:sans-serif;max-width:400px;margin:2em auto;padding:1em;background:#f5f5f5'>"
     "<div style='background:#fff;padding:2em;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.1)'>"
-    "<h2 style='margin-top:0;color:#333'>WiFi Setup</h2>"
-    "<p style='color:#666;font-size:0.9em'>Enter your network details to connect the buddy.</p>"
+    "<h2 style='margin-top:0;color:#333'>Configuraci&oacute;n Wi-Fi</h2>"
+    "<p style='color:#666;font-size:0.9em'>Ingresa los datos de tu red para conectar a Buddy.</p>"
     "<form method='POST' action='/setup'>"
     "<div style='margin-bottom:1em'>"
-    "<label style='display:block;margin-bottom:0.5em;font-weight:bold'>Network Name (SSID)</label>"
+    "<label style='display:block;margin-bottom:0.5em;font-weight:bold'>Nombre de red (SSID)</label>"
     "<input name='ssid' type='text' required style='width:100%;box-sizing:border-box;padding:0.5em;border:1px solid #ccc;border-radius:4px'>"
     "</div>"
     "<div style='margin-bottom:1.5em'>"
-    "<label style='display:block;margin-bottom:0.5em;font-weight:bold'>Password</label>"
+    "<label style='display:block;margin-bottom:0.5em;font-weight:bold'>Contrase&ntilde;a</label>"
     "<input name='pass' type='password' style='width:100%;box-sizing:border-box;padding:0.5em;border:1px solid #ccc;border-radius:4px'>"
     "</div>"
     "<div style='margin-bottom:1.5em'>"
-    "<label style='display:block;margin-bottom:0.5em;font-weight:bold'>Security</label>"
+    "<label style='display:block;margin-bottom:0.5em;font-weight:bold'>Seguridad</label>"
     "<select name='auth' style='width:100%;box-sizing:border-box;padding:0.5em;border:1px solid #ccc;border-radius:4px'>"
-    "<option value='0'>Auto (WPA/WPA2/Open)</option>"
+    "<option value='0'>Autom&aacute;tica (WPA/WPA2/Abierta)</option>"
     "<option value='3'>WPA2 PSK</option>"
     "<option value='4'>WPA/WPA2 PSK</option>"
-    "<option value='5'>WPA2/WPA3 PSK (Required for modern routers)</option>"
+    "<option value='5'>WPA2/WPA3 PSK (Requerido para routers modernos)</option>"
     "</select>"
     "</div>"
-    "<button type='submit' style='width:100%;padding:0.75em;background:#0066cc;color:#fff;border:none;border-radius:4px;font-size:1em;cursor:pointer;font-weight:bold'>Connect</button>"
+    "<button type='submit' style='width:100%;padding:0.75em;background:#0066cc;color:#fff;border:none;border-radius:4px;font-size:1em;cursor:pointer;font-weight:bold'>Conectar</button>"
     "</form>"
     "</div>"
     "</body>";
@@ -136,7 +136,7 @@ esp_err_t post_setup(httpd_req_t* req) {
     cfg.sta.threshold.authmode = WIFI_AUTH_OPEN;
   }
   
-  const char* resp = "<!doctype html><title>Saved</title><body style='font-family:sans-serif;text-align:center;margin-top:2em'><h2>Credentials saved.</h2><p>The buddy will now restart and connect to the network.</p></body>";
+  const char* resp = "<!doctype html><meta charset='utf-8'><title>Guardado</title><body style='font-family:sans-serif;text-align:center;margin-top:2em'><h2>Credenciales guardadas.</h2><p>Buddy se reiniciar&aacute; y se conectar&aacute; a la red.</p></body>";
   httpd_resp_send(req, resp, HTTPD_RESP_USE_STRLEN);
   
   vTaskDelay(pdMS_TO_TICKS(1000));

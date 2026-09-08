@@ -565,7 +565,7 @@ void face_task(void*) {
           spr.setFont(&FontLatin);
           spr.setTextDatum(top_center);
           spr.setTextColor(TFT_BLACK);
-          spr.drawString("Scan to setup", CX, 20 - band_y0);
+          spr.drawString("Escanea el QR", CX, 20 - band_y0);
         });
       }
       vTaskDelay(pdMS_TO_TICKS(100));
