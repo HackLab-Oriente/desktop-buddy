@@ -46,7 +46,7 @@ sería un mes en vez de un fin de semana.
 ## Prerrequisitos
 
 - Placa ESP32-S3 N16R8 con la pantalla redonda ya funcionando (`hardware/buddy-s3-display.md`)
-- ESP-IDF v6.0.2 (`source ~/.espressif/tools/activate_idf_v6.0.2.sh`)
+- ESP-IDF v6.1 (`source ~/.espressif/tools/activate_idf_v6.1.sh`)
 - La partición `model`, ya añadida a `firmware/partitions.csv` (4 MB, cruda, offset 0x710000)
 
 ## Paso 1 — Conseguir el modelo y verificar su forma

@@ -61,7 +61,7 @@ se queda ~4 s en "connecting wifi": ese es el cuello de botella honesto.
 
 ```bash
 # 1. ESP-IDF v6.x (la v5 NO está soportada). El instalador EIM deja el script
-#    de activación en ~/.espressif/tools/activate_idf_v6.0.2.sh — haz source.
+#    de activación en ~/.espressif/tools/activate_idf_v6.1.sh — haz source.
 # 2. Submódulos: Berry (VM de reflejos) y LovyanGFX (capa gráfica).
 git submodule update --init
 cd firmware/components/berry_host/berry
@@ -155,7 +155,7 @@ c++ -std=c++17 -Wall -fsanitize=address,undefined -fno-sanitize-recover=all \
 
 ## Estado
 
-- **Verificado**: ambos targets compilan en ESP-IDF v6.0.2; el bus pasa sus
+- **Verificado**: ambos targets compilan en ESP-IDF v6.1; el bus pasa sus
   tests de host; el S3 completo funciona en hardware (cara, anillo, tacto,
   WiFi, cerebro Claude). Render medido: **30,3 ms/frame (33,0 fps)**.
 - **Verificado en el clásico**: con pantalla cableada — arranque, animación de
