@@ -1,6 +1,6 @@
-# Enforces the rule CONTRIBUTING states: main builds BOTH targets.
-# Until now that was an honour system; a PR that broke the classic ESP32 while
-# the author only ever built the S3 would have gone unnoticed.
+# Enforces the rule CONTRIBUTING states: main always builds. The matrix keeps
+# one entry on purpose — restoring a second target is a one-word edit rather
+# than a job restructure.
 name: build
 
 on:
@@ -20,11 +20,9 @@ jobs:
     name: firmware · ${{ matrix.target }}
     runs-on: ubuntu-latest
     strategy:
-      # Both targets always report. Knowing "S3 fine, classic broken" on the
-      # first run beats finding out after fixing the S3.
       fail-fast: false
       matrix:
-        target: [esp32s3, esp32]
+        target: [esp32s3]
     steps:
       - uses: actions/checkout@v7
         with:
@@ -51,8 +49,8 @@ jobs:
           path: firmware
 
       - name: Report size
-        # Turns each run into a size trend you can read from the log, which is
-        # how "the app no longer fits the 4 MB partition" gets noticed early
+        # Turns each run into a size trend you can read from the log, which
+        # is how "the app no longer fits its partition" gets noticed early
         # rather than at flash time.
         working-directory: firmware
         run: |
@@ -60,7 +58,7 @@ jobs:
           python3 -c "
           import os
           n = os.path.getsize('build/buddy.bin')
-          part = 0x300000 if '${{ matrix.target }}' == 'esp32s3' else 0x1E0000
+          part = 0x300000
           print(f'${{ matrix.target }}: {n:,} B of {part:,} B  ({100*n/part:.1f}% used)')
           assert n < part, 'binary does not fit its app partition'
           "
