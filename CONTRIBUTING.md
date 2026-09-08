@@ -102,6 +102,8 @@ cd firmware && idf.py set-target esp32 && idf.py build
 ```
 
 - Los tests de host del bus corren sin placa: `firmware/host_test/`.
+- El monitor viene callado a propósito (`CONFIG_BUDDY_DEBUG=n`). Para
+  desarrollar, añade `sdkconfig.defaults.dev` — receta en `firmware/README.md`.
 - Pines: se cambian en `menuconfig` (Kconfig), nunca hardcodeados. Ojo con
   las minas por chip — en el S3: 33–37 (PSRAM), 19/20 (USB), 26–32 (flash),
   0/3/45/46 (strapping); en el clásico: 6–11 (flash), 12/15 (strapping),
