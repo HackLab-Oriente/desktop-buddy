@@ -92,9 +92,34 @@ Mientras desarrollas, pide `sdkconfig.defaults.dev`:
 idf.py -DSDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.defaults.esp32s3;sdkconfig.defaults.dev" set-target esp32s3
 ```
 
-Los tres ficheros van explícitos a propósito: `-DSDKCONFIG_DEFAULTS` sustituye
-la lista entera, y olvidar el del target deja el S3 sin PSRAM. El fichero es
-tuyo para crecer: lo que quieras en tu mesa y no en el buddy de nadie más.
+Los ficheros van explícitos a propósito: `-DSDKCONFIG_DEFAULTS` sustituye la
+lista entera, y olvidar el del target deja el S3 sin PSRAM y por tanto sin
+caché de ojos. El fichero es tuyo para crecer: lo que quieras en tu mesa y no
+en el buddy de nadie más.
+
+### Tus credenciales, y por qué no van en `sdkconfig`
+
+`idf.py set-target` **regenera `sdkconfig` desde cero**, así que todo lo que
+solo viviera ahí —tu SSID, tu contraseña, tu clave de API— desaparece. Duele
+cada vez que se cambia de target o de versión de ESP-IDF.
+
+Copia `sdkconfig.defaults.local.example` a `sdkconfig.defaults.local`, que
+está gitignorado, y añádelo **al final** de la lista, que es la posición que
+gana:
+
+```bash
+idf.py -DSDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.defaults.esp32s3;sdkconfig.defaults.dev;sdkconfig.defaults.local" \
+       set-target esp32s3
+```
+
+Con eso, regenerar es gratis: `fullclean`, `set-target`, y sigues teniendo tu
+red y tu clave.
+
+Que la clave de API viva en un fichero de build es una decisión de PoC, no el
+diseño. En v1 va en NVS y se pone desde el web UI (#5). Mientras tanto, ten
+presente que **el binario compilado es una credencial**: `strings
+build/buddy.bin` la encuentra. No lo pases por un taller ni lo cuelgues de
+una release.
 
 ## Cableado
 
