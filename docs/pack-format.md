@@ -326,6 +326,12 @@ en un espacio de nombres abierto que cada pack llena.
 }
 ```
 
+El nombre de un mood es contenido del pack, no parte del esquema: se escribe en
+el idioma que declare `pack.json`, como en el ejemplo anterior. `packs/zero` los
+declara en inglés por ser el pack de referencia del repositorio, donde conviven
+con los cuatro nombres que el firmware trae de suelo; es una convención de este
+pack y no una exigencia del formato.
+
 Y la cadena completa queda, sin ningún vocabulario cerrado en medio:
 
 **expresión** (nombre, del pack) → **mood** (nombre, del pack) → **animación** (primitiva del firmware + parámetros del pack)
@@ -359,7 +365,7 @@ los reflejos existentes siguen valiendo tal cual.
 
 ### Y una cosa que el `mood` de cada expresión sí cambia
 
-Una expresión puede nombrar su mood (`"angry": { "mood": "fuego" }`). Al llegar
+Una expresión puede nombrar su mood (`"angry": { "mood": "intense" }`). Al llegar
 `face.emotion` se aplica **como valor por defecto**: un `led.mood` publicado
 después sigue ganando. Por eso los reflejos que ya existen —que publican los
 dos— se comportan exactamente igual que antes, y los nuevos pueden publicar

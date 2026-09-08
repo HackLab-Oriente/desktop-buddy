@@ -26,7 +26,7 @@ end)
 buddy.on("touch.poke", def (ev)
   poke_count += 1
   if poke_count >= 3
-    # No led.mood here on purpose: `angry` declares mood "fuego" in
+    # No led.mood here on purpose: `angry` declares mood "intense" in
     # expressions.json, and an explicit mood would override it. This is the
     # pack's own mood lighting up, which is the whole point of the format.
     buddy.face.emotion("angry")   # sulking, now with proper eyebrows
