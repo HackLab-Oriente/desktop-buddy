@@ -66,8 +66,9 @@ se queda ~4 s en "connecting wifi": ese es el cuello de botella honesto.
 git submodule update --init
 cd firmware/components/berry_host/berry
 mkdir -p generate && python3 tools/coc/coc -o generate src default -c default/berry_conf.h
-#    (Sin el submódulo/codegen el build compila igual; los reflejos caen al
-#     fallback en C — main.cpp replica packs/zero/reflexes/main.be.)
+#    (Sin el submódulo/codegen el build compila igual, pero el buddy se queda
+#     sin reflejos: el fallback en C se borró en #71 por ser una segunda copia
+#     del comportamiento semilla que se desincronizaba en silencio.)
 
 cd ../../..            # de vuelta a firmware/
 idf.py set-target esp32s3    # o: esp32 — elige tu placa
@@ -78,6 +79,22 @@ idf.py build flash monitor
 `set-target` regenera `sdkconfig` desde `sdkconfig.defaults` +
 `sdkconfig.defaults.<target>`, y elige la tabla de particiones (16 MB con
 partición de modelo en el S3; 4 MB sin ella en el clásico).
+
+### Build de desarrollo
+
+`CONFIG_BUDDY_DEBUG` viene en `n`, así que un `monitor` recién clonado sale
+callado: no traza los eventos del bus, ni los cuerpos HTTP del cerebro, ni las
+lecturas del táctil. Está en `n` por una razón medida —el tracer bloquea el bus
+15-20 ms por gesto a 115200 baudios— que solo importa en un buddy terminado.
+Mientras desarrollas, pide `sdkconfig.defaults.dev`:
+
+```bash
+idf.py -DSDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.defaults.esp32s3;sdkconfig.defaults.dev" set-target esp32s3
+```
+
+Los tres ficheros van explícitos a propósito: `-DSDKCONFIG_DEFAULTS` sustituye
+la lista entera, y olvidar el del target deja el S3 sin PSRAM. El fichero es
+tuyo para crecer: lo que quieras en tu mesa y no en el buddy de nadie más.
 
 ## Cableado
 
