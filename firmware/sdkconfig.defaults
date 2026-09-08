@@ -21,6 +21,12 @@ CONFIG_SPI_FLASH_SUPPORT_BOYA_CHIP=y
 # 1000 -- about 96 KB. The bus task has 6144 and parses brain replies inline,
 # so a document 64 levels deep walks off the end of it, and the canary is only
 # checked at a context switch. 20 is past anything our own formats need.
+#
+# This symbol is NOT ESP-IDF's. cJSON stopped being an IDF component: it is the
+# managed espressif/cjson, pinned to ~1.7.19 in main/idf_component.yml, and the
+# Kconfig that defines this lives in the component. So a dependabot bump moves
+# this setting, not an IDF upgrade -- and if a future version renames or drops
+# it, nothing warns and the limit goes back to 1000.
 CONFIG_CJSON_NESTING_LIMIT=20
 
 # TLS session tickets. Without them every reconnect after an idle drop pays a
