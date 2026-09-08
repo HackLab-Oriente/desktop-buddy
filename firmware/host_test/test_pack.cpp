@@ -264,9 +264,96 @@ static int test_moods() {
   return 0;
 }
 
+// An expression naming a mood that is not in the table it will run against.
+//
+// The defect this comes from: pack_load() installs the two tables
+// independently -- legally so, since a pack with no "moods" keeps the built-in
+// four -- but nothing checked that the pair agreed. A pack that names its
+// moods in its own language and whose expressions.json is rejected (no
+// "neutral", say) left the BUILT-IN expressions, which ask for "calm", running
+// against a table that only has "calma". Every face.emotion then logged a
+// warning and the ring stayed on mood 0 until the board was reset. It never
+// crashed, which is why it would have shipped.
+static int test_orphan_moods() {
+  std::vector<Mood> spanish(2);
+  spanish[0].name = "calma";
+  spanish[1].name = "euforico";
+  std::vector<Mood> english(2);
+  english[0].name = "calm";
+  english[1].name = "excited";
+
+  // The real case: built-in expressions against a pack's own mood table.
+  {
+    std::vector<Emotion> e(2);
+    e[0].name = "neutral"; e[0].mood = "calm";
+    e[1].name = "happy";   e[1].mood = "excited";
+    std::string names;
+    CHECK(drop_orphan_moods(e, spanish, &names) == 2);
+    CHECK(e[0].mood.empty() && e[1].mood.empty());
+    CHECK(names == "calm, excited");
+    // Only the mood goes. The face is not collateral.
+    CHECK(e[0].name == "neutral" && e[1].name == "happy");
+  }
+
+  // One bad name does not disarm the rest of the pack.
+  {
+    std::vector<Emotion> e(2);
+    e[0].name = "neutral"; e[0].mood = "calm";
+    e[1].name = "angry";   e[1].mood = "intense";
+    std::string names;
+    CHECK(drop_orphan_moods(e, english, &names) == 1);
+    CHECK(e[0].mood == "calm");
+    CHECK(e[1].mood.empty());
+    CHECK(names == "intense");
+  }
+
+  // Everything resolves: nothing is touched, and the loader stays quiet.
+  {
+    std::vector<Emotion> e(1);
+    e[0].name = "neutral"; e[0].mood = "calm";
+    CHECK(drop_orphan_moods(e, english) == 0);
+    CHECK(e[0].mood == "calm");
+  }
+
+  // An expression with no mood at all is not an orphan -- it means "leave the
+  // ring alone", which is a valid thing for a pack to say.
+  {
+    std::vector<Emotion> e(1);
+    e[0].name = "neutral";
+    std::string names;
+    CHECK(drop_orphan_moods(e, spanish, &names) == 0);
+    CHECK(names.empty());
+  }
+
+  // An empty mood table orphans everything, and must not be a special case.
+  {
+    std::vector<Emotion> e(1);
+    e[0].name = "neutral"; e[0].mood = "calm";
+    const std::vector<Mood> none;
+    CHECK(drop_orphan_moods(e, none) == 1);
+    CHECK(e[0].mood.empty());
+  }
+
+  // The name list is a log line, not an inventory: it stops at four while the
+  // count keeps going.
+  {
+    std::vector<Emotion> e(6);
+    for (size_t i = 0; i < e.size(); i++) {
+      e[i].name = "e" + std::to_string(i);
+      e[i].mood = "m" + std::to_string(i);
+    }
+    std::string names;
+    CHECK(drop_orphan_moods(e, english, &names) == 6);
+    CHECK(names == "m0, m1, m2, m3");
+    for (const Emotion& x : e) CHECK(x.mood.empty());
+  }
+  return 0;
+}
+
 int main() {
   if (test_expressions()) return 1;
   if (test_moods()) return 1;
+  if (test_orphan_moods()) return 1;
   std::printf("pack parser: %d checks passed\n", checks);
   return 0;
 }

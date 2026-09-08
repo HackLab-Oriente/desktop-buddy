@@ -85,12 +85,12 @@ bool has_neutral(const std::vector<Emotion>& v) {
 bool pack_load(const char* root) {
   const std::string base = root;
 
-  // Parse BOTH files before applying EITHER. Applying as it went let a pack
-  // with good moods and a broken expression map install its moods over the
-  // built-ins while the built-in expressions stayed -- and the built-ins ask
-  // for "calm", which that pack need not define. The ring then sat on one
-  // mood forever, logging a warning per face change. Half a pack is worse
-  // than none, and "fallo = no pasa nada" has to mean the whole pack.
+  // Parse BOTH files before applying EITHER, so the decision about one table
+  // is taken knowing what the other one turned out to be. Ordering alone does
+  // NOT make the install atomic -- either table can still go in on its own,
+  // and a pack with no `moods` depends on exactly that. What keeps the pair in
+  // step is the reconciliation further down, once it is known which two tables
+  // will actually be active.
   std::string json;
   std::string emo_rel = "faces/expressions.json";
   std::vector<Mood> moods_new;
@@ -129,14 +129,42 @@ bool pack_load(const char* root) {
       ESP_LOGW(TAG, "mood \"%s\": dir is neither cw nor ccw — spinning cw",
                m.name.c_str());
 
+  // Applying only one of the two tables is legal -- a pack with no `moods`
+  // keeps the built-in four by design -- but the pair still has to agree. It
+  // did not: the expressions that end up active can name moods from the table
+  // that did NOT end up active. Today the names happen to coincide, so nothing
+  // shows; a pack that names its moods in its own language turns every face
+  // change into a warning and freezes the ring. Reconcile the pair that is
+  // about to be installed, not the one the pack asked for.
+  std::vector<Mood> moods_floor;
+  if (!have_moods) moods_floor.assign(moods(), moods() + mood_count());
+  const std::vector<Mood>& moods_active = have_moods ? moods_new : moods_floor;
+
+  std::vector<Emotion> emos_floor;
+  if (!have_emos) emos_floor.assign(emotions(), emotions() + emotion_count());
+  std::vector<Emotion>& emos_active = have_emos ? emos_new : emos_floor;
+
+  std::string orphans;
+  const int dropped =
+      static_cast<int>(packparse::drop_orphan_moods(emos_active, moods_active, &orphans));
+  if (dropped)
+    ESP_LOGW(TAG, "%d expression(s) name a mood that is not in the active table"
+                  " (%s) — they no longer set one",
+             dropped, orphans.c_str());
+
   bool any = false;
   if (have_moods && set_moods(std::move(moods_new))) {
     ESP_LOGI(TAG, "%d moods from pack.json", mood_count());
     any = true;
   }
-  if (have_emos && set_emotions(std::move(emos_new))) {
-    ESP_LOGI(TAG, "%d expressions from %s", emotion_count(), emo_rel.c_str());
-    any = true;
+  // The built-in expressions are reinstalled only when a name was dropped from
+  // them; untouched, they are already in place.
+  if (have_emos || dropped) {
+    const bool applied = set_emotions(std::move(emos_active));
+    if (applied && have_emos) {
+      ESP_LOGI(TAG, "%d expressions from %s", emotion_count(), emo_rel.c_str());
+      any = true;
+    }
   }
   if (!any) ESP_LOGW(TAG, "tables are frozen — pack_load() ran too late");
   return any;

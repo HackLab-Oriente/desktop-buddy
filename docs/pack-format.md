@@ -359,9 +359,15 @@ los reflejos existentes siguen valiendo tal cual.
 
 - Un pack **sin** `moods` se queda con los cuatro de siempre. `packs/zero`
   sigue funcionando sin tocar nada.
-- Un mood que se nombre y no exista **deja el que estuviera puesto** y lo
-  avisa por log, en vez de apagar el anillo. Mismo principio que la caída al
-  banco: lo peor que puede pasar no es quedarse a oscuras sin explicación.
+- Un `led.mood` que nombre un mood inexistente **deja el que estuviera puesto**
+  y lo avisa por log, en vez de apagar el anillo. Mismo principio que la caída
+  al banco: lo peor que puede pasar no es quedarse a oscuras sin explicación.
+- El `mood` que declara una **expresión** se trata antes y de otra manera: si
+  al cargar el pack no está en la tabla de moods que queda activa, el campo se
+  anula ahí mismo y esa expresión pasa a no tocar el anillo. Es la diferencia
+  entre un nombre que se resuelve una vez al arrancar y uno que se resolvería
+  en cada `face.emotion` — sin esto, un pack cuyas expresiones sobreviven y
+  cuyos moods no dejaba el anillo congelado y un aviso por cada cambio de cara.
 
 ### Y una cosa que el `mood` de cada expresión sí cambia
 

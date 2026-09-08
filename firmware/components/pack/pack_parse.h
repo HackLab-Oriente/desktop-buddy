@@ -250,5 +250,40 @@ inline bool parse_moods(const char* json, std::vector<Mood>& out,
   return !out.empty();
 }
 
+// An expression may name a mood that the table it will actually run against
+// does not declare: a pack whose `moods` block was rejected, one that ships
+// expressions only, or one that simply misspelled a name. Left in place, that
+// name reached the ring at every face.emotion -- a warning per event, and a
+// ring stuck on whichever mood happened to be showing, for as long as the
+// board stayed up.
+//
+// So it is dropped here, before either table is installed. The expression
+// stops steering the ring and nothing else about it changes: eyes, colour and
+// blink are untouched, and an explicit led.mood still works. Half a pack is
+// worse than none, but a pack is not half-broken over one bad name.
+//
+// Returns how many were dropped, and appends the first few to `names` so the
+// loader can say so once instead of once per event.
+inline size_t drop_orphan_moods(std::vector<Emotion>& emos,
+                                const std::vector<Mood>& active,
+                                std::string* names = nullptr) {
+  constexpr size_t kMaxNamed = 4;  // a log line, not an inventory
+  size_t dropped = 0;
+  for (Emotion& e : emos) {
+    if (e.mood.empty()) continue;
+    bool found = false;
+    for (const Mood& m : active)
+      if (m.name == e.mood) { found = true; break; }
+    if (found) continue;
+    if (names && dropped < kMaxNamed) {
+      if (!names->empty()) *names += ", ";
+      *names += e.mood;
+    }
+    e.mood.clear();
+    dropped++;
+  }
+  return dropped;
+}
+
 }  // namespace packparse
 }  // namespace buddy
