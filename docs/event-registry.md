@@ -101,7 +101,7 @@ a esos dos, no a la respuesta cruda.
 
 | evento | payload | lo consume | notas |
 |---|---|---|---|
-| `face.emotion` | nombre de expresión, **el que declare el pack** | round_face, led_ring | el anillo copia el color de la cara **y adopta el mood que esa expresión declare**, salvo que llegue un `led.mood` explícito después |
+| `face.emotion` | nombre de expresión, **el que declare el pack** | round_face, led_ring | el anillo copia el color de la cara **y adopta el mood que esa expresión declare y que exista en la tabla activa (los que no existían se anularon al cargar el pack)**, salvo que llegue un `led.mood` explícito después |
 | `face.say` | texto | round_face | palabras **en pantalla**. Es lo que publica `buddy.hint()` |
 | `face.look` | objetivo de mirada | round_face | **suscrito, nunca publicado** — ver agujeros |
 | `led.mood` | nombre de mood, **abierto: lo define el pack** | led_ring | estilo de animación, no color. Ya **no** es una lista cerrada: un pack declara los suyos sobre primitivas cerradas del firmware (`breathe`, `spin`, `pulse`, `solid`, `off`). Un nombre desconocido deja el mood actual y avisa |

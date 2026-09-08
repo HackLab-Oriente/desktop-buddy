@@ -274,6 +274,11 @@ static int test_moods() {
 // against a table that only has "calma". Every face.emotion then logged a
 // warning and the ring stayed on mood 0 until the board was reset. It never
 // crashed, which is why it would have shipped.
+//
+// The first fix for it was worse than the defect on that same path: it nulled
+// the built-in table instead, so the ring went dead silently and permanently.
+// Hence the split below -- drop_orphan_moods() edits, count_orphan_moods()
+// only asks, and the loader picks by whose table it is holding.
 static int test_orphan_moods() {
   std::vector<Mood> spanish(2);
   spanish[0].name = "calma";
@@ -282,13 +287,13 @@ static int test_orphan_moods() {
   english[0].name = "calm";
   english[1].name = "excited";
 
-  // The real case: built-in expressions against a pack's own mood table.
+  // The real case: expressions against a mood table in another language.
   {
     std::vector<Emotion> e(2);
     e[0].name = "neutral"; e[0].mood = "calm";
     e[1].name = "happy";   e[1].mood = "excited";
     std::string names;
-    CHECK(drop_orphan_moods(e, spanish, &names) == 2);
+    CHECK(drop_orphan_moods(e, spanish.data(), spanish.size(), &names) == 2);
     CHECK(e[0].mood.empty() && e[1].mood.empty());
     CHECK(names == "calm, excited");
     // Only the mood goes. The face is not collateral.
@@ -301,7 +306,7 @@ static int test_orphan_moods() {
     e[0].name = "neutral"; e[0].mood = "calm";
     e[1].name = "angry";   e[1].mood = "intense";
     std::string names;
-    CHECK(drop_orphan_moods(e, english, &names) == 1);
+    CHECK(drop_orphan_moods(e, english.data(), english.size(), &names) == 1);
     CHECK(e[0].mood == "calm");
     CHECK(e[1].mood.empty());
     CHECK(names == "intense");
@@ -311,7 +316,7 @@ static int test_orphan_moods() {
   {
     std::vector<Emotion> e(1);
     e[0].name = "neutral"; e[0].mood = "calm";
-    CHECK(drop_orphan_moods(e, english) == 0);
+    CHECK(drop_orphan_moods(e, english.data(), english.size()) == 0);
     CHECK(e[0].mood == "calm");
   }
 
@@ -321,7 +326,7 @@ static int test_orphan_moods() {
     std::vector<Emotion> e(1);
     e[0].name = "neutral";
     std::string names;
-    CHECK(drop_orphan_moods(e, spanish, &names) == 0);
+    CHECK(drop_orphan_moods(e, spanish.data(), spanish.size(), &names) == 0);
     CHECK(names.empty());
   }
 
@@ -329,13 +334,38 @@ static int test_orphan_moods() {
   {
     std::vector<Emotion> e(1);
     e[0].name = "neutral"; e[0].mood = "calm";
-    const std::vector<Mood> none;
-    CHECK(drop_orphan_moods(e, none) == 1);
+    CHECK(drop_orphan_moods(e, nullptr, 0) == 1);
     CHECK(e[0].mood.empty());
   }
 
-  // The name list is a log line, not an inventory: it stops at four while the
-  // count keeps going.
+  // The usual cause is ONE typo repeated across several expressions, so the
+  // name list deduplicates: without this, five expressions sharing "fuegos"
+  // spent the whole four-name budget saying "fuegos" four times, and that line
+  // is the only channel the pack author has for finding the typo.
+  {
+    std::vector<Emotion> e(5);
+    for (size_t i = 0; i < e.size(); i++) {
+      e[i].name = "e" + std::to_string(i);
+      e[i].mood = "fuegos";
+    }
+    std::string names;
+    CHECK(drop_orphan_moods(e, english.data(), english.size(), &names) == 5);
+    CHECK(names == "fuegos");
+  }
+
+  // Deduplication matches whole names, not substrings: "calm" is not already
+  // present just because "calmado" is.
+  {
+    std::vector<Emotion> e(2);
+    e[0].name = "a"; e[0].mood = "calmado";
+    e[1].name = "b"; e[1].mood = "calm";
+    std::string names;
+    CHECK(drop_orphan_moods(e, spanish.data(), spanish.size(), &names) == 2);
+    CHECK(names == "calmado, calm");
+  }
+
+  // The list is a log line, not an inventory: it stops at four distinct names
+  // while the count keeps going.
   {
     std::vector<Emotion> e(6);
     for (size_t i = 0; i < e.size(); i++) {
@@ -343,9 +373,31 @@ static int test_orphan_moods() {
       e[i].mood = "m" + std::to_string(i);
     }
     std::string names;
-    CHECK(drop_orphan_moods(e, english, &names) == 6);
+    CHECK(drop_orphan_moods(e, english.data(), english.size(), &names) == 6);
     CHECK(names == "m0, m1, m2, m3");
     for (const Emotion& x : e) CHECK(x.mood.empty());
+  }
+
+  // count_orphan_moods() answers the same question without editing. This is
+  // what the loader asks about the built-in table, which it must not touch:
+  // the answer decides whether the PACK'S moods are refused instead.
+  {
+    std::vector<Emotion> e(2);
+    e[0].name = "neutral"; e[0].mood = "calm";
+    e[1].name = "happy";   e[1].mood = "excited";
+    std::string names;
+    CHECK(count_orphan_moods(e.data(), e.size(), spanish.data(), spanish.size(),
+                             &names) == 2);
+    CHECK(names == "calm, excited");
+    // Untouched -- that is the whole point of the second function.
+    CHECK(e[0].mood == "calm" && e[1].mood == "excited");
+  }
+
+  // A pack whose moods DO cover the built-in names is not refused.
+  {
+    std::vector<Emotion> e(1);
+    e[0].name = "neutral"; e[0].mood = "calm";
+    CHECK(count_orphan_moods(e.data(), e.size(), english.data(), english.size()) == 0);
   }
   return 0;
 }

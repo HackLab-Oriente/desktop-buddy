@@ -362,12 +362,18 @@ los reflejos existentes siguen valiendo tal cual.
 - Un `led.mood` que nombre un mood inexistente **deja el que estuviera puesto**
   y lo avisa por log, en vez de apagar el anillo. Mismo principio que la caída
   al banco: lo peor que puede pasar no es quedarse a oscuras sin explicación.
-- El `mood` que declara una **expresión** se trata antes y de otra manera: si
-  al cargar el pack no está en la tabla de moods que queda activa, el campo se
-  anula ahí mismo y esa expresión pasa a no tocar el anillo. Es la diferencia
-  entre un nombre que se resuelve una vez al arrancar y uno que se resolvería
-  en cada `face.emotion` — sin esto, un pack cuyas expresiones sobreviven y
-  cuyos moods no dejaba el anillo congelado y un aviso por cada cambio de cara.
+- El `mood` que declara una **expresión del pack** se trata antes y de otra
+  manera: si al cargar no está en la tabla de moods que queda activa, el campo
+  se anula ahí mismo y esa expresión pasa a no tocar el anillo. Se resuelve una
+  vez al arrancar, no en cada `face.emotion`. Sin esto, un pack cuyas
+  expresiones se cargaban pero cuyos moods no dejaba el anillo congelado y
+  soltaba un aviso en cada cambio de cara.
+- Las expresiones **de suelo** del firmware no se tocan nunca. Un pack que trae
+  `moods` pero ninguna expresión utilizable se queda con esas ocho, que piden
+  `calm`, `excited`, `thinking` y `off`; si el pack no declara esos nombres, lo
+  que se rechaza es **su tabla de moods**, y quedan los cuatro de siempre. Un
+  pack que quiera nombrar sus moods a su manera tiene que traer también sus
+  expresiones.
 
 ### Y una cosa que el `mood` de cada expresión sí cambia
 

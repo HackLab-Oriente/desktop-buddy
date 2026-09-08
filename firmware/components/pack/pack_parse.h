@@ -11,6 +11,10 @@
 //   - every number is clamped to a range the renderer can survive
 //   - collections are capped, and so is every string
 //   - the document's nesting depth is checked BEFORE it is parsed
+//
+// The last function here parses nothing: it reconciles two already-parsed
+// tables. It lives with the parser because this is the file that can be run on
+// the host, and the pairing is exactly the kind of rule worth testing there.
 #include "cJSON.h"
 
 #include <cmath>
@@ -250,7 +254,43 @@ inline bool parse_moods(const char* json, std::vector<Mood>& out,
   return !out.empty();
 }
 
-// An expression may name a mood that the table it will actually run against
+// Is `name` one of the moods in the table `active`/`n`?
+//
+// The table is taken as pointer and count because that is how the live one is
+// published (moods() / mood_count()); a caller holding a freshly parsed
+// std::vector passes .data() and .size(). Neither has to be copied to be
+// asked this question.
+inline bool mood_declared(const Mood* active, size_t n, const std::string& name) {
+  for (size_t i = 0; i < n; i++)
+    if (active[i].name == name) return true;
+  return false;
+}
+
+// Collects orphan names for the loader's one log line. Deduplicated, because
+// the usual cause is ONE typo repeated across several expressions and a line
+// reading "(fuegos, fuegos, fuegos, fuegos)" spends the whole budget saying it
+// once. Capped, because this is a log line and not an inventory.
+constexpr size_t kMaxNamed = 4;
+
+inline void note_orphan(std::string* names, const std::string& name) {
+  if (!names) return;
+  // Whole-token match: "calm" must not be found inside "calmado".
+  for (size_t at = names->find(name); at != std::string::npos;
+       at = names->find(name, at + 1)) {
+    const bool left = at == 0 || (*names)[at - 1] == ' ';
+    const size_t after = at + name.size();
+    const bool right = after == names->size() || (*names)[after] == ',';
+    if (left && right) return;
+  }
+  size_t counted = names->empty() ? 0 : 1;
+  for (const char c : *names)
+    if (c == ',') counted++;
+  if (counted >= kMaxNamed) return;
+  if (!names->empty()) *names += ", ";
+  *names += name;
+}
+
+// An expression can name a mood that the table it will actually run against
 // does not declare: a pack whose `moods` block was rejected, one that ships
 // expressions only, or one that simply misspelled a name. Left in place, that
 // name reached the ring at every face.emotion -- a warning per event, and a
@@ -259,30 +299,40 @@ inline bool parse_moods(const char* json, std::vector<Mood>& out,
 //
 // So it is dropped here, before either table is installed. The expression
 // stops steering the ring and nothing else about it changes: eyes, colour and
-// blink are untouched, and an explicit led.mood still works. Half a pack is
-// worse than none, but a pack is not half-broken over one bad name.
+// blink are untouched, and an explicit led.mood still works. A pack is not
+// half-broken over one bad name.
 //
-// Returns how many were dropped, and appends the first few to `names` so the
-// loader can say so once instead of once per event.
-inline size_t drop_orphan_moods(std::vector<Emotion>& emos,
-                                const std::vector<Mood>& active,
-                                std::string* names = nullptr) {
-  constexpr size_t kMaxNamed = 4;  // a log line, not an inventory
+// ONLY ever call this on a table the pack itself supplied. Run over the
+// built-in expressions it edits the floor, and a floor a failed pack can edit
+// has stopped being one -- use count_orphan_moods() to ask about those.
+//
+// Returns how many were dropped, and collects the first few in `names`.
+inline size_t drop_orphan_moods(std::vector<Emotion>& emos, const Mood* active,
+                                size_t n, std::string* names = nullptr) {
   size_t dropped = 0;
   for (Emotion& e : emos) {
     if (e.mood.empty()) continue;
-    bool found = false;
-    for (const Mood& m : active)
-      if (m.name == e.mood) { found = true; break; }
-    if (found) continue;
-    if (names && dropped < kMaxNamed) {
-      if (!names->empty()) *names += ", ";
-      *names += e.mood;
-    }
+    if (mood_declared(active, n, e.mood)) continue;
+    note_orphan(names, e.mood);
     e.mood.clear();
     dropped++;
   }
   return dropped;
+}
+
+// The same question asked of a table that must NOT be edited, so the caller
+// can decide about the OTHER table instead.
+inline size_t count_orphan_moods(const Emotion* emos, size_t n_emos,
+                                 const Mood* active, size_t n_active,
+                                 std::string* names = nullptr) {
+  size_t orphans = 0;
+  for (size_t i = 0; i < n_emos; i++) {
+    if (emos[i].mood.empty()) continue;
+    if (mood_declared(active, n_active, emos[i].mood)) continue;
+    note_orphan(names, emos[i].mood);
+    orphans++;
+  }
+  return orphans;
 }
 
 }  // namespace packparse

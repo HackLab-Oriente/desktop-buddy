@@ -91,6 +91,12 @@ bool pack_load(const char* root) {
   // and a pack with no `moods` depends on exactly that. What keeps the pair in
   // step is the reconciliation further down, once it is known which two tables
   // will actually be active.
+  //
+  // That is consistency, not atomicity, and the difference matters for the
+  // runtime pack switch (#55): set_moods() and set_emotions() freeze
+  // independently (led_start() and face_start()), so a LATER pack_load() could
+  // still have one accepted and the other refused. Reconciling cannot fix
+  // that; a second load needs both tables installed together or not at all.
   std::string json;
   std::string emo_rel = "faces/expressions.json";
   std::vector<Mood> moods_new;
@@ -130,38 +136,57 @@ bool pack_load(const char* root) {
                m.name.c_str());
 
   // Applying only one of the two tables is legal -- a pack with no `moods`
-  // keeps the built-in four by design -- but the pair still has to agree. It
-  // did not: the expressions that end up active can name moods from the table
-  // that did NOT end up active. Today the names happen to coincide, so nothing
-  // shows; a pack that names its moods in its own language turns every face
-  // change into a warning and freezes the ring. Reconcile the pair that is
-  // about to be installed, not the one the pack asked for.
-  std::vector<Mood> moods_floor;
-  if (!have_moods) moods_floor.assign(moods(), moods() + mood_count());
-  const std::vector<Mood>& moods_active = have_moods ? moods_new : moods_floor;
+  // keeps the built-in four by design -- but the pair still has to agree, and
+  // nothing checked that it did. The expressions that end up active can name
+  // moods from the table that did NOT end up active. Today the names coincide
+  // in English so nothing shows; a pack that names its moods in its own
+  // language turns every face change into a warning and freezes the ring.
+  //
+  // Which of the two gives way depends on whose table it is. The pack's own
+  // expressions are edited: an orphan name is dropped and that expression
+  // stops steering the ring. The BUILT-IN expressions are never edited -- they
+  // are the floor, and a floor a failed pack can rewrite is not a floor -- so
+  // there it is the pack's mood table that is refused instead.
+  // Moods without usable expressions: the built-ins stay, so the pack's moods
+  // have to be able to carry them. If they cannot, installing them would leave
+  // the face and the ring speaking different languages for the rest of the
+  // boot -- silently, now that the per-event warning is gone. Decided before
+  // the install, because afterwards there is no way back.
+  if (!have_emos && have_moods) {
+    std::string missing;
+    if (packparse::count_orphan_moods(emotions(),
+                                      static_cast<size_t>(emotion_count()),
+                                      moods_new.data(), moods_new.size(),
+                                      &missing) > 0) {
+      ESP_LOGW(TAG, "pack.json declares no expressions and none of the moods"
+                    " the built-in ones ask for (%s) — keeping built-in moods",
+               missing.c_str());
+      have_moods = false;
+    }
+  }
 
-  std::vector<Emotion> emos_floor;
-  if (!have_emos) emos_floor.assign(emotions(), emotions() + emotion_count());
-  std::vector<Emotion>& emos_active = have_emos ? emos_new : emos_floor;
-
-  std::string orphans;
-  const int dropped =
-      static_cast<int>(packparse::drop_orphan_moods(emos_active, moods_active, &orphans));
-  if (dropped)
-    ESP_LOGW(TAG, "%d expression(s) name a mood that is not in the active table"
-                  " (%s) — they no longer set one",
-             dropped, orphans.c_str());
+  if (!have_moods && !have_emos) return false;  // nothing survived reconciling
 
   bool any = false;
   if (have_moods && set_moods(std::move(moods_new))) {
     ESP_LOGI(TAG, "%d moods from pack.json", mood_count());
     any = true;
   }
-  // The built-in expressions are reinstalled only when a name was dropped from
-  // them; untouched, they are already in place.
-  if (have_emos || dropped) {
-    const bool applied = set_emotions(std::move(emos_active));
-    if (applied && have_emos) {
+
+  // Reconcile AFTER the mood install and against moods(), the live table --
+  // not against the vector the pack handed over. set_moods() can refuse (the
+  // ring has frozen it), and reconciling against a table that was refused is
+  // how the pair silently goes out of step again. moods() is whatever the
+  // expressions will really be resolved against, refusal included.
+  if (have_emos) {
+    std::string orphans;
+    const size_t dropped = packparse::drop_orphan_moods(
+        emos_new, moods(), static_cast<size_t>(mood_count()), &orphans);
+    if (dropped > 0)
+      ESP_LOGW(TAG, "%d expression(s) name a mood that is not in the active"
+                    " table (%s) — they no longer set one",
+               static_cast<int>(dropped), orphans.c_str());
+    if (set_emotions(std::move(emos_new))) {
       ESP_LOGI(TAG, "%d expressions from %s", emotion_count(), emo_rel.c_str());
       any = true;
     }
