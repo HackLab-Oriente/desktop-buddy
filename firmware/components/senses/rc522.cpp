@@ -255,7 +255,11 @@ bool nfc_start(const Rc522Pins& p) {
   dev_cfg.mode = 0;
   dev_cfg.spics_io_num = p.cs;
   dev_cfg.queue_size = 4;
-  TRY(spi_bus_add_device(SPI3_HOST, &dev_cfg, &s_dev), "RC522 device");
+  if (spi_bus_add_device(SPI3_HOST, &dev_cfg, &s_dev) != ESP_OK) {
+    ESP_LOGE(TAG, "RC522 device — no NFC");
+    spi_bus_free(SPI3_HOST);
+    return false;
+  }
 
   wr(CommandReg, SoftReset);
   vTaskDelay(pdMS_TO_TICKS(50));
@@ -270,6 +274,12 @@ bool nfc_start(const Rc522Pins& p) {
   const uint8_t ver = rd(VersionReg);
   if (ver != 0x91 && ver != 0x92) {
     ESP_LOGE(TAG, "no MFRC522 (VersionReg 0x%02x) — check wiring", ver);
+    // Now that the reader is on by default, "no reader wired" is a normal
+    // boot and not a rare one. Give SPI3 and the five pins back instead of
+    // holding a host nothing is going to use.
+    spi_bus_remove_device(s_dev);
+    s_dev = nullptr;
+    spi_bus_free(SPI3_HOST);
     return false;
   }
   ESP_LOGI(TAG, "MFRC522 version 0x%02x", ver);
