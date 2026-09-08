@@ -291,7 +291,7 @@ estorba se acaba desactivando y no se vuelve a activar.
 ### Por qué tres y no el PIN solo
 
 El PIN en la pantalla fue lo primero que gustó, y se le encontró el borde en
-la misma sesión: **usa la presencia física como factor, así que le prohíbe la
+la misma sesión: **usa la presencia física como factor, así que le cierra la
 puerta a quien no está delante.** Quien quiera cambiar la configuración de su
 buddy desde otra habitación —o desde la oficina— no tiene forma de leer el
 PIN. La contraseña es exactamente esa puerta, y no cuesta nada más que el
