@@ -531,6 +531,11 @@ char s_say_text[128];
 volatile int64_t s_say_until = 0;
 volatile bool s_say_dirty = false;
 
+// ===== ap mode =====
+volatile bool s_ap_mode = false;
+char s_ap_qr[64] = {0};
+std::mutex s_qr_mu;
+
 
 // face.look sets a target; while active the eyes follow it instead of doing
 // idle saccades. Any Sense or reflex can drive it. The target expires so the
@@ -547,6 +552,26 @@ void face_task(void*) {
   int64_t next_blink = 2000, next_saccade = 1500;
   for (;;) {
     const int64_t now = esp_log_timestamp();
+    
+    if (s_ap_mode) {
+      if (s_dirty) {
+        s_dirty = false;
+        std::lock_guard<std::mutex> lock(s_qr_mu);
+        render_bands([&] {
+          spr.fillScreen(TFT_WHITE);
+          // 148px QR code centered
+          spr.qrcode(s_ap_qr, (W - 148)/2, (H - 148)/2 - band_y0, 148, 3, false);
+          
+          spr.setFont(&FontLatin);
+          spr.setTextDatum(top_center);
+          spr.setTextColor(TFT_BLACK);
+          spr.drawString("Scan to setup", CX, 20 - band_y0);
+        });
+      }
+      vTaskDelay(pdMS_TO_TICKS(100));
+      continue;
+    }
+
     if (now < s_say_until) {
       if (s_say_dirty) {
         std::lock_guard<std::mutex> lock(s_say_mu);
@@ -663,6 +688,14 @@ void face_start() {
     s_status[sizeof s_status - 1] = '\0';
   });
   bus().subscribe("boot.ready", [](const Event&) { s_boot_ready = true; });
+  
+  bus().subscribe("wifi.ap_mode", [](const Event& ev) {
+    std::lock_guard<std::mutex> lock(s_qr_mu);
+    strncpy(s_ap_qr, ev.payload.c_str(), sizeof(s_ap_qr) - 1);
+    s_ap_qr[sizeof(s_ap_qr) - 1] = '\0';
+    s_ap_mode = true;
+    s_dirty = true;
+  });
 
   // First frame is pure noise, so the backlight can come straight up: the
   // static IS the fade-in, and the uninitialised panel is never seen.

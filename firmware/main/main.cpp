@@ -25,13 +25,16 @@
 #include "webui.h"
 
 #include "cJSON.h"
+#include "driver/gpio.h"
 #include "esp_err.h"
 #include "esp_littlefs.h"
 #include "esp_log.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 #include "nvs_flash.h"
 #include "sdkconfig.h"
 
-static const char* TAG = "buddy";
+static const char *TAG = "buddy";
 
 namespace {
 
@@ -51,8 +54,7 @@ void mount_flash() {
              esp_err_to_name(err));
 }
 
-
-}  // namespace
+} // namespace
 
 extern "C" void app_main() {
   // Not ESP_ERROR_CHECK. NO_FREE_PAGES and NEW_VERSION_FOUND are ordinary
@@ -60,18 +62,47 @@ extern "C" void app_main() {
   // dark screen and a reboot loop with the reason only on a serial console
   // nobody at a workshop has attached.
   esp_err_t nvs = nvs_flash_init();
-  if (nvs == ESP_ERR_NVS_NO_FREE_PAGES || nvs == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+  if (nvs == ESP_ERR_NVS_NO_FREE_PAGES ||
+      nvs == ESP_ERR_NVS_NEW_VERSION_FOUND) {
     ESP_LOGW(TAG, "nvs needs erasing (%s)", esp_err_to_name(nvs));
-    if (nvs_flash_erase() == ESP_OK) nvs = nvs_flash_init();
+    if (nvs_flash_erase() == ESP_OK)
+      nvs = nvs_flash_init();
   }
-  if (nvs != ESP_OK) ESP_LOGE(TAG, "no nvs (%s) — wifi will not start",
-                              esp_err_to_name(nvs));
+  if (nvs != ESP_OK)
+    ESP_LOGE(TAG, "no nvs (%s) — wifi will not start", esp_err_to_name(nvs));
+
+  xTaskCreate(
+      [](void *) {
+        gpio_config_t io_conf = {};
+        io_conf.pin_bit_mask = (1ULL << GPIO_NUM_0);
+        io_conf.mode = GPIO_MODE_INPUT;
+        io_conf.pull_up_en = GPIO_PULLUP_ENABLE;
+        gpio_config(&io_conf);
+
+        int hold_time = 0;
+        while (true) {
+          if (gpio_get_level(GPIO_NUM_0) == 0) {
+            hold_time += 100;
+            if (hold_time >= 10000) {
+              ESP_LOGW(TAG, "BOOT button held for 10 seconds. Erasing NVS and "
+                            "restarting...");
+              nvs_flash_erase();
+              esp_restart();
+            }
+          } else {
+            hold_time = 0;
+          }
+          vTaskDelay(pdMS_TO_TICKS(100));
+        }
+      },
+      "factory_reset", 2048, nullptr, 5, nullptr);
+
   buddy::bus_start();
 
 #if CONFIG_BUDDY_DEBUG
   // Event tracer: every bus event in the serial log. First subscriber, so it
   // prints before any reflex reacts. Disable via menuconfig → Buddy Zero.
-  buddy::bus().subscribe("*", [](const buddy::Event& ev) {
+  buddy::bus().subscribe("*", [](const buddy::Event &ev) {
     ESP_LOGI("trace", "[%s] %.120s", ev.name.c_str(), ev.payload.c_str());
   });
 #endif
@@ -88,8 +119,8 @@ extern "C" void app_main() {
   // Now the face, so the boot splash is on screen while everything slower
   // happens behind it. Each step below announces itself on the bus, and the
   // splash shows that as its status line — a real step, not a fake timer.
-  buddy::face_start();  // GC9A01 round color face + boot splash
-  buddy::led_start();   // WS2812 mood ring
+  buddy::face_start(); // GC9A01 round color face + boot splash
+  buddy::led_start();  // WS2812 mood ring
 
   // Reflex layer: Berry when present, C fallback otherwise.
   buddy::bus().publish("boot.status", "loading reflexes");
@@ -103,26 +134,31 @@ extern "C" void app_main() {
 
   // brain.reply is the one contract-level reflex the framework owns:
   // parse {utterance, emotion} and fan out to expressions.
-  buddy::bus().subscribe("brain.reply", [](const buddy::Event& ev) {
+  buddy::bus().subscribe("brain.reply", [](const buddy::Event &ev) {
     // LLMs wrap JSON in fences despite instructions, and describe the format
     // in prose before emitting it. Anchoring on the FIRST '{' broke on
     // "the format {utterance, emotion}: {...}" — an ordinary reply — so every
     // '{' is tried in turn until one parses. cJSON tolerates trailing text.
-    const std::string& p = ev.payload;
-    cJSON* j = nullptr;
+    const std::string &p = ev.payload;
+    cJSON *j = nullptr;
     for (size_t at = p.find('{'); at != std::string::npos && !j;
          at = p.find('{', at + 1))
       j = cJSON_Parse(p.c_str() + at);
-    if (!j) { ESP_LOGW(TAG, "brain reply has no JSON object: %.200s", p.c_str()); return; }
-    cJSON* emotion = cJSON_GetObjectItem(j, "emotion");
-    cJSON* utterance = cJSON_GetObjectItem(j, "utterance");
+    if (!j) {
+      ESP_LOGW(TAG, "brain reply has no JSON object: %.200s", p.c_str());
+      return;
+    }
+    cJSON *emotion = cJSON_GetObjectItem(j, "emotion");
+    cJSON *utterance = cJSON_GetObjectItem(j, "utterance");
     // Validated here, not downstream: the registry documents face.emotion as
     // a name from the table, and packs subscribe to the bus. A contract has to
     // hold at the publisher.
-    if (cJSON_IsString(emotion) && buddy::emotion_index(emotion->valuestring) >= 0)
+    if (cJSON_IsString(emotion) &&
+        buddy::emotion_index(emotion->valuestring) >= 0)
       buddy::bus().publish("face.emotion", emotion->valuestring);
     else if (cJSON_IsString(emotion))
-      ESP_LOGW(TAG, "brain returned an unknown emotion: %.32s", emotion->valuestring);
+      ESP_LOGW(TAG, "brain returned an unknown emotion: %.32s",
+               emotion->valuestring);
     if (cJSON_IsString(utterance)) {
       ESP_LOGI(TAG, "buddy says: %.120s", utterance->valuestring);
       buddy::bus().publish("face.say", utterance->valuestring);
@@ -134,7 +170,7 @@ extern "C" void app_main() {
   // buddy has. Today that is the screen; when voice lands, TTS subscribes here
   // too and no reflex changes. face.say stays what it always was — screen
   // only, which is what buddy.hint() publishes.
-  buddy::bus().subscribe("speech.say", [](const buddy::Event& ev) {
+  buddy::bus().subscribe("speech.say", [](const buddy::Event &ev) {
     buddy::bus().publish("face.say", ev.payload);
   });
 
@@ -143,17 +179,18 @@ extern "C" void app_main() {
   buddy::touch_start(CONFIG_BUDDY_PIN_TOUCH);
 #if CONFIG_BUDDY_RC522_ENABLED
   buddy::nfc_start({.sck = CONFIG_BUDDY_RC522_SCK,
-                      .miso = CONFIG_BUDDY_RC522_MISO,
-                      .mosi = CONFIG_BUDDY_RC522_MOSI,
-                      .cs = CONFIG_BUDDY_RC522_CS,
-                      .rst = CONFIG_BUDDY_RC522_RST});
+                    .miso = CONFIG_BUDDY_RC522_MISO,
+                    .mosi = CONFIG_BUDDY_RC522_MOSI,
+                    .cs = CONFIG_BUDDY_RC522_CS,
+                    .rst = CONFIG_BUDDY_RC522_RST});
 #endif
 
   // Network layer — optional by design ("never brick"). This is the slow part:
   // Up to 25 s: 15 waiting for the association, then 10 more for SNTP. That
   // second one is the common case on guest wifi, where UDP/123 is blocked.
   buddy::bus().publish("boot.status", "conectando wifi");
-  const bool online = buddy::wifi_start(CONFIG_BUDDY_WIFI_SSID, CONFIG_BUDDY_WIFI_PASS);
+  const bool online =
+      buddy::wifi_start(CONFIG_BUDDY_WIFI_SSID, CONFIG_BUDDY_WIFI_PASS);
 
   // Outside the branch on purpose: the provisioning portal is FOR the buddy
   // that could not join, so putting its door behind "did we join" made it
