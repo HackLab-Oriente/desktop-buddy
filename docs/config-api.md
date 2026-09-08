@@ -270,22 +270,52 @@ Los costes, en cambio, eran permanentes:
 personalidad por `nfc.text`, con la gramática entera en manos del pack. El
 firmware no le quita ningún espacio de nombres a nadie.
 
-## Lo que sigue abierto
+## Autenticación: decidido en la sesión 1
 
-**La autenticación.** Hoy no hay ninguna, y añadir config sube la apuesta: se
-pasa de «cualquiera en tu WiFi puede cambiar el comportamiento de mi buddy» a
-«cualquiera en tu WiFi puede gastarse mi clave de API». Las opciones:
+**El dueño elige.** La configuración lleva un selector con tres modos, y el
+firmware no impone ninguno:
 
-1. **Ninguna** (lo de hoy) — defendible en una red de casa, malo en el WiFi de
-   un hacklab, una cafetería o un congreso.
-2. **PIN en la pantalla** para cualquier escritura. La pantalla es un canal que
-   solo puede leer quien está en la habitación: presencia física como factor.
-3. **Sesión con token** — lo correcto de manual, y bastante más trabajo.
+| modo | qué pide para escribir | para quién |
+|---|---|---|
+| `none` | nada | red de casa, y el modo de trabajo mientras desarrollamos |
+| `pin` | un PIN de 6 dígitos que sale **en la pantalla** | un taller, un congreso: presencia física como factor |
+| `password` | una contraseña que el dueño fija en la configuración | quien administra su buddy sin estar delante |
 
-Y una observación que reduce el problema: **si el AP de aprovisionamiento va
-con WPA2 y la contraseña se enseña como QR, el aprovisionamiento ya está
-autenticado por presencia física**, en el enlace y no en la aplicación. La
-pregunta del PIN se queda entonces reducida al web UI en funcionamiento
-normal, que es una pregunta más pequeña y más separable.
+Las lecturas no piden nada en ningún modo; el selector cubre las escrituras.
+`GET /config` no devuelve secretos, así que no hay nada que proteger ahí.
 
-Sin decidir. Va a discusión de equipo.
+**Por defecto `none`, y en v1 el instalador pregunta.** Durante el desarrollo
+nadie quiere teclear un PIN para probar un reflejo, y una autenticación que
+estorba se acaba desactivando y no se vuelve a activar.
+
+### Por qué tres y no el PIN solo
+
+El PIN en la pantalla fue lo primero que gustó, y se le encontró el borde en
+la misma sesión: **usa la presencia física como factor, así que le prohíbe la
+puerta a quien no está delante.** Quien quiera cambiar la configuración de su
+buddy desde otra habitación —o desde la oficina— no tiene forma de leer el
+PIN. La contraseña es exactamente esa puerta, y no cuesta nada más que el
+PIN una vez existe el selector.
+
+Que sean tres modos y no dos también hace explícito el primero: `none` deja de
+ser lo que pasa por inercia y pasa a ser algo que alguien eligió.
+
+### Dos cosas que van decididas pase lo que pase
+
+- **`GET /config` no devuelve nunca un secreto.** Devuelve `"api_key_set":
+  true`. La regla es por nombre de campo (`api_key`, `psk`), no una lista
+  enumerada que se olvida de actualizar cuando aparece el campo siguiente.
+- **NVS no va cifrada.** Quien tenga la placa en la mano y `esptool` saca la
+  clave de la flash. ESP-IDF sabe cifrar NVS sobre flash encryption, pero eso
+  complica el flasheo lo bastante como para estorbar en un taller. Se acepta,
+  **y consta como decisión y no como olvido**.
+
+### Lo que reduce el problema
+
+Si el AP de aprovisionamiento va con WPA2 y la contraseña se enseña como QR en
+la cara, **el aprovisionamiento ya queda autenticado por presencia física** —
+en el enlace, no en la aplicación, y protegiendo la sesión entera en lugar de
+un endpoint. El selector se ocupa entonces solo del web UI en funcionamiento
+normal, ya dentro de la red de casa, que es una pregunta mucho más pequeña.
+
+La implementación va en [#54](https://github.com/HackLab-Oriente/desktop-buddy/issues/54); el campo lo define el núcleo de configuración ([#5](https://github.com/HackLab-Oriente/desktop-buddy/issues/5)).
