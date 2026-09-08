@@ -27,7 +27,7 @@
 #include <cstring>
 #include <mutex>
 
-#include "esp_heap_caps.h"
+#include "esp_memory_utils.h"
 #include "esp_log.h"
 #include "esp_random.h"
 #include "esp_timer.h"
@@ -61,6 +61,7 @@ LGFX_Sprite spr(&lcd);                 // the working frame, full screen
 LGFX_Sprite cache[kLevelCount] = {LGFX_Sprite(&lcd), LGFX_Sprite(&lcd), LGFX_Sprite(&lcd)};
 uint16_t* fb = nullptr;                // spr's buffer: fb[y * W + x]
 int cached_emotion = -1;
+bool cached = true;                    // false once the PSRAM cache is gone
 
 volatile int s_emotion = 0;
 volatile bool s_dirty = true;
@@ -206,7 +207,7 @@ void draw_eye(int cxi, int side, const Emotion& em, int open_pct, int gx, int gy
 }
 
 void build_cache(int emo) {
-  if (cached_emotion == emo) return;
+  if (!cached || cached_emotion == emo) return;
   const int64_t t0 = esp_timer_get_time();
   for (int i = 0; i < kLevelCount; i++) {
     spr.fillScreen(TFT_BLACK);
@@ -221,8 +222,11 @@ void build_cache(int emo) {
 
 // How long a full eye frame costs, averaged over a window. Cheap enough to
 // leave in (two timer reads per frame) and it is what catches a regression:
-// the recorded budget is ~27.9 ms/frame at 240 MHz, of which 23.1 ms is the
-// SPI push and cannot move, so anything well above that is the CPU half.
+// the budget is ~27.9 ms/frame at 240 MHz, of which 23.1 ms is the SPI push
+// and cannot move, so anything well above that is the CPU half. That 27.9 is
+// derived, not measured: what was recorded is 30.4 ms at 160 MHz, scaled by
+// moving only the 7.3 ms CPU half to 240. Uncached it is far higher -- the
+// blit the cache exists to replace is the whole difference.
 #if CONFIG_BUDDY_DEBUG
 void report_frame(int64_t us) {
   static int64_t sum = 0;
@@ -230,13 +234,27 @@ void report_frame(int64_t us) {
   sum += us;
   if (++n < 40) return;
   const float ms = sum / 1000.0f / n;
-  ESP_LOGI(TAG, "render %.1f ms/frame (%.1f fps)", ms, 1000.0f / ms);
+  ESP_LOGI(TAG, "render %.1f ms/frame (%.1f fps)%s", ms, 1000.0f / ms,
+           cached ? "" : " uncached");
   sum = 0;
   n = 0;
 }
 #endif
 
 void draw_eyes_inner(int open_pct, int gx, int gy) {
+  if (!cached) {
+    // Skips the level lookup, which today is the identity anyway: face_task
+    // only ever passes 100, kLevels[1] or kLevels[2]. It also clips at the
+    // final position rather than inside the cache, so an eye wide enough to
+    // reach the edge stays whole under a gaze offset instead of losing the
+    // column the cache had already cut.
+    const Emotion& em = emotions()[s_emotion];
+    render_frame([&] {
+      draw_eye(CX - GAP, 0, em, open_pct, gx, gy);
+      draw_eye(CX + GAP, 1, em, open_pct, gx, gy);
+    });
+    return;
+  }
   // build_cache uses spr as scratch, so it must run BEFORE the clear —
   // otherwise its last level survives under the transparent blit and shows
   // as a stray bar below the eyes.
@@ -575,7 +593,27 @@ void face_start() {
   for (int i = 0; i < kLevelCount; i++) {
     cache[i].setColorDepth(16);
     cache[i].setPsram(true);  // 3 x 115 KB, only ever blitted
-    if (!cache[i].createSprite(W, H)) ESP_LOGE(TAG, "no memory for eye cache %d", i);
+    // setPsram(true) is a preference, not a requirement: LovyanGFX falls back
+    // to heap_alloc_dma() on failure, which on the S3 is internal RAM. Three
+    // of these would quietly take 345 KB of the ~380 KB the whole firmware
+    // has, and WiFi would fail much later and somewhere else. Ask where the
+    // buffer actually landed.
+    if (!cache[i].createSprite(W, H) || !esp_ptr_external_ram(cache[i].getBuffer()))
+      cached = false;
+  }
+  // All three or none: a partial cache would make every draw ask which levels
+  // survived. Hand back whatever did allocate and render each frame instead
+  // of blitting -- 40-81 ms/frame against 27.9, so 12-25 fps, and the thing
+  // the cache exists to avoid. It still beats the alternative: continuing
+  // with a null buffer means build_cache() memcpy's 115,200 bytes into it on
+  // the first frame.
+  if (!cached) {
+    for (int i = 0; i < kLevelCount; i++) cache[i].deleteSprite();
+    // Says PSRAM and not "cache" on purpose. face_start() is the first thing
+    // in the boot to ask for PSRAM, so getting here means there is none at
+    // all -- and markov's mv_alloc falls back to internal RAM without saying
+    // so. The face will be slow; markov will be the one that runs out.
+    ESP_LOGW(TAG, "no PSRAM: eye cache dropped, drawing every frame");
   }
 
   bus().subscribe("face.emotion", [](const Event& ev) {

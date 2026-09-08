@@ -304,19 +304,26 @@
           ESP32 clásico, que corría <em>la misma cara a color</em>. El clásico se retiró — sin PSRAM
           no hay caché de ojos ni modelo local —, pero lo que obligó a descubrir sigue siendo cierto
           del firmware que quedó, y por eso esta sección sigue aquí.</p>
-        <p>El hallazgo fue que los 460 KB de PSRAM que la cara parece necesitar <strong>no son el
-          renderizado</strong>: son la caché de los tres niveles de ojo, que convierte un parpadeo en
-          tres blits en vez de tres renders. Dibujar solo necesita un frame, y un frame se puede
-          construir por bandas horizontales de 240×48 (23 KB) en lugar de los 115 KB de la pantalla
-          entera. El clásico dibujaba así, a 14,4 fps medidos, y el S3 usaba el mismo código con una
-          sola banda del alto completo.</p>
-        <p>Esa distinción —caché contra frame— es la que sigue mandando en el S3: el frame vive en
-          RAM interna porque es lo más rápido de dibujar, la caché vive en PSRAM porque solo se
-          blitea, y el día que la PSRAM se llene con el modelo local, el que tiene que ceder es el
-          caché, no el dibujado. El código por bandas se retiró con el target (gravaba cada rutina de
-          dibujo con un sesgo de coordenada), pero la propiedad que lo hacía posible se conserva:
-          todo efecto del glitch es <strong>row-local</strong> y ninguna rutina lee una fila distinta
-          de la que escribe.</p>
+        <p>El hallazgo fue que los 460,8 KB que la cara parece necesitar <strong>no son el
+          renderizado</strong>. Son cuatro sprites de 240×240 a 16 bpp, 115.200 bytes cada uno: tres
+          son la caché de niveles de ojo —345.600 bytes, y viven en PSRAM porque solo se blitean—,
+          que convierte un parpadeo en tres blits en vez de tres renders. El cuarto es el frame de
+          trabajo, y ese vive en RAM interna, que es donde más rápido se dibuja. Dibujar solo
+          necesita ese frame, y un frame se podía construir por bandas horizontales de 240×48
+          (23 KB) en lugar de los 115 KB de la pantalla entera. El clásico dibujaba así, a 14,4 fps
+          medidos, y el S3 usaba el mismo código con una sola banda del alto completo.</p>
+        <p>Esa distinción —caché contra frame— es la que sigue mandando en el S3, y el día que la
+          PSRAM se llene con el modelo local, el que tiene que ceder es el caché y no el dibujado.
+          Hoy eso es una intención con media implementación, y conviene saber qué media: si los tres
+          sprites no caben <em>en el momento en que arranca la cara</em>,
+          <code>face_start()</code> devuelve los que sí cupieron y el renderizador dibuja los ojos en
+          cada frame en vez de blitearlos —40-81 ms por frame contra 27,9, o sea 12-25 fps, y el
+          buddy conserva la cara. Pero <code>face_start()</code> corre pronto
+          (<code>main.cpp</code>, antes de la red), así que ante una presión posterior el que cede
+          es el modelo, no el caché. Que la caché ceda de verdad pide un accesor que hoy no existe. El código por bandas se
+          retiró con el target (gravaba cada rutina de dibujo con un sesgo de coordenada), pero la
+          propiedad que lo hacía posible se conserva: todo efecto del glitch es
+          <strong>row-local</strong> y ninguna rutina lee una fila distinta de la que escribe.</p>
       </div>
     </section>
 

@@ -64,7 +64,7 @@ mkdir -p generate && python3 tools/coc/coc -o generate src default -c default/be
 #     fallback en C — main.cpp replica packs/zero/reflexes/main.be.)
 
 cd ../../..            # de vuelta a firmware/
-idf.py set-target esp32s3    # o: esp32 — elige tu placa
+idf.py set-target esp32s3    # el único target
 idf.py menuconfig            # menú "Buddy Zero": WiFi, API key, pines
 idf.py build flash monitor
 ```

@@ -51,7 +51,8 @@ en [docs/pack-format.md](docs/pack-format.md).
 Necesitas [ESP-IDF v6.x](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/)
 (la v5 **no** sirve para este proyecto) y una placa **ESP32-S3** — la N16R8 es
 la de referencia. La PSRAM no es opcional: la caché de la cara y el modelo
-local viven ahí.
+local viven ahí. Sin ella el firmware arranca y dibuja, pero a 12-25 fps en
+vez de 35, y el modelo local no cabe.
 
 ```bash
 # --recursive importa: sin los submódulos (Berry y LovyanGFX) no compila

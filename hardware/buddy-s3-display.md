@@ -166,4 +166,4 @@ en la traza.
 > **Verificado en hardware** (S3, primer intento): `rc522: MFRC522 version 0x92`
 > y un llavero dispara `nfc.tag` con su UID, que la cara muestra en pantalla.
 > Estos pines y este cableado son reales, no una propuesta leída del datasheet.
-> En el **ESP32 clásico sigue sin probarse** — mismo módulo, otros pines.
+> El **ESP32 clásico se retiró** en #80; su cableado queda como histórico.

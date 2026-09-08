@@ -31,7 +31,7 @@ body:
       label: Cómo sabemos que está hecho
       description: >
         Lo que alguien tendría que ver para creerte. "El log imprime X", "la
-        cara cambia al tocar el pad", "el PR compila para los dos targets".
+        cara cambia al tocar el pad", "el PR compila para el S3".
         Sin esto la tarea se queda abierta para siempre porque nadie sabe
         cuándo cerrarla.
       placeholder: |

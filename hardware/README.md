@@ -17,8 +17,8 @@ También: la máscara imprimible [`round-mask/`](round-mask/).
 existe; y el cableado del ESP32 clásico —`buddy-zero-wiring.md` más su
 `buddy-zero.wireviz.yml`—, para un target que el firmware ya no compila.
 
-Regla que lo explica casi todo: **cada chip tiene minas distintas**. En el S3,
-GPIO 33–37 son la PSRAM, 19/20 el USB, 26–32 la flash y 0/3/45/46 strapping.
-En el clásico, 6–11 son la flash, 12 y 15 strapping y 34–39 solo entrada. Por
-eso los pines por defecto difieren por target (están en `menuconfig`, nunca
-hardcodeados).
+Regla que lo explica casi todo: **cada chip tiene minas distintas**, y por eso
+los pines viven en `menuconfig` y nunca hardcodeados. En el S3 —el único
+target— GPIO 33–37 son la PSRAM, 19/20 el USB, 26–32 la flash y 0/3/45/46
+strapping. En el clásico eran 6–11 flash, 12 y 15 strapping y 34–39 solo
+entrada: eso ya solo hace falta para leer el cableado histórico.
