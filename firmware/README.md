@@ -82,7 +82,7 @@ Los pines viven en `menuconfig`, nunca hardcodeados.
 | GC9A01 (SPI, **3V3**) | SCL 12 · SDA 11 · CS 10 · DC 9 · RST 8 · BL 7 |
 | Almohadilla táctil | GPIO 4 |
 | Anillo WS2812 (**5V**) | DIN 21 |
-| RC522 (opcional, **3V3**) | SCK 39 · MISO 40 · MOSI 41 · SDA/CS 42 · RST 38 |
+| RC522 (**3V3**) | SCK 39 · MISO 40 · MOSI 41 · SDA/CS 42 · RST 38 |
 
 En el RC522 no hay ningún pin marcado «CS»: el módulo serigrafía **`SDA`**, que
 en SPI es el chip select. El `IRQ` va sin conectar — el driver hace polling.
