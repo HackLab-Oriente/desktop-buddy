@@ -229,6 +229,9 @@ constexpr Route kRoutes[] = {
     {"/setup", HTTP_POST, post_setup},
     {"/reflex", HTTP_GET, get_reflex},
     {"/reflex", HTTP_POST, post_reflex},
+    {"/hotspot-detect.html", HTTP_GET, get_captive_portal},
+    {"/generate_204", HTTP_GET, get_captive_portal},
+    {"/generate_204", HTTP_HEAD, get_captive_portal},
     {"/*", HTTP_GET, get_captive_portal}, 
 };
 
@@ -314,10 +317,13 @@ bool wifi_start(const char* ssid, const char* pass) {
   if (has_creds) {
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
     if (ssid && ssid[0]) {
-      wifi_config_t cfg = {};
-      strlcpy(reinterpret_cast<char*>(cfg.sta.ssid), ssid, sizeof(cfg.sta.ssid));
-      strlcpy(reinterpret_cast<char*>(cfg.sta.password), pass, sizeof(cfg.sta.password));
-      ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &cfg));
+      if (strncmp(reinterpret_cast<char*>(nvs_cfg.sta.ssid), ssid, sizeof(nvs_cfg.sta.ssid)) != 0 ||
+          strncmp(reinterpret_cast<char*>(nvs_cfg.sta.password), pass, sizeof(nvs_cfg.sta.password)) != 0) {
+        wifi_config_t cfg = {};
+        strlcpy(reinterpret_cast<char*>(cfg.sta.ssid), ssid, sizeof(cfg.sta.ssid));
+        strlcpy(reinterpret_cast<char*>(cfg.sta.password), pass, sizeof(cfg.sta.password));
+        ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &cfg));
+      }
     }
     ESP_ERROR_CHECK(esp_wifi_start());
     
@@ -344,8 +350,10 @@ bool wifi_start(const char* ssid, const char* pass) {
     ESP_ERROR_CHECK(esp_wifi_stop());
   }
   ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_AP));
+    uint8_t mac[6];
+    esp_wifi_get_mac(WIFI_IF_STA, mac);
     char ssid_ap[32];
-    snprintf(ssid_ap, sizeof(ssid_ap), "Hacklab-Buddy");
+    snprintf(ssid_ap, sizeof(ssid_ap), "buddy-%02x%02x", mac[4], mac[5]);
     
     wifi_config_t ap_cfg = {};
     strlcpy(reinterpret_cast<char*>(ap_cfg.ap.ssid), ssid_ap, sizeof(ap_cfg.ap.ssid));
