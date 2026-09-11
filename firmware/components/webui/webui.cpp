@@ -97,6 +97,9 @@ esp_err_t get_root(httpd_req_t* req) {
 }
 
 esp_err_t get_setup(httpd_req_t* req) {
+  if (!s_ap_mode) {
+    return httpd_resp_send_err(req, HTTPD_403_FORBIDDEN, "Provisioning only allowed in AP mode");
+  }
   return httpd_resp_send(req, kSetupPage, HTTPD_RESP_USE_STRLEN);
 }
 
@@ -104,10 +107,25 @@ esp_err_t get_setup(httpd_req_t* req) {
 #include "payload_parser.h"
 
 esp_err_t post_setup(httpd_req_t* req) {
+  if (!s_ap_mode) {
+    return httpd_resp_send_err(req, HTTPD_403_FORBIDDEN, "Provisioning only allowed in AP mode");
+  }
+
+  if (req->content_len > 255) {
+    return httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Payload too large");
+  }
+
   char buf[256] = {0};
-  int ret = httpd_req_recv(req, buf, sizeof(buf) - 1);
-  if (ret <= 0) {
-    return httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Bad Request");
+  size_t remaining = req->content_len;
+  size_t received = 0;
+  while (remaining > 0) {
+    int ret = httpd_req_recv(req, buf + received, remaining);
+    if (ret <= 0) {
+      if (ret == HTTPD_SOCK_ERR_TIMEOUT) continue;
+      return httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Bad Request");
+    }
+    received += ret;
+    remaining -= ret;
   }
 
   buddy::setup_payload_t payload;
@@ -121,8 +139,10 @@ esp_err_t post_setup(httpd_req_t* req) {
   ESP_LOGI(TAG, "Captive portal received Pass len: %d, Auth: %s", strlen(payload.pass), payload.auth);
 
   wifi_config_t cfg = {};
-  strncpy(reinterpret_cast<char*>(cfg.sta.ssid), payload.ssid, sizeof cfg.sta.ssid - 1);
-  strncpy(reinterpret_cast<char*>(cfg.sta.password), payload.pass, sizeof cfg.sta.password - 1);
+  size_t ssid_len = strlen(payload.ssid);
+  if (ssid_len > 32) return httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "SSID too long");
+  memcpy(cfg.sta.ssid, payload.ssid, ssid_len);
+  strlcpy(reinterpret_cast<char*>(cfg.sta.password), payload.pass, sizeof(cfg.sta.password));
   
   if (strcmp(payload.auth, "3") == 0) {
     cfg.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
@@ -266,11 +286,13 @@ static void dns_server_task(void*) {
 
     int ptr = 12;
     while (ptr < len && buf[ptr] != 0) {
-      ptr += buf[ptr] + 1;
+      uint8_t label_len = static_cast<uint8_t>(buf[ptr]);
+      if (label_len > 63) break;
+      ptr += label_len + 1;
     }
     ptr += 5; 
 
-    if (ptr + 16 > sizeof(buf)) continue;
+    if (ptr > len || ptr + 16 > sizeof(buf)) continue;
 
     buf[ptr++] = 0xC0;
     buf[ptr++] = 0x0C;
@@ -312,18 +334,17 @@ bool wifi_start(const char* ssid, const char* pass) {
   wifi_config_t nvs_cfg = {};
   esp_wifi_get_config(WIFI_IF_STA, &nvs_cfg);
   
-  bool has_creds = (ssid && ssid[0]) || nvs_cfg.sta.ssid[0];
+  bool has_creds = nvs_cfg.sta.ssid[0] || (ssid && ssid[0]);
 
   if (has_creds) {
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
-    if (ssid && ssid[0]) {
-      if (strncmp(reinterpret_cast<char*>(nvs_cfg.sta.ssid), ssid, sizeof(nvs_cfg.sta.ssid)) != 0 ||
-          strncmp(reinterpret_cast<char*>(nvs_cfg.sta.password), pass, sizeof(nvs_cfg.sta.password)) != 0) {
-        wifi_config_t cfg = {};
-        strlcpy(reinterpret_cast<char*>(cfg.sta.ssid), ssid, sizeof(cfg.sta.ssid));
-        strlcpy(reinterpret_cast<char*>(cfg.sta.password), pass, sizeof(cfg.sta.password));
-        ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &cfg));
-      }
+    if (!nvs_cfg.sta.ssid[0] && ssid && ssid[0]) {
+      wifi_config_t cfg = {};
+      size_t len = strlen(ssid);
+      if (len > 32) len = 32;
+      memcpy(cfg.sta.ssid, ssid, len);
+      strlcpy(reinterpret_cast<char*>(cfg.sta.password), pass, sizeof(cfg.sta.password));
+      ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &cfg));
     }
     ESP_ERROR_CHECK(esp_wifi_start());
     
@@ -355,11 +376,16 @@ bool wifi_start(const char* ssid, const char* pass) {
     char ssid_ap[32];
     snprintf(ssid_ap, sizeof(ssid_ap), "buddy-%02x%02x", mac[4], mac[5]);
     
+    char pass_ap[16];
+    snprintf(pass_ap, sizeof(pass_ap), "buddy-%04x%04x", 
+             static_cast<unsigned int>(esp_random() % 0x10000), 
+             static_cast<unsigned int>(esp_random() % 0x10000));
+    
     wifi_config_t ap_cfg = {};
     strlcpy(reinterpret_cast<char*>(ap_cfg.ap.ssid), ssid_ap, sizeof(ap_cfg.ap.ssid));
     ap_cfg.ap.ssid_len = strlen(ssid_ap);
     ap_cfg.ap.channel = 1;
-    strlcpy(reinterpret_cast<char*>(ap_cfg.ap.password), "buddy123", sizeof(ap_cfg.ap.password));
+    strlcpy(reinterpret_cast<char*>(ap_cfg.ap.password), pass_ap, sizeof(ap_cfg.ap.password));
     ap_cfg.ap.authmode = WIFI_AUTH_WPA2_PSK;
     ap_cfg.ap.max_connection = 4;
     ap_cfg.ap.pmf_cfg.required = false;
@@ -373,9 +399,7 @@ bool wifi_start(const char* ssid, const char* pass) {
   
   xTaskCreate(dns_server_task, "dns_server", 4096, nullptr, 5, nullptr);
   
-  char qr_payload[128];
-  snprintf(qr_payload, sizeof(qr_payload), "WIFI:T:WPA;S:%s;P:buddy123;;", ssid_ap);
-  bus().publish("wifi.ap_mode", qr_payload);
+  bus().publish("config.setup", ssid_ap);
   
   return false;
 }

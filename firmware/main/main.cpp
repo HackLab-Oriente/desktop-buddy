@@ -29,6 +29,7 @@
 #include "esp_err.h"
 #include "esp_littlefs.h"
 #include "esp_log.h"
+#include "esp_system.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "nvs_flash.h"
@@ -86,8 +87,12 @@ extern "C" void app_main() {
             if (hold_time >= 10000) {
               ESP_LOGW(TAG, "BOOT button held for 10 seconds. Erasing NVS and "
                             "restarting...");
-              nvs_flash_erase();
-              esp_restart();
+              if (nvs_flash_erase() == ESP_OK) {
+                esp_restart();
+              } else {
+                ESP_LOGE(TAG, "Failed to erase NVS");
+                hold_time = 0;
+              }
             }
           } else {
             hold_time = 0;

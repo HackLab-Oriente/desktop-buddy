@@ -9,7 +9,7 @@ inline void urldecode(char* dst, size_t max_len, const char* src) {
   char a, b;
   size_t written = 0;
   while (*src && written < max_len - 1) {
-    if ((*src == '%') && ((a = src[1]) && (b = src[2])) && (isxdigit(a) && isxdigit(b))) {
+    if ((*src == '%') && ((a = src[1]) && (b = src[2])) && (isxdigit(static_cast<unsigned char>(a)) && isxdigit(static_cast<unsigned char>(b)))) {
       if (a >= 'a') a -= 'a' - 10;
       else if (a >= 'A') a -= 'A' - 10;
       else a -= '0';

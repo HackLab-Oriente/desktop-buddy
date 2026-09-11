@@ -1,2 +1,2 @@
 dependencies:
-  espressif/mdns: "*"
+  espressif/mdns: "~1.4"

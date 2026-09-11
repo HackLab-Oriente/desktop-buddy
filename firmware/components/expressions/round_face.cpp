@@ -29,8 +29,10 @@
 
 #include "esp_heap_caps.h"
 #include "esp_log.h"
+#include "esp_mac.h"
 #include "esp_random.h"
 #include "esp_timer.h"
+#include "esp_wifi.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
@@ -533,7 +535,7 @@ volatile bool s_say_dirty = false;
 
 // ===== ap mode =====
 volatile bool s_ap_mode = false;
-char s_ap_qr[64] = {0};
+char s_ap_qr[128] = {0};
 std::mutex s_qr_mu;
 
 
@@ -689,10 +691,14 @@ void face_start() {
   });
   bus().subscribe("boot.ready", [](const Event&) { s_boot_ready = true; });
   
-  bus().subscribe("wifi.ap_mode", [](const Event& ev) {
+  bus().subscribe("config.setup", [](const Event& ev) {
     std::lock_guard<std::mutex> lock(s_qr_mu);
-    strncpy(s_ap_qr, ev.payload.c_str(), sizeof(s_ap_qr) - 1);
-    s_ap_qr[sizeof(s_ap_qr) - 1] = '\0';
+    wifi_config_t ap_cfg;
+    if (esp_wifi_get_config(WIFI_IF_AP, &ap_cfg) == ESP_OK) {
+        snprintf(s_ap_qr, sizeof(s_ap_qr), "WIFI:T:WPA;S:%s;P:%s;;", ev.payload.c_str(), reinterpret_cast<char*>(ap_cfg.ap.password));
+    } else {
+        snprintf(s_ap_qr, sizeof(s_ap_qr), "WIFI:T:WPA;S:%s;P:;;", ev.payload.c_str());
+    }
     s_ap_mode = true;
     s_dirty = true;
   });
