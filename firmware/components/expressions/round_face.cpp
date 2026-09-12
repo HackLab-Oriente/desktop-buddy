@@ -83,6 +83,8 @@ int cached_emotion = -1;
 
 inline bool in_band(int y) { return y >= band_y0 && y < band_y0 + kBandH; }
 
+// Slot 0 is neutral: set_emotions() canonises the pack's "neutral" to index 0,
+// so this static start shows the neutral face until the first face.emotion.
 volatile int s_emotion = 0;
 volatile bool s_dirty = true;
 
