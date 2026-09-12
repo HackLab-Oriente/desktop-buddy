@@ -181,7 +181,7 @@ textarea:focus {
   overflow: hidden;
 }
 
-/*Override tamaño y distribuicion de las categorias */
+/* Override tamaño y distribución de las categorías */
 .blocklyToolboxCategory {
   height: 36px;
   display: flex;

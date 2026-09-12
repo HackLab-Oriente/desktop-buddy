@@ -129,15 +129,21 @@ esp_err_t post_reflex(httpd_req_t *req) {
                                "upload incomplete");
   }
 
-  const char *write_ptr = body.data();
-  size_t write_len = body.size();
-
   cJSON *root = cJSON_ParseWithLength(body.data(), body.size());
-  cJSON *script_obj = root ? cJSON_GetObjectItem(root, "script") : nullptr;
-  if (script_obj && cJSON_IsString(script_obj) && script_obj->valuestring) {
-    write_ptr = script_obj->valuestring;
-    write_len = strlen(script_obj->valuestring);
+  cJSON *script_obj = root ? cJSON_GetObjectItemCaseSensitive(root, "script")
+                           : nullptr;
+  if (root && (!cJSON_IsObject(root) || !cJSON_IsString(script_obj) ||
+               !script_obj->valuestring)) {
+    cJSON_Delete(root);
+    fclose(f);
+    unlink("/flash/reflexes/main.be.tmp");
+    return httpd_resp_send_err(
+        req, HTTPD_400_BAD_REQUEST,
+        "JSON body must contain a string field named script");
   }
+  const char *write_ptr = script_obj ? script_obj->valuestring : body.data();
+  const size_t write_len = script_obj ? strlen(script_obj->valuestring)
+                                      : body.size();
 
   if (fwrite(write_ptr, 1, write_len, f) != write_len) {
     ok = false;
