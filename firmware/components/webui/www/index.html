@@ -9,7 +9,7 @@
   <link rel="alternate icon" type="image/svg+xml" href="/favicon.ico">
   <link rel="stylesheet" href="/style.css">
   <!-- Blockly Library -->
-  <script src="https://unpkg.com/blockly/blockly.min.js"></script>
+  <script src="https://unpkg.com/blockly@13.3.0/blockly.min.js" onerror="window.blocklyFailed=true"></script>
 </head>
 
 
@@ -109,10 +109,18 @@
   <script>
     var workspace = null;
     var BerryGenerator = null;
+    var isCodeDirty = false;
+    var isWorkspaceUserModified = false;
+    var currentTab = 'visual';
 
     function initBlockly() {
-      if (typeof Blockly === 'undefined') {
-        console.warn('Blockly CDN not available');
+      if (typeof Blockly === 'undefined' || window.blocklyFailed) {
+        console.warn('Blockly library not available (offline / CDN unreachable)');
+        var tabVisual = document.getElementById('tabVisual');
+        if (tabVisual) tabVisual.style.display = 'none';
+        var tabsNav = document.querySelector('.tabs-nav');
+        if (tabsNav) tabsNav.style.display = 'none';
+        switchTab('code');
         return;
       }
 
@@ -291,7 +299,6 @@
         BerryGenerator.forBlock[type] = fn;
       }
 
-
       registerBerryBlock('buddy_on', function (block, generator) {
         var gen = generator || BerryGenerator;
         var event = block.getFieldValue('EVENT');
@@ -409,15 +416,34 @@
         }
       });
 
-      workspace.addChangeListener(function () {
-        var code = BerryGenerator.workspaceToCode(workspace);
-        if (code.trim().length > 0) {
-          document.getElementById('reflexScript').value = code;
+      workspace.addChangeListener(function (event) {
+        if (event.isUiEvent || event.type === Blockly.Events.FINISHED_LOADING) {
+          return;
+        }
+        if (event.type === Blockly.Events.BLOCK_CREATE ||
+            event.type === Blockly.Events.BLOCK_DELETE ||
+            event.type === Blockly.Events.BLOCK_CHANGE ||
+            event.type === Blockly.Events.BLOCK_MOVE) {
+          if (currentTab === 'visual') {
+            isWorkspaceUserModified = true;
+            var code = BerryGenerator.workspaceToCode(workspace);
+            if (code && code.trim().length > 0) {
+              document.getElementById('reflexScript').value = code;
+            }
+          }
         }
       });
+
+      var codeScript = document.getElementById('reflexScript');
+      if (codeScript) {
+        codeScript.addEventListener('input', function () {
+          isCodeDirty = true;
+        });
+      }
     }
 
     function switchTab(tab) {
+      currentTab = tab;
       var tabVisual = document.getElementById('tabVisual');
       var tabCode = document.getElementById('tabCode');
       var visualView = document.getElementById('visualView');
@@ -429,8 +455,10 @@
         tabCode.className = 'tab-btn';
         visualView.className = 'view-panel active';
         codeView.className = 'view-panel';
-        if (codeScript && codeScript.value) {
+        if (isCodeDirty && codeScript && codeScript.value) {
           parseBerryToBlockly(codeScript.value);
+          isCodeDirty = false;
+          isWorkspaceUserModified = false;
         }
         if (workspace) Blockly.svgResize(workspace);
       } else {
@@ -438,7 +466,7 @@
         tabCode.className = 'tab-btn active';
         visualView.className = 'view-panel';
         codeView.className = 'view-panel active';
-        if (workspace && BerryGenerator) {
+        if (isWorkspaceUserModified && workspace && BerryGenerator) {
           var code = BerryGenerator.workspaceToCode(workspace);
           if (code && code.trim().length > 0) {
             codeScript.value = code;
@@ -533,21 +561,36 @@
                   }
                 }
               } else {
-                var matchInc = line.match(/^([a-zA-Z0-9_]+)\s*\+=\s*1/);
-                if (matchInc) {
-                  newChild = workspace.newBlock('buddy_var_inc');
-                  newChild.setFieldValue(matchInc[1], 'VAR');
+                var matchLog = line.match(/buddy\.log\s*\((.*)\)/);
+                if (matchLog) {
+                  newChild = workspace.newBlock('buddy_log');
+                  var logVal = matchLog[1].trim();
+                  if (logVal.startsWith('"') && logVal.endsWith('"')) {
+                    var logB = workspace.newBlock('text');
+                    logB.setFieldValue(logVal.slice(1, -1), 'TEXT');
+                    logB.initSvg();
+                    logB.render();
+                    if (newChild.getInput('MSG') && newChild.getInput('MSG').connection && logB.outputConnection) {
+                      newChild.getInput('MSG').connection.connect(logB.outputConnection);
+                    }
+                  }
                 } else {
-                  var matchSet = line.match(/^([a-zA-Z0-9_]+)\s*=\s*(.*)$/);
-                  if (matchSet && matchSet[1] !== 'var') {
-                    newChild = workspace.newBlock('buddy_var_set');
-                    newChild.setFieldValue(matchSet[1], 'VAR');
-                    var valB = workspace.newBlock('math_number');
-                    valB.setFieldValue(matchSet[2].trim(), 'NUM');
-                    valB.initSvg();
-                    valB.render();
-                    if (newChild.getInput('VALUE') && newChild.getInput('VALUE').connection && valB.outputConnection) {
-                      newChild.getInput('VALUE').connection.connect(valB.outputConnection);
+                  var matchInc = line.match(/^([a-zA-Z0-9_]+)\s*\+=\s*1/);
+                  if (matchInc) {
+                    newChild = workspace.newBlock('buddy_var_inc');
+                    newChild.setFieldValue(matchInc[1], 'VAR');
+                  } else {
+                    var matchSet = line.match(/^([a-zA-Z0-9_]+)\s*=\s*(.*)$/);
+                    if (matchSet && matchSet[1] !== 'var') {
+                      newChild = workspace.newBlock('buddy_var_set');
+                      newChild.setFieldValue(matchSet[1], 'VAR');
+                      var valB = workspace.newBlock('math_number');
+                      valB.setFieldValue(matchSet[2].trim(), 'NUM');
+                      valB.initSvg();
+                      valB.render();
+                      if (newChild.getInput('VALUE') && newChild.getInput('VALUE').connection && valB.outputConnection) {
+                        newChild.getInput('VALUE').connection.connect(valB.outputConnection);
+                      }
                     }
                   }
                 }
@@ -591,6 +634,8 @@
         .then(function (text) {
           document.getElementById('reflexScript').value = text;
           parseBerryToBlockly(text);
+          isCodeDirty = false;
+          isWorkspaceUserModified = false;
           setStatus('Listo', 'online');
         })
         .catch(function (err) {
@@ -598,6 +643,7 @@
           setStatus('Error al cargar', 'error');
         });
     }
+
 
     function saveReflex() {
       var btn = document.getElementById('uploadBtn');
