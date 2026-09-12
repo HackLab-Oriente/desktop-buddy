@@ -125,6 +125,7 @@ reflejo diría las cosas dos veces.
 | `boot.status` | texto corto de estado | main | cada paso del arranque; mueve la línea del splash |
 | `boot.ready` | — | main | arranque terminado; la cara sale del splash con glitch |
 | `system.reload` | — | web UI | recargar la VM Berry (recarga en caliente) |
+| `config.setup` | SSID del AP (`"buddy-a3f2"`) | web UI | el buddy entró en modo aprovisionamiento; la cara puede enseñar el QR |
 
 ## Eventos propuestos
 
@@ -150,7 +151,6 @@ Tres reglas para esta sección:
 | `sound.done` | ruta del sonido | Voz | [pack-format.md](pack-format.md) | terminó de sonar un `buddy.sound.play` |
 | `sound.error` | razón | Voz | [pack-format.md](pack-format.md) | no se pudo reproducir |
 | `config.changed` | nombres de sección separados por coma (`"wifi,brain"`) | Web UI | [config-api.md](config-api.md) | cambió la configuración. **Nunca valores**: los packs Berry están suscritos al bus, así que un payload con la config dentro es una clave de API legible desde un pack |
-| `config.setup` | SSID del AP (`"buddy-a3f2"`) | Web UI | [config-api.md](config-api.md) | el buddy entró en modo aprovisionamiento; la cara puede enseñar el QR |
 | `timer.idle` | — | Firmware | [architecture.md](architecture.md) | pasó el tiempo sin interacción que fije el pack (300 s por defecto). **Sin el `_5m` en el nombre**: la propuesta de sentidos hace el intervalo configurable, y un nombre con el número dentro se vuelve falso el día que alguien lo cambie |
 | `timer.active` | — | Firmware | [architecture.md](architecture.md) | vuelve la interacción tras un `timer.idle`. Va en pareja: un umbral suelto tartamudea en el borde |
 | `storage.sd.gone` | — | Firmware | [pack-format.md](pack-format.md) | se quitó la tarjeta SD y los assets de `media/` dejan de resolver. Un evento, no un crash |

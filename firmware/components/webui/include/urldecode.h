@@ -6,6 +6,7 @@
 namespace buddy {
 
 inline void urldecode(char* dst, size_t max_len, const char* src) {
+  if (max_len == 0) return;
   char a, b;
   size_t written = 0;
   while (*src && written < max_len - 1) {
