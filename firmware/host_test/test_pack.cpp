@@ -123,13 +123,33 @@ static int test_expressions() {
   CHECK(parse_expressions(R"({"neutral":{"register":"seco","blink_ms":900}})", v));
   CHECK(v.size() == 1 && v[0].blink_period_ms == 900);
 
-  // The tables refuse a swap once the render task is up, and refusing leaves
-  // the previous table exactly as it was.
+  // set_emotions()/freeze validate and install the table. These cases run while
+  // the table still accepts swaps -- the "no neutral" case in particular MUST
+  // come before freeze_emotions(), or it passes on the frozen guard instead of
+  // the neutral rule it is meant to prove.
   {
     std::vector<Emotion> good;
     CHECK(parse_expressions(R"({"neutral":{"blink_ms":1234}})", good));
     CHECK(set_emotions(good));
     CHECK(emotion_count() == 1);
+
+    // "neutral" is canonised to slot 0 whatever order the pack lists it in: the
+    // render task starts at slot 0 and holds there until the first face.emotion
+    // event, so the startup frame must be neutral, not whatever came first.
+    std::vector<Emotion> ordered;
+    CHECK(parse_expressions(
+        R"({"happy":{"blink_ms":900},"neutral":{"blink_ms":1234}})", ordered));
+    CHECK(ordered.size() == 2 && ordered[0].name == "happy");  // parse order
+    CHECK(set_emotions(ordered));
+    CHECK(emotions()[0].name == "neutral");                    // install order
+
+    // No "neutral" is refused by the VALIDATION, checked here while unfrozen so
+    // the case cannot pass on the freeze guard below. The good table stands.
+    std::vector<Emotion> no_neutral;
+    CHECK(parse_expressions(R"({"happy":{}})", no_neutral));
+    CHECK(!set_emotions(no_neutral));
+    CHECK(emotions()[0].name == "neutral");
+
     freeze_emotions();
     std::vector<Emotion> other;
     CHECK(parse_expressions(R"({"neutral":{"blink_ms":4321}})", other));
@@ -141,13 +161,6 @@ static int test_expressions() {
     CHECK(set_moods(m));
     freeze_moods();
     CHECK(!set_moods(m));
-  }
-
-  // A table with no "neutral" is refused: the renderer starts there.
-  {
-    std::vector<Emotion> no_neutral;
-    CHECK(parse_expressions(R"({"happy":{}})", no_neutral));
-    CHECK(!set_emotions(no_neutral));
   }
   return 0;
 }

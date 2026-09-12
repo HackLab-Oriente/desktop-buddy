@@ -165,6 +165,22 @@ void led_start() {
   });
   bus().subscribe("led.mood", [](const Event& ev) { select_mood(ev.payload.c_str()); });
 
+  // Seed colour and mood from the pack's "neutral" before the task starts. The
+  // first face.emotion event is what would otherwise set these, and it does not
+  // arrive until after the network is up (~25 s); until then the ring would show
+  // the compiled-in cyan and mood 0, which for a custom pack is an arbitrary
+  // colour and animation. "neutral" is guaranteed present (set_emotions refuses
+  // a table without it), but resolve by name rather than assuming slot 0.
+  const int ni = emotion_index("neutral");
+  if (ni >= 0) {
+    const Emotion& e = emotions()[ni];
+    s_r = e.r; s_g = e.g; s_b = e.b;
+    if (!e.mood.empty()) {
+      const int mi = mood_index(e.mood.c_str());
+      if (mi >= 0) s_mood = mi;
+    }
+  }
+
   ESP_LOGI(TAG, "WS2812 ring: %d LEDs on GPIO %d, %d moods", s_count,
            CONFIG_BUDDY_WS2812_PIN, mood_count());
   xTaskCreatePinnedToCore(ring_task, "ring", 3072, nullptr, 3, nullptr, 1);
