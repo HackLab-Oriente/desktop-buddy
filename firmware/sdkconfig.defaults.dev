@@ -1,0 +1,11 @@
+# Lo que el equipo quiere ver mientras desarrolla, y que un buddy terminado en
+# la mesa de alguien no tiene por qué pagar. No se aplica solo: hay que pedirlo.
+#
+#   idf.py -DSDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.defaults.esp32s3;sdkconfig.defaults.dev" set-target esp32s3
+#
+# BUDDY_DEBUG está en n por defecto por una razón medida, no por limpieza: el
+# tracer se suscribe el primero y escribe desde dentro del bucle del bus, y la
+# consola UART hace busy-wait sobre el FIFO. A 115200 baudios un gesto de
+# caricia bloquea el bus 15-20 ms, por delante de la cara y de los LEDs.
+# Depurando en la mesa eso da igual y el log vale más que los milisegundos.
+CONFIG_BUDDY_DEBUG=y

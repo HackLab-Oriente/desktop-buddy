@@ -7,6 +7,10 @@ sdkconfig.old
 managed_components/
 dependencies.lock
 
+# Tus credenciales como defaults, para que `set-target` no se las lleve por
+# delante. Ver firmware/README.md -> Build de desarrollo.
+sdkconfig.defaults.local
+
 firmware/.cache
 
 # Model weights and other large binaries are fetched, never vendored.
