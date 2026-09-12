@@ -231,9 +231,8 @@ casa, un QR de `http://192.168.40.96/` en la cara mata para siempre la
 búsqueda de «cuál era la IP del buddy».
 
 Espressif publica un componente `qrcode` en el registro (lo usan sus ejemplos
-de aprovisionamiento) que expone la rejilla de módulos en vez de solo
-imprimirla por consola, así que LovyanGFX puede dibujarla. Confirmar la API
-exacta al integrar.
+de aprovisionamiento), y ha sido integrado con éxito en Buddy. LovyanGFX puede
+dibujarlo directamente con `spr.qrcode()`.
 
 ### Por qué no hay tarjeta NFC de configuración
 
