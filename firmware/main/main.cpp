@@ -110,10 +110,21 @@ extern "C" void app_main() {
     // instead -- packs/zero maps them in reflexes/main.be -- so this fallback
     // exists only for the no-reflexes board.
     buddy::bus().subscribe("brain.thinking", [](const buddy::Event&) {
+      // No fallback here: if the pack has no "thinking" mood the spin simply
+      // never starts, which is not a stuck state. Falling back to mood 0 would
+      // make thinking and idle land on the same mood and erase the indicator.
       buddy::bus().publish("led.mood", "thinking");
     });
     buddy::bus().subscribe("brain.idle", [](const buddy::Event&) {
-      buddy::bus().publish("led.mood", "calm");
+      // brain.idle MUST end the spin. "calm" is the built-in resting mood, but a
+      // pack that replaced the table need not carry it, and on a no-reflexes
+      // board nothing else maps brain.idle -- so a missing "calm" would leave
+      // the ring spinning. Fall back to mood 0, which always exists (set_moods
+      // refuses an empty table) and therefore always resolves.
+      const char* rest = "calm";
+      if (buddy::mood_index("calm") < 0 && buddy::mood_count() > 0)
+        rest = buddy::moods()[0].name.c_str();
+      buddy::bus().publish("led.mood", rest);
     });
   }
 
