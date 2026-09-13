@@ -274,6 +274,17 @@ static int test_moods() {
     CHECK(parse_moods(R"({"a":{"anim":"spin","dir":"[[[[[[[[[[cw"}})", v,
                       /*bare_map=*/true));
   }
+
+  // has_object_member tells an OMITTED section from a MALFORMED one, so the
+  // loader can keep the built-ins for a pack that customises only one table,
+  // yet reject a pack whose "moods" is present but junk (which would install a
+  // good expression half beside a built-in mood half, or the reverse).
+  CHECK(has_object_member(R"({"moods":{"x":{"anim":"spin"}}})", "moods"));  // present, good
+  CHECK(has_object_member(R"({"moods":"nonsense"})", "moods"));  // present, wrong type -> malformed
+  CHECK(has_object_member(R"({"moods":{}})", "moods"));          // present, empty -> malformed
+  CHECK(!has_object_member(R"({"id":"zero","name":"B"})", "moods"));  // omitted
+  CHECK(!has_object_member("not json at all", "moods"));         // unparseable
+  CHECK(!has_object_member(R"(["moods"])", "moods"));            // root not an object
   return 0;
 }
 
