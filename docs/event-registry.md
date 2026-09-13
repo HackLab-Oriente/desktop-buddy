@@ -90,12 +90,21 @@ cartuchos la define el equipo de personalidad.
 | evento | payload | lo emite | cuándo |
 |---|---|---|---|
 | `brain.ask` | texto del prompt | reflejos | algo quiere una respuesta. Se encola con hueco para 4; más allá se descarta con `brain.error "busy"` |
+| `brain.thinking` | — | brain | empezó a procesar un `brain.ask`. **Intención, no mood**: el brain ya no publica `led.mood "thinking"`; el pack decide con qué mood se ve pensar (ver abajo) |
 | `brain.reply` | JSON `{"emotion": "...", "utterance": "..."}` | brain | el modelo contestó. `emotion` va primero para que al transmitir en streaming la cara la reciba antes que las palabras |
 | `brain.error` | `offline` \| `no_key` \| `auth` \| `rate_limit` \| `timeout` \| `bad_reply` \| `busy` | brain | la pregunta no produjo respuesta. **Siempre se publica**: sin clave, sin red o con la cola llena, un `brain.ask` produce esto y no silencio |
+| `brain.idle` | — | brain, main | terminó de pensar y **ninguna expresión fijó el mood**: una respuesta sin emoción usable, o un error. Una respuesta con emoción trae su propio mood vía `face.emotion` y no emite esto |
 
 `brain.reply` se parsea centralmente en [main.cpp](../firmware/main/main.cpp)
 y se reparte en `face.emotion` + `face.say`; los packs normalmente reaccionan
 a esos dos, no a la respuesta cruda.
+
+El mood de pensar es **decisión del pack**: el brain emite `brain.thinking` /
+`brain.idle` (intención), y los reflejos los mapean a un mood concreto
+(`packs/zero` lo hace en `reflexes/main.be`). El firmware solo trae un mapeo por
+defecto (`thinking` / `calm`) cuando la placa arranca **sin reflejos**. Así un
+pack que reemplaza la tabla de moods no convierte las señales del brain en
+no-ops por no declarar `calm` o `thinking`.
 
 ### Expressions — peticiones a subsistemas de salida
 

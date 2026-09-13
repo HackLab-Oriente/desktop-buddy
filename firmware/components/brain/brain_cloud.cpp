@@ -165,11 +165,15 @@ std::string call_claude(const std::string& user_text, const char** reason) {
   return reply;
 }
 
-// Every path out of an ask ends in exactly one of brain.reply or brain.error,
-// and both clear the thinking mood. Leaving it set was how a failed ask left
-// the ring spinning until the next successful one.
+// Every path out of an ask ends the "thinking" signal. finish() is the error
+// paths: it publishes brain.idle so a reflex (or the firmware default) drops the
+// ring out of the thinking animation -- leaving it set was how a failed ask left
+// the ring spinning until the next successful one. The success path publishes
+// brain.reply instead, whose expression carries the resting mood, so the ring
+// shows the reply's own mood rather than a hard-coded calm. The mood NAMES are
+// the pack's now: the brain publishes intent (thinking / idle), not "calm".
 void finish(const char* reason) {
-  bus().publish("led.mood", "calm");
+  bus().publish("brain.idle");
   if (reason) bus().publish("brain.error", reason);
 }
 
@@ -177,7 +181,7 @@ void brain_task(void*) {
   char* ask;
   for (;;) {
     if (xQueueReceive(s_asks, &ask, portMAX_DELAY) != pdTRUE) continue;
-    bus().publish("led.mood", "thinking");
+    bus().publish("brain.thinking");
     const char* reason = nullptr;
     std::string raw = call_claude(ask, &reason);
     free(ask);
@@ -188,8 +192,11 @@ void brain_task(void*) {
     cJSON* first = content ? cJSON_GetArrayItem(content, 0) : nullptr;
     cJSON* text = first ? cJSON_GetObjectItem(first, "text") : nullptr;
     if (text && cJSON_IsString(text)) {
+      // No brain.idle here: brain.reply carries an expression, and its own mood
+      // ends the thinking spin. main.cpp signals rest only if the reply names no
+      // usable expression. Publishing idle here too would override the reply's
+      // mood with the resting one.
       bus().publish("brain.reply", text->valuestring);
-      bus().publish("led.mood", "calm");
     } else {
       ESP_LOGE(TAG, "bad response: %.200s", raw.c_str());
       finish(brain_error::kBadReply);
