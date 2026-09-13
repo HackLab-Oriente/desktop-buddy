@@ -2,6 +2,13 @@
 # and the IDF version, so committing it would churn every time anyone moves
 # to a new ESP-IDF), which means these ranges are the only thing standing
 # between a clean clone and a surprise major version.
+
+# One target. Without this the component manager accepts `set-target esp32`
+# and the build only fails later, indirectly; declaring it here rejects the
+# classic target at set-target time, where the error names the cause.
+targets:
+  - esp32s3
+
 dependencies:
   idf: ">=6.0"        # v5 is not supported — see CONTRIBUTING.md
   joltwallet/littlefs: "^1.22.3"   # 1.x only
