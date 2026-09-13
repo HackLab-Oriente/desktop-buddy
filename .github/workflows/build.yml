@@ -1,6 +1,8 @@
 # Enforces the rule CONTRIBUTING states: main always builds. The matrix keeps
-# one entry on purpose — restoring a second target is a one-word edit rather
-# than a job restructure.
+# one entry on purpose — adding another CI target is a one-line edit here, but
+# that only wires up CI. A target also needs manifest eligibility, pin
+# defaults, a partition table and a renderer, so a dropped target does not come
+# back from this file alone.
 name: build
 
 on:
