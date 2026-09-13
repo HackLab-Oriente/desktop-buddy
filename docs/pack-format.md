@@ -371,6 +371,23 @@ después sigue ganando. Por eso los reflejos que ya existen —que publican los
 dos— se comportan exactamente igual que antes, y los nuevos pueden publicar
 solo `face.emotion` y dejar de repetirse.
 
+### El cerebro pide un mood, no lo fija
+
+El cerebro ya no publica `led.mood "thinking"` ni `led.mood "calm"`: publica
+**intención**. `brain.thinking` cuando empieza a procesar, y `brain.idle` cuando
+termina sin que una expresión fije el mood (un error, o una respuesta sin
+emoción usable). Con qué mood se ve «pensando» y «en reposo» lo decides tú,
+mapeando esos dos eventos en `reflexes/main.be`:
+
+    buddy.on("brain.thinking", def (ev) buddy.led.mood("thinking") end)
+    buddy.on("brain.idle",     def (ev) buddy.led.mood("calm")     end)
+
+Un pack **con reflejos** que quiera indicador de «pensando» tiene que mapearlos:
+si no lo hace, no hay indicador — es tu decisión, no un fallo. El firmware solo
+trae un mapeo por defecto (`thinking`/`calm`) cuando la placa arranca **sin
+reflejos**. Así, reemplazar la tabla de moods sin declarar `calm` o `thinking`
+ya no convierte las señales del cerebro en no-ops.
+
 ## Markov como tercera fuente de frases (propuesta)
 
 El banco ya estaba decidido (#17), y con el modelo pospuesto **Markov es la

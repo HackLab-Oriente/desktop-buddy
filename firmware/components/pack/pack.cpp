@@ -120,13 +120,14 @@ bool pack_load(const char* root) {
     }
   }
 
-  // A section that is PRESENT but did not yield a usable table is a broken pack,
-  // not a partial one. Reject the whole load and keep every built-in: applying
-  // the good half would leave the built-in half referencing names the pack's
-  // half need not define -- built-in expressions ask for moods like "calm", and
-  // a pack that replaced the mood table need not carry them. Half a pack is
-  // worse than none. An OMITTED section (the expressions file absent, or no
-  // "moods" in the manifest) is fine: the pack customised only one table.
+  // A PRESENT section that did not yield a usable table is a broken pack, not a
+  // partial one -- the author meant to ship it -- so reject the whole load and
+  // keep every built-in rather than install a good half under a manifest that
+  // intended both. An OMITTED section (the expressions file absent, or no
+  // "moods" in the manifest) is a deliberate partial pack and is allowed: if its
+  // one table names moods the surviving built-in half does not define, that
+  // degrades the documented way -- the ring keeps the current mood and warns --
+  // instead of being rejected.
   if ((moods_present && !have_moods) || (emos_present && !have_emos)) {
     ESP_LOGW(TAG, "%s has a malformed section — keeping all built-ins", root);
     return false;
