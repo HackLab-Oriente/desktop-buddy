@@ -1,6 +1,8 @@
 # Buddy Zero wiring (classic ESP32 + GC9A01) — render with:
 #   pip install wireviz && wireviz hardware/buddy-zero.wireviz.yml
-# Matches the esp32-target defaults in firmware/main/Kconfig.projbuild.
+# Historical: the classic ESP32 was dropped in #80 (no PSRAM, no local model).
+# Kept as a record of the Buddy Zero wiring — the pins no longer track
+# firmware/main/Kconfig.projbuild, which is esp32s3-only now.
 
 connectors:
   ESP32_DEVKIT_V1:
