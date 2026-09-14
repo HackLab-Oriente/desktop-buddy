@@ -49,10 +49,16 @@ void freeze_emotions() { s_frozen = true; }
 bool set_emotions(std::vector<Emotion> v) {
   if (s_frozen) return false;   // a swap here would free the table mid-frame
   if (v.empty()) return false;
-  bool has_neutral = false;
-  for (const Emotion& e : v)
-    if (e.name == "neutral") { has_neutral = true; break; }
-  if (!has_neutral) return false;
+  // "neutral" is required AND canonised to slot 0. The render task starts at
+  // s_emotion == 0 and holds there until the first face.emotion event, which
+  // does not arrive until after the network is up. Without this, a pack that
+  // lists another expression first would show it for the whole splash; requiring
+  // neutral only guarantees it exists somewhere, not that it is what boots.
+  size_t idx = v.size();
+  for (size_t i = 0; i < v.size(); i++)
+    if (v[i].name == "neutral") { idx = i; break; }
+  if (idx == v.size()) return false;
+  if (idx != 0) std::swap(v[0], v[idx]);
   table() = std::move(v);
   return true;
 }

@@ -90,12 +90,21 @@ cartuchos la define el equipo de personalidad.
 | evento | payload | lo emite | cuándo |
 |---|---|---|---|
 | `brain.ask` | texto del prompt | reflejos | algo quiere una respuesta. Se encola con hueco para 4; más allá se descarta con `brain.error "busy"` |
+| `brain.thinking` | — | brain | empezó a procesar un `brain.ask`. **Intención, no mood**: el brain ya no publica `led.mood "thinking"`; el pack decide con qué mood se ve pensar (ver abajo) |
 | `brain.reply` | JSON `{"emotion": "...", "utterance": "..."}` | brain | el modelo contestó. `emotion` va primero para que al transmitir en streaming la cara la reciba antes que las palabras |
 | `brain.error` | `offline` \| `no_key` \| `auth` \| `rate_limit` \| `timeout` \| `bad_reply` \| `busy` | brain | la pregunta no produjo respuesta. **Siempre se publica**: sin clave, sin red o con la cola llena, un `brain.ask` produce esto y no silencio |
+| `brain.idle` | — | brain, main | terminó de pensar y **ninguna expresión fijó el mood**: una respuesta sin emoción usable, o un error. Una respuesta con emoción trae su propio mood vía `face.emotion` y no emite esto |
 
 `brain.reply` se parsea centralmente en [main.cpp](../firmware/main/main.cpp)
 y se reparte en `face.emotion` + `face.say`; los packs normalmente reaccionan
 a esos dos, no a la respuesta cruda.
+
+El mood de pensar es **decisión del pack**: el brain emite `brain.thinking` /
+`brain.idle` (intención), y los reflejos los mapean a un mood concreto
+(`packs/zero` lo hace en `reflexes/main.be`). El firmware solo trae un mapeo por
+defecto (`thinking` / `calm`) cuando la placa arranca **sin reflejos**. Así un
+pack que reemplaza la tabla de moods no convierte las señales del brain en
+no-ops por no declarar `calm` o `thinking`.
 
 ### Expressions — peticiones a subsistemas de salida
 
@@ -154,6 +163,7 @@ Tres reglas para esta sección:
 | `timer.idle` | — | Firmware | [architecture.md](architecture.md) | pasó el tiempo sin interacción que fije el pack (300 s por defecto). **Sin el `_5m` en el nombre**: la propuesta de sentidos hace el intervalo configurable, y un nombre con el número dentro se vuelve falso el día que alguien lo cambie |
 | `timer.active` | — | Firmware | [architecture.md](architecture.md) | vuelve la interacción tras un `timer.idle`. Va en pareja: un umbral suelto tartamudea en el borde |
 | `storage.sd.gone` | — | Firmware | [pack-format.md](pack-format.md) | se quitó la tarjeta SD y los assets de `media/` dejan de resolver. Un evento, no un crash |
+| `pack.changed` | id del pack nuevo | Firmware | [pack-format.md](pack-format.md) | el pack terminó de cargarse y sus tablas ya están en pie. **Es un hecho, no una orden**: pedir el cambio es `buddy.pack_load()`, un método, justamente para que ningún reflejo pueda escuchar la orden y republicarla en bucle |
 | `webhook.*` | — | Firmware | [architecture.md](architecture.md) | **solo hub, v2+.** No es un evento del buddy; se lista para que nadie lo confunda con uno |
 
 ## Espacios de nombres
@@ -167,6 +177,7 @@ responsable de ese equipo.
 |---|---|---|
 | `touch.*`, `nfc.*`, `sense.*` | Electrónica | `touch.*` y `nfc.*` vivos; ningún `sense.*` propuesto |
 | `voice.*`, `sound.*` | Voz | **ninguno vivo**; 4 propuestos — los fija el equipo de voz |
+| `pack.*` | Firmware | **ninguno vivo**; 1 propuesto (`pack.changed`) |
 | `face.*`, `led.*` | Personalidad + Firmware | vivos |
 | `speech.*` | Firmware | `speech.say` vivo |
 | `config.*` | Web UI | **ninguno vivo**; 2 propuestos en [config-api.md](config-api.md) |

@@ -153,6 +153,24 @@ void led_start() {
   ESP_ERROR_CHECK(led_strip_new_rmt_device(&cfg, &rmt, &s_strip));
   led_strip_clear(s_strip);
 
+  // Seed colour and mood from the pack's "neutral" before wiring the
+  // subscribers and starting the task. The first face.emotion event is what
+  // would otherwise set these, and it does not arrive until after the network
+  // is up (~25 s); until then the ring would show the compiled-in cyan and
+  // mood 0, which for a custom pack is an arbitrary colour and animation.
+  // "neutral" is guaranteed present (set_emotions refuses a table without it),
+  // but resolve by name rather than assuming slot 0. Seeding before subscribe
+  // also leaves no window for a handler to race these writes.
+  const int ni = emotion_index("neutral");
+  if (ni >= 0) {
+    const Emotion& e = emotions()[ni];
+    s_r = e.r; s_g = e.g; s_b = e.b;
+    if (!e.mood.empty()) {
+      const int mi = mood_index(e.mood.c_str());
+      if (mi >= 0) s_mood = mi;
+    }
+  }
+
   // The expression carries the ring colour, and may also name a mood. That
   // name is a DEFAULT: a led.mood published afterwards still wins, which is
   // why the existing reflexes keep behaving exactly as they did.

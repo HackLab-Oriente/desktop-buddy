@@ -3,20 +3,14 @@
 El núcleo del framework: bus de eventos, host de Berry, drivers de Senses y
 Expressions, el adaptador de cerebro cloud y la web de recarga en caliente.
 
-## Dos targets
+## Un target
 
-| | `esp32s3` (referencia) | `esp32` (clásico, DevKit V1) |
-|---|---|---|
-| Bus, Berry, web UI, cerebro cloud, tacto, NFC | ✓ | ✓ |
-| Cara GC9A01 a color | ✓ 1 banda + caché PSRAM, **33 fps medidos** | ✓ 5 bandas de 23 KB, **14,4 fps medidos** |
-| Modelo local / voz | ✓ / planificado | ✗ (sin PSRAM) |
-| Verificado | en hardware, completo | en hardware, completo |
-
-El truco que hace posible el clásico: los 460 KB de PSRAM que la cara parece
-necesitar son la **caché** de niveles de ojo, no el renderizado. Dibujar
-necesita un frame, y un frame se puede construir por bandas horizontales
-(240×48 = 23 KB). En el S3 `kBandH == H` — una sola banda, exactamente el
-código de siempre. Todo esto vive en `components/expressions/round_face.cpp`.
+| | `esp32s3` (referencia) |
+|---|---|
+| Bus, Berry, web UI, cerebro cloud, tacto, NFC | ✓ |
+| Cara GC9A01 a color | ✓ frame completo + caché PSRAM, **33 fps medidos** |
+| Modelo local / voz | ✓ / planificado |
+| Verificado | en hardware, completo |
 
 ## La capa gráfica
 
@@ -61,46 +55,84 @@ se queda ~4 s en "connecting wifi": ese es el cuello de botella honesto.
 
 ```bash
 # 1. ESP-IDF v6.x (la v5 NO está soportada). El instalador EIM deja el script
-#    de activación en ~/.espressif/tools/activate_idf_v6.0.2.sh — haz source.
+#    de activación en ~/.espressif/tools/activate_idf_v6.1.sh — haz source.
 # 2. Submódulos: Berry (VM de reflejos) y LovyanGFX (capa gráfica).
 git submodule update --init
 cd firmware/components/berry_host/berry
 mkdir -p generate && python3 tools/coc/coc -o generate src default -c default/berry_conf.h
-#    (Sin el submódulo/codegen el build compila igual; los reflejos caen al
-#     fallback en C — main.cpp replica packs/zero/reflexes/main.be.)
+#    (Sin el submódulo/codegen el build compila igual, pero el buddy se queda
+#     sin reflejos: el fallback en C se borró en #71 por ser una segunda copia
+#     del comportamiento semilla que se desincronizaba en silencio.)
 
 cd ../../..            # de vuelta a firmware/
-idf.py set-target esp32s3    # o: esp32 — elige tu placa
+idf.py set-target esp32s3    # el único target
 idf.py menuconfig            # menú "Buddy Zero": WiFi, API key, pines
 idf.py build flash monitor
 ```
 
 `set-target` regenera `sdkconfig` desde `sdkconfig.defaults` +
-`sdkconfig.defaults.<target>`, y elige la tabla de particiones (16 MB con
-partición de modelo en el S3; 4 MB sin ella en el clásico).
+`sdkconfig.defaults.esp32s3`, con la tabla de particiones de 16 MB e imagen
+de modelo local.
+
+### Build de desarrollo
+
+`CONFIG_BUDDY_DEBUG` viene en `n`, así que un `monitor` recién clonado sale
+callado: no traza los eventos del bus, ni los cuerpos HTTP del cerebro, ni las
+lecturas del táctil. Está en `n` por una razón medida —el tracer bloquea el bus
+15-20 ms por gesto a 115200 baudios— que solo importa en un buddy terminado.
+Mientras desarrollas, pide `sdkconfig.defaults.dev`:
+
+```bash
+idf.py -DSDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.defaults.esp32s3;sdkconfig.defaults.dev" set-target esp32s3
+```
+
+Los ficheros van explícitos a propósito: `-DSDKCONFIG_DEFAULTS` sustituye la
+lista entera, y olvidar el del target deja el S3 sin PSRAM y por tanto sin
+caché de ojos. El fichero es tuyo para crecer: lo que quieras en tu mesa y no
+en el buddy de nadie más.
+
+### Tus credenciales, y por qué no van en `sdkconfig`
+
+`idf.py set-target` **regenera `sdkconfig` desde cero**, así que todo lo que
+solo viviera ahí —tu SSID, tu contraseña, tu clave de API— desaparece. Duele
+cada vez que se cambia de target o de versión de ESP-IDF.
+
+Copia `sdkconfig.defaults.local.example` a `sdkconfig.defaults.local`, que
+está gitignorado, y añádelo **al final** de la lista, que es la posición que
+gana:
+
+```bash
+idf.py -DSDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.defaults.esp32s3;sdkconfig.defaults.dev;sdkconfig.defaults.local" \
+       set-target esp32s3
+```
+
+Con eso, regenerar es gratis: `fullclean`, `set-target`, y sigues teniendo tu
+red y tu clave.
+
+Que la clave de API viva en un fichero de build es una decisión de PoC, no el
+diseño. En v1 va en NVS y se pone desde el web UI (#5). Mientras tanto, ten
+presente que **el binario compilado es una credencial**: `strings
+build/buddy.bin` la encuentra. No lo pases por un taller ni lo cuelgues de
+una release.
 
 ## Cableado
 
-Los pines por defecto **difieren por chip** — los rangos libres no coinciden
-(en el clásico, los pines de display del S3 son la flash). Siempre en
-`menuconfig`, nunca hardcodeados.
+Los pines viven en `menuconfig`, nunca hardcodeados.
 
-| Periférico | ESP32-S3 | ESP32 clásico |
-|---|---|---|
-| GC9A01 (SPI, **3V3**) | SCL 12 · SDA 11 · CS 10 · DC 9 · RST 8 · BL 7 | SCL 18 · SDA 23 · CS 5 · DC 27 · RST 26 · BL 25 |
-| Almohadilla táctil | GPIO 4 | GPIO 4 |
-| Anillo WS2812 (**5V**) | DIN 21 | DIN 21 |
-| RC522 (opcional, **3V3**) | SCK 39 · MISO 40 · MOSI 41 · SDA/CS 42 · RST 38 | SCK 14 · MISO 34 · MOSI 13 · SDA/CS 15 · RST 32 |
+| Periférico | ESP32-S3 |
+|---|---|
+| GC9A01 (SPI, **3V3**) | SCL 12 · SDA 11 · CS 10 · DC 9 · RST 8 · BL 7 |
+| Almohadilla táctil | GPIO 4 |
+| Anillo WS2812 (**5V**) | DIN 21 |
+| RC522 (opcional, **3V3**) | SCK 39 · MISO 40 · MOSI 41 · SDA/CS 42 · RST 38 |
 
 En el RC522 no hay ningún pin marcado «CS»: el módulo serigrafía **`SDA`**, que
 en SPI es el chip select. El `IRQ` va sin conectar — el driver hace polling.
 
-Guías paso a paso con checklist de primer arranque:
-[../hardware/buddy-s3-display.md](../hardware/buddy-s3-display.md) (S3) y
-[../hardware/buddy-zero-wiring.md](../hardware/buddy-zero-wiring.md) (clásico).
+Guía paso a paso con checklist de primer arranque:
+[../hardware/buddy-s3-display.md](../hardware/buddy-s3-display.md).
 
-Minas por chip — **S3**: 33–37 PSRAM octal, 19/20 USB, 26–32 flash, 0/3/45/46
-strapping. **Clásico**: 6–11 flash, 12 y 15 strapping, 34–39 solo entrada.
+Minas del S3: 33–37 PSRAM octal, 19/20 USB, 26–32 flash, 0/3/45/46 strapping.
 
 ## La escalera de PoCs
 
@@ -155,11 +187,8 @@ c++ -std=c++17 -Wall -fsanitize=address,undefined -fno-sanitize-recover=all \
 
 ## Estado
 
-- **Verificado**: ambos targets compilan en ESP-IDF v6.0.2; el bus pasa sus
-  tests de host; el S3 completo funciona en hardware (cara, anillo, tacto,
-  WiFi, cerebro Claude). Render medido: **30,3 ms/frame (33,0 fps)**.
-- **Verificado en el clásico**: con pantalla cableada — arranque, animación de
-  boot, ojos, 5 bandas sin costuras visibles, LittleFS, polaridad táctil V1.
-  Render medido: **69 ms/frame (14,4 fps)**.
+- **Verificado**: compila en ESP-IDF v6.1; el bus pasa sus tests de host; el
+  S3 completo funciona en hardware (cara, anillo, tacto, WiFi, cerebro
+  Claude). Render medido: **30,3 ms/frame (33,0 fps)**.
 - **Sin cablear todavía**: audio (INMP441/MAX98357A), tarjeta SD, sensores
-  I2C; RC522 sin probar en el clásico (verificado en el S3).
+  I2C.

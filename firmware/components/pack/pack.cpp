@@ -95,28 +95,42 @@ bool pack_load(const char* root) {
   std::string emo_rel = "faces/expressions.json";
   std::vector<Mood> moods_new;
   bool have_moods = false;
+  bool moods_present = false;   // the manifest declared a "moods" section
   if (read_file(base + "/pack.json", json)) {
     emo_rel = expressions_path(json);
+    moods_present = packparse::has_object_member(json.c_str(), "moods");
     // bare_map = false: this is the manifest. Read as a bare mood map, every
     // top-level key ("id", "name", "expressions") becomes a mood.
-    if (packparse::parse_moods(json.c_str(), moods_new, /*bare_map=*/false)) {
+    if (packparse::parse_moods(json.c_str(), moods_new, /*bare_map=*/false))
       have_moods = true;
-    } else {
-      ESP_LOGW(TAG, "pack.json has no usable moods — keeping built-ins");
-    }
   }
 
   std::vector<Emotion> emos_new;
   bool have_emos = false;
+  bool emos_present = false;    // the expressions file exists on flash
   if (read_file(base + "/" + emo_rel, json)) {
+    emos_present = true;
     if (!packparse::parse_expressions(json.c_str(), emos_new)) {
-      ESP_LOGW(TAG, "%s did not parse — keeping built-ins", emo_rel.c_str());
+      ESP_LOGW(TAG, "%s did not parse", emo_rel.c_str());
     } else if (!has_neutral(emos_new)) {
       // The one refusal worth naming out loud: the renderer starts at neutral.
-      ESP_LOGW(TAG, "expressions have no \"neutral\" — keeping built-ins");
+      ESP_LOGW(TAG, "expressions have no \"neutral\"");
     } else {
       have_emos = true;
     }
+  }
+
+  // A PRESENT section that did not yield a usable table is a broken pack, not a
+  // partial one -- the author meant to ship it -- so reject the whole load and
+  // keep every built-in rather than install a good half under a manifest that
+  // intended both. An OMITTED section (the expressions file absent, or no
+  // "moods" in the manifest) is a deliberate partial pack and is allowed: if its
+  // one table names moods the surviving built-in half does not define, that
+  // degrades the documented way -- the ring keeps the current mood and warns --
+  // instead of being rejected.
+  if ((moods_present && !have_moods) || (emos_present && !have_emos)) {
+    ESP_LOGW(TAG, "%s has a malformed section — keeping all built-ins", root);
+    return false;
   }
 
   if (!have_moods && !have_emos) {

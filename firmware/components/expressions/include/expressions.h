@@ -6,9 +6,8 @@
 namespace buddy {
 
 // The face — parametric eyes with blink, saccades, emotions and a text mode.
-// The active display backend (SSD1306 OLED or GC9A01 round color) is chosen
-// in menuconfig; each backend reads its own pins from Kconfig. Both share the
-// emotion model in face_model.h.
+// One backend, the GC9A01 round colour panel, reading its pins from Kconfig.
+// The emotion model is in face_model.h.
 // Consumes: face.emotion (any expression NAME in the pack's table — see
 //                         face_model.h; the built-ins are neutral, happy,
 //                         curious, sleepy, surprised, angry, sad, suspicious)

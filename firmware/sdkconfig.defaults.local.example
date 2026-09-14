@@ -1,0 +1,13 @@
+# Copia esto a sdkconfig.defaults.local (gitignorado) y rellena lo tuyo.
+#
+# Va SIEMPRE el último en -DSDKCONFIG_DEFAULTS: gana el último fichero de la
+# lista. Existe para que `idf.py set-target` no te cueste reescribir la clave
+# de API a mano — set-target regenera sdkconfig desde los defaults, y lo que
+# solo vivía en sdkconfig se pierde.
+#
+# La clave de API aquí es del PoC. En v1 vive en NVS y se pone desde el web UI
+# (#5), y por eso mismo no debe existir nunca como bytes bajo /flash: Berry
+# puede leer cualquier fichero de ahí.
+CONFIG_BUDDY_WIFI_SSID=""
+CONFIG_BUDDY_WIFI_PASS=""
+CONFIG_BUDDY_ANTHROPIC_API_KEY=""

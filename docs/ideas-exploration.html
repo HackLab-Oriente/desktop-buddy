@@ -330,7 +330,9 @@
             en sus tarjetas: <strong>C-01 aterrizó</strong> (la tabla de particiones ya está
             reclamada), <strong>B-02 dejó de ser especulación</strong> (el spike
             <code>tinylm-s3</code> midió la inferencia en la placa y luego optimizó el kernel 4,85×),
-            y el <strong>ESP32 clásico volvió a estar soportado</strong> como segundo target. El
+            y el <strong>ESP32 clásico volvió a estar soportado</strong> como segundo target —
+            y se retiró de nuevo en #80, esta vez para quedarse: sin PSRAM no hay caché de ojos ni
+            modelo local, y el segundo camino de render costaba más de lo que devolvía. El
             binario de app también creció de 1.194.432 a 1.286.704 bytes, así que la calculadora de
             §3 usa la cifra nueva.</p>
         </div>
@@ -739,9 +741,10 @@
               <div class="lbl">Actualización · agosto 2026 — aterrizado</div>
               <p>Hecho. La tabla actual es app 3 MB + packs 4 MB (LittleFS) + <code>model</code> 4 MB
                 (cruda), con 4,94 MB libres al final reservados para un futuro par de OTA. Sin huecos
-                de OTA por ahora, decisión consciente. Ver <code>firmware/partitions.csv</code>; el
-                ESP32 clásico usa <code>partitions_4mb.csv</code>, sin partición de modelo porque sin
-                PSRAM no puede correr inferencia igualmente.</p>
+                de OTA por ahora, decisión consciente. Ver <code>firmware/partitions.csv</code>. El
+                ESP32 clásico tuvo su propia <code>partitions_4mb.csv</code>, sin partición de modelo
+                porque sin PSRAM no podía correr inferencia igualmente; se borró con el target
+                en #80.</p>
             </div>
           </article>
 

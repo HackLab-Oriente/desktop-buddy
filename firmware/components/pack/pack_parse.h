@@ -142,6 +142,21 @@ inline Anim parse_anim(const std::string& s) {
   return Anim::Breathe;  // the safe default: something visible, nothing fast
 }
 
+// Whether a document declares a given object member at all, regardless of its
+// type. Lets the loader tell an OMITTED section (member absent: the pack chose
+// not to customise that table, keep the built-in) from a MALFORMED one (member
+// present but unusable: reject the whole pack, so a good half never installs
+// beside a built-in half that references names the good half need not define).
+inline bool has_object_member(const char* json, const char* key) {
+  if (!json || !depth_ok(json)) return false;
+  cJSON* root = cJSON_Parse(json);
+  if (!root) return false;
+  const bool present = cJSON_IsObject(root) &&
+                       cJSON_GetObjectItemCaseSensitive(root, key) != nullptr;
+  cJSON_Delete(root);
+  return present;
+}
+
 // { "<name>": { "eye": {...}, "blink_ms": N, "color": "#rrggbb",
 //               "mood": "..." }, ... }
 inline bool parse_expressions(const char* json, std::vector<Emotion>& out) {

@@ -4,6 +4,12 @@ CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
 CONFIG_SPIRAM=y
 CONFIG_SPIRAM_MODE_OCT=y
 CONFIG_SPIRAM_SPEED_80M=y
+# Boot even when PSRAM init fails, instead of aborting before app_main. With
+# CONFIG_SPIRAM=y and this off (the default), a board with missing or faulty
+# PSRAM panics in early boot and never reaches face_start()'s uncached
+# fallback. With it on, the firmware boots and draws at 12-25 fps without the
+# eye cache; the local model still does not fit. No effect on a healthy N16R8.
+CONFIG_SPIRAM_IGNORE_NOTFOUND=y
 # The S3 has ECC acceleration, so the TLS handshake is fast — but keep the
 # generous watchdog window; it costs nothing.
 CONFIG_ESP_TASK_WDT_TIMEOUT_S=15

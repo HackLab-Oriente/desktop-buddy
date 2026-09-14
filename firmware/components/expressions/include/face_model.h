@@ -42,7 +42,9 @@ int emotion_index(const char* name);
 
 // Replace the table. Ignored (and reported false) if `v` is empty or has no
 // entry named "neutral" — the renderer starts there, and a pack that cannot
-// render a neutral face is worse than no pack at all.
+// render a neutral face is worse than no pack at all. "neutral" is moved to
+// slot 0 on install, whatever order the pack listed it in, so the renderer's
+// s_emotion == 0 start shows the neutral face and not whatever came first.
 //
 // BOOT ONLY, and enforced: once face_start() has run, freeze_emotions() is
 // called and any later swap is refused and logged. emotions() hands out a

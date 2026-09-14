@@ -4,7 +4,10 @@
 //
 // Consumes: brain.reply  (the {emotion, utterance} contract, fanned out)
 //           speech.say   (routed to face.say until voice subscribes too)
-// Emits:    boot.status · boot.ready · face.emotion · face.say · led.mood
+//           brain.thinking · brain.idle  (only on a board with NO reflexes, to
+//                          map the brain's mood intent to the built-in moods)
+// Emits:    boot.status · boot.ready · face.emotion · face.say · led.mood ·
+//           brain.idle   (when a reply sets no mood-bearing expression)
 //
 // FOUR RULES GOVERN THE ORDER BELOW. Three of them are invisible in the code:
 //
@@ -20,6 +23,7 @@
 #include "bus.h"
 #include "expressions.h"
 #include "face_model.h"
+#include "mood_model.h"
 #include "pack.h"
 #include "senses.h"
 #include "webui.h"
@@ -134,8 +138,31 @@ extern "C" void app_main() {
   // clone without --recursive — not a device state. "Never a brick" protects
   // the creature from its environment; it does not owe anyone a quieter,
   // wronger demo that looks like the real one.
-  if (!buddy::berry_host_start())
+  if (!buddy::berry_host_start()) {
     buddy::bus().publish("boot.status", "sin reflejos");
+    // No pack reflexes loaded, so nothing would map the brain's mood intent
+    // (brain.thinking / brain.idle) to an actual mood. The framework fills in a
+    // default mapping to the built-in mood names. A pack with reflexes owns this
+    // instead -- packs/zero maps them in reflexes/main.be -- so this fallback
+    // exists only for the no-reflexes board.
+    buddy::bus().subscribe("brain.thinking", [](const buddy::Event&) {
+      // No fallback here: if the pack has no "thinking" mood the spin simply
+      // never starts, which is not a stuck state. Falling back to mood 0 would
+      // make thinking and idle land on the same mood and erase the indicator.
+      buddy::bus().publish("led.mood", "thinking");
+    });
+    buddy::bus().subscribe("brain.idle", [](const buddy::Event&) {
+      // brain.idle MUST end the spin. "calm" is the built-in resting mood, but a
+      // pack that replaced the table need not carry it, and on a no-reflexes
+      // board nothing else maps brain.idle -- so a missing "calm" would leave
+      // the ring spinning. Fall back to mood 0, which always exists (set_moods
+      // refuses an empty table) and therefore always resolves.
+      const char* rest = "calm";
+      if (buddy::mood_index("calm") < 0 && buddy::mood_count() > 0)
+        rest = buddy::moods()[0].name.c_str();
+      buddy::bus().publish("led.mood", rest);
+    });
+  }
 
   // brain.reply is the one contract-level reflex the framework owns:
   // parse {utterance, emotion} and fan out to expressions.
@@ -151,15 +178,20 @@ extern "C" void app_main() {
       j = cJSON_Parse(p.c_str() + at);
     if (!j) {
       ESP_LOGW(TAG, "brain reply has no JSON object: %.200s", p.c_str());
+      // No expression was set, so the ring is still on the "thinking" mood the
+      // brain signalled at the start of the ask. Signal rest so a reflex (or the
+      // firmware default) ends the spin instead of leaving it running.
+      buddy::bus().publish("brain.idle");
       return;
     }
-    cJSON *emotion = cJSON_GetObjectItem(j, "emotion");
-    cJSON *utterance = cJSON_GetObjectItem(j, "utterance");
+    cJSON* emotion = cJSON_GetObjectItem(j, "emotion");
+    cJSON* utterance = cJSON_GetObjectItem(j, "utterance");
     // Validated here, not downstream: the registry documents face.emotion as
     // a name from the table, and packs subscribe to the bus. A contract has to
     // hold at the publisher.
-    if (cJSON_IsString(emotion) &&
-        buddy::emotion_index(emotion->valuestring) >= 0)
+    const int ei =
+        cJSON_IsString(emotion) ? buddy::emotion_index(emotion->valuestring) : -1;
+    if (ei >= 0)
       buddy::bus().publish("face.emotion", emotion->valuestring);
     else if (cJSON_IsString(emotion))
       ESP_LOGW(TAG, "brain returned an unknown emotion: %.32s",
@@ -168,6 +200,18 @@ extern "C" void app_main() {
       ESP_LOGI(TAG, "buddy says: %.120s", utterance->valuestring);
       buddy::bus().publish("face.say", utterance->valuestring);
     }
+    // What ends the thinking spin is a face.emotion whose expression RESOLVES to
+    // a mood: led_ring adopts it, but only calls select_mood for a mood the pack
+    // actually defines. An expression with no mood, or one naming a mood this
+    // pack dropped, changes nothing on the ring -- so the spin would run on.
+    // Signal rest in exactly those cases; a resolvable mood must NOT also get
+    // brain.idle, or the resting mood would overwrite the reply's own.
+    bool ends_spin = false;
+    if (ei >= 0) {
+      const buddy::Emotion& e = buddy::emotions()[ei];
+      ends_spin = !e.mood.empty() && buddy::mood_index(e.mood.c_str()) >= 0;
+    }
+    if (!ends_spin) buddy::bus().publish("brain.idle");
     cJSON_Delete(j);
   });
 
@@ -221,7 +265,9 @@ extern "C" void app_main() {
   }
 
   buddy::bus().publish("face.emotion", "neutral");
-  buddy::bus().publish("led.mood", "calm");
+  // No led.mood here: face.emotion "neutral" makes the ring adopt the neutral
+  // expression's own mood (the pack's, or the built-in "calm"), which led_start()
+  // already seeded. A hard-coded "calm" would override the pack's choice.
   // Tells the face to glitch out of the splash and become a creature.
   buddy::bus().publish("boot.ready");
   ESP_LOGI(TAG, "buddy zero is alive");
