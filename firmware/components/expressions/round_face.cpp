@@ -529,15 +529,15 @@ void face_task(void*) {
       if (s_dirty) {
         s_dirty = false;
         std::lock_guard<std::mutex> lock(s_qr_mu);
-        render_bands([&] {
+        render_frame([&] {
           spr.fillScreen(TFT_WHITE);
           // 148px QR code centered
-          spr.qrcode(s_ap_qr, (W - 148)/2, (H - 148)/2 - band_y0, 148, 3, false);
-          
+          spr.qrcode(s_ap_qr, (W - 148)/2, (H - 148)/2, 148, 3, false);
+
           spr.setFont(&FontLatin);
           spr.setTextDatum(top_center);
           spr.setTextColor(TFT_BLACK);
-          spr.drawString("Escanea el QR", CX, 20 - band_y0);
+          spr.drawString("Escanea el QR", CX, 20);
         });
       }
       vTaskDelay(pdMS_TO_TICKS(100));
