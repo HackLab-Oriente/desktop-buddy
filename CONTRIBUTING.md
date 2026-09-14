@@ -100,7 +100,7 @@ nunca bytes.
 
 ## Firmware: reglas de la casa
 
-- **ESP-IDF v6.0.2.** La v5 no está soportada; no pierdas el día intentándolo.
+- **ESP-IDF v6.1.** La v5 no está soportada; no pierdas el día intentándolo.
 - Antes de un PR que toque `firmware/`, compila los dos targets:
 
 ```bash

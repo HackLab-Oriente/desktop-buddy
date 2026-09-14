@@ -8,7 +8,7 @@ version: 2
 #                                 Component Manager is not a Dependabot
 #                                 ecosystem; those are updated by hand.
 #                                 See the note at the bottom of this file.
-#   ✗ esp_idf_version: v6.0.2   — an input value in build.yml, not an action
+#   ✗ esp_idf_version: v6.1   — an input value in build.yml, not an action
 #                                 reference, so nothing tracks it. Bumping
 #                                 ESP-IDF stays a deliberate decision.
 

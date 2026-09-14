@@ -134,7 +134,7 @@ Perfectamente válido, y es como se hicieron todas las mediciones de este
 repo:
 
 ```bash
-source ~/.espressif/tools/activate_idf_v6.0.2.sh
+source ~/.espressif/tools/activate_idf_v6.1.sh
 cd firmware && idf.py build flash monitor
 ```
 

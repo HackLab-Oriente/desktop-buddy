@@ -46,7 +46,7 @@ jobs:
         uses: espressif/esp-idf-ci-action@v1
         with:
           # v5.x is not supported by this project — see firmware/README.md.
-          esp_idf_version: v6.0.2
+          esp_idf_version: v6.1
           target: ${{ matrix.target }}
           path: firmware
 

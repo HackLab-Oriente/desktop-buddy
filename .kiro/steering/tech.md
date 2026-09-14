@@ -22,7 +22,7 @@ implementations: on-device cloud adapter (default), optional hub server, none
 
 ## Core Technologies
 
-- **Firmware**: C/C++ on **ESP-IDF v6.0.2** (not Arduino). **v5.x is not
+- **Firmware**: C/C++ on **ESP-IDF v6.1** (not Arduino). **v5.x is not
   supported** — v6 removed the legacy driver APIs this code is written against.
 - **Behavior scripting**: Berry VM (Tasmota-proven; Lua is the fallback —
   decision by integration friction, workshop session 2).
@@ -94,10 +94,10 @@ the MMU cache, and copying to PSRAM at boot is 2.5× faster.
 
 ## Development Environment
 
-ESP-IDF v6.0.2 (install as workshop pre-work — it can eat an hour per laptop).
+ESP-IDF v6.1 (install as workshop pre-work — it can eat an hour per laptop).
 
 ```bash
-source ~/.espressif/tools/activate_idf_v6.0.2.sh
+source ~/.espressif/tools/activate_idf_v6.1.sh
 git submodule update --init          # Berry + LovyanGFX
 cd firmware && idf.py set-target esp32s3 && idf.py -p <PORT> build flash monitor
 ```
