@@ -180,6 +180,8 @@ esp_err_t get_captive_portal(httpd_req_t* req) {
 }
 
 esp_err_t get_reflex(httpd_req_t* req) {
+  // ESP-IDF's default response type is text/html, so a reflex containing a
+  // <script> tag executes in the browser of whoever opens this URL.
   httpd_resp_set_type(req, "text/plain");
   FILE* f = fopen("/flash/reflexes/main.be", "r");
   if (!f) return httpd_resp_send(req, "# no script yet\n", HTTPD_RESP_USE_STRLEN);
@@ -190,8 +192,14 @@ esp_err_t get_reflex(httpd_req_t* req) {
   return httpd_resp_send_chunk(req, nullptr, 0);
 }
 
+// A reflex is a few kilobytes; anything near this is a mistake or an attempt
+// to fill the pack partition, which is 2.06 MB on the classic board.
 constexpr size_t kMaxReflexBytes = 64 * 1024;
 
+// text/plain is on the CORS safelist, so a POST carrying it is a "simple
+// request" and any page the owner visits can write here with no preflight and
+// without reading the reply. Requiring a type that is NOT safelisted forces a
+// preflight the device never answers.
 bool content_type_ok(httpd_req_t* req) {
   char ct[64] = {0};
   if (httpd_req_get_hdr_value_str(req, "Content-Type", ct, sizeof ct) != ESP_OK)
@@ -202,10 +210,17 @@ bool content_type_ok(httpd_req_t* req) {
 esp_err_t post_reflex(httpd_req_t* req) {
   if (!content_type_ok(req))
     return httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "send content-type: application/json");
+  // content_len is size_t and 0 for chunked transfers. Refusing both up front
+  // is what keeps the truncation below from ever being reachable.
   if (req->content_len == 0 || req->content_len > kMaxReflexBytes)
     return httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "body must be 1..65536 bytes");
 
   mkdir("/flash/reflexes", 0755);
+  // Written beside the real file and renamed only on success. Opening the
+  // real one with "w" truncated it before a single byte arrived, so any
+  // interrupted upload -- or a Content-Length the size_t conversion turned
+  // negative -- left the buddy with no reflexes at all, reloaded it, and
+  // answered "ok".
   FILE* f = fopen("/flash/reflexes/main.be.tmp", "w");
   if (!f) return httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "fs");
 
@@ -215,7 +230,7 @@ esp_err_t post_reflex(httpd_req_t* req) {
   while (remaining > 0) {
     const size_t want = remaining < sizeof buf ? remaining : sizeof buf;
     const int n = httpd_req_recv(req, buf, want);
-    if (n == HTTPD_SOCK_ERR_TIMEOUT) continue;
+    if (n == HTTPD_SOCK_ERR_TIMEOUT) continue;   // a pause is not an ending
     if (n <= 0) { ok = false; break; }
     if (fwrite(buf, 1, static_cast<size_t>(n), f) != static_cast<size_t>(n)) {
       ok = false;
@@ -351,8 +366,11 @@ bool wifi_start(const char* ssid, const char* pass) {
     const bool connected = xEventGroupWaitBits(s_wifi_events, kConnected, pdFALSE, pdTRUE,
                                                pdMS_TO_TICKS(15000)) & kConnected;
     if (connected) {
+      // TLS certificate validation needs real time — the chip boots in 1970.
       esp_sntp_config_t sntp_cfg = ESP_NETIF_SNTP_DEFAULT_CONFIG("pool.ntp.org");
       esp_netif_sntp_init(&sntp_cfg);
+      // Its own status line: this wait is ten seconds long and the splash was
+      // still saying "connecting wifi", which by then is not true.
       bus().publish("boot.status", "sincronizando hora");
       if (esp_netif_sntp_sync_wait(pdMS_TO_TICKS(10000)) == ESP_OK) {
         time_t now = time(nullptr);
@@ -407,6 +425,9 @@ bool wifi_start(const char* ssid, const char* pass) {
 bool webui_start() {
   httpd_handle_t server = nullptr;
   httpd_config_t cfg = HTTPD_DEFAULT_CONFIG();
+  // Without this, seven idle sockets take every slot and never yield one.
+  // lwIP has ten in total, and SNTP holds one for the life of the device, so
+  // the brain loses its TLS socket too.
   cfg.lru_purge_enable = true;
   cfg.max_uri_handlers = sizeof kRoutes / sizeof *kRoutes;
   cfg.uri_match_fn = httpd_uri_match_wildcard;
