@@ -28,3 +28,11 @@ CONFIG_CJSON_NESTING_LIMIT=20
 # also what makes esp_http_client_config_t::save_client_session exist at all.
 CONFIG_ESP_TLS_CLIENT_SESSION_TICKETS=y
 CONFIG_MBEDTLS_CLIENT_SSL_SESSION_TICKETS=y
+
+# Both targets reach 240 MHz and both were running at 160. Measured against
+# the recorded budgets, this is worth far less to the S3 than it sounds and
+# far more to the classic: 76% of the S3's 30.4 ms frame is SPI wire time at a
+# fixed 40 MHz, so its face gains ~7%, while the classic's frame is 67% CPU
+# and gains ~25% (14.4 -> ~18 fps). The CPU-bound paths that do scale are the
+# TLS handshake, the SDF eyes and sentence generation.
+CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y

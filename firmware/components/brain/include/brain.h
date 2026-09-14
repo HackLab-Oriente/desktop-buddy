@@ -4,7 +4,10 @@
 // Consumes: brain.ask   (payload: free text or event description)
 // Emits:    brain.reply (payload: {"emotion": "...", "utterance": "..."})
 //           brain.error (payload: one of the reasons below)
-//           led.mood    ("thinking" while a call is in flight)
+//           brain.thinking (a call is in flight) · brain.idle (it ended with no
+//                        expression to carry the mood: an error path here, or a
+//                        reply with no usable emotion, signalled by main.cpp) --
+//                        intent, not a mood name; the pack maps these to moods
 //
 // Those events are the seam where a hub adapter plugs in later; reflexes never
 // know which brain answered. What is Anthropic-specific here is the endpoint,

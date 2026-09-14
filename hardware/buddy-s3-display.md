@@ -44,10 +44,20 @@ PSRAM, con otros pines por defecto: ver
 
 1. `face` / `buddy zero is alive` en el log, sin abortos de
    `ESP_ERROR_CHECK`.
-2. La pantalla redonda muestra dos ojos cian sobre negro que **parpadean y
+2. Estas dos líneas **son normales**, aunque una salga en rojo:
+
+   ```
+   E spi: spi_bus_initialize(897): SPI bus already initialized.
+   W LGFX: Failed to spi_bus_initialize.
+   ```
+
+   El firmware reclama el bus SPI antes que LovyanGFX a propósito, y esas dos
+   líneas son el relevo. Están explicadas en `claim_bus()`, en
+   `firmware/components/expressions/lgfx_buddy.h`.
+3. La pantalla redonda muestra dos ojos cian sobre negro que **parpadean y
    derivan**.
-3. Si la pantalla está en negro: revisa el cableado de RES/DC/CS y el 3V3.
-4. Si los colores salen invertidos o mal (ej. ojos magenta): es un clon del
+4. Si la pantalla está en negro: revisa el cableado de RES/DC/CS y el 3V3.
+5. Si los colores salen invertidos o mal (ej. ojos magenta): es un clon del
    GC9A01 con otro orden — invierte `cfg.invert` y/o `cfg.rgb_order` en
    `firmware/components/expressions/lgfx_buddy.h`. Los clones varían.
 
@@ -55,6 +65,17 @@ PSRAM, con otros pines por defecto: ver
 
 Todas están arregladas en el firmware; se documentan porque el siguiente
 miembro del lab que cablee un S3 se topará con las mismas.
+
+- **La placa reiniciaba en bucle antes de pintar un pixel, en ESP-IDF 6.1.**
+  El log decía `gdma_config_transfer(425): invalid max_data_burst_size:
+  4294967295` y moría en `spicommon_dma_chan_free`. LovyanGFX rellena su
+  `spi_bus_config_t` con 0xFF y solo reescribe los campos que conoce; todo lo
+  que deja a -1 son pines, donde -1 es justo lo correcto, así que la cosa
+  funcionó durante años. La 6.1 metió `dma_burst_size` en esa struct, que no
+  es un pin. Arreglo: reclamamos el bus nosotros antes, con una config de
+  verdad inicializada a cero (`claim_bus()` en
+  `firmware/components/expressions/lgfx_buddy.h`). En 6.0.2 no pasaba porque
+  el campo no existía.
 
 - **Stack overflow en la tarea `main` al arrancar.** `app_main` levanta la
   pantalla, el primer dibujado y la VM Berry en una sola tarea; el stack de

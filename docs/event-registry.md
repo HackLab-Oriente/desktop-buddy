@@ -90,21 +90,30 @@ cartuchos la define el equipo de personalidad.
 | evento | payload | lo emite | cuándo |
 |---|---|---|---|
 | `brain.ask` | texto del prompt | reflejos | algo quiere una respuesta. Se encola con hueco para 4; más allá se descarta con `brain.error "busy"` |
+| `brain.thinking` | — | brain | empezó a procesar un `brain.ask`. **Intención, no mood**: el brain ya no publica `led.mood "thinking"`; el pack decide con qué mood se ve pensar (ver abajo) |
 | `brain.reply` | JSON `{"emotion": "...", "utterance": "..."}` | brain | el modelo contestó. `emotion` va primero para que al transmitir en streaming la cara la reciba antes que las palabras |
 | `brain.error` | `offline` \| `no_key` \| `auth` \| `rate_limit` \| `timeout` \| `bad_reply` \| `busy` | brain | la pregunta no produjo respuesta. **Siempre se publica**: sin clave, sin red o con la cola llena, un `brain.ask` produce esto y no silencio |
+| `brain.idle` | — | brain, main | terminó de pensar y **ninguna expresión fijó el mood**: una respuesta sin emoción usable, o un error. Una respuesta con emoción trae su propio mood vía `face.emotion` y no emite esto |
 
 `brain.reply` se parsea centralmente en [main.cpp](../firmware/main/main.cpp)
 y se reparte en `face.emotion` + `face.say`; los packs normalmente reaccionan
 a esos dos, no a la respuesta cruda.
 
+El mood de pensar es **decisión del pack**: el brain emite `brain.thinking` /
+`brain.idle` (intención), y los reflejos los mapean a un mood concreto
+(`packs/zero` lo hace en `reflexes/main.be`). El firmware solo trae un mapeo por
+defecto (`thinking` / `calm`) cuando la placa arranca **sin reflejos**. Así un
+pack que reemplaza la tabla de moods no convierte las señales del brain en
+no-ops por no declarar `calm` o `thinking`.
+
 ### Expressions — peticiones a subsistemas de salida
 
 | evento | payload | lo consume | notas |
 |---|---|---|---|
-| `face.emotion` | nombre de emoción (`happy`, `sad`…) | round_face, led_ring | el anillo copia el color de la cara |
+| `face.emotion` | nombre de expresión, **el que declare el pack** | round_face, led_ring | el anillo copia el color de la cara **y adopta el mood que esa expresión declare**, salvo que llegue un `led.mood` explícito después |
 | `face.say` | texto | round_face | palabras **en pantalla**. Es lo que publica `buddy.hint()` |
 | `face.look` | objetivo de mirada | round_face | **suscrito, nunca publicado** — ver agujeros |
-| `led.mood` | `calm` \| `excited` \| `thinking` \| `off` | led_ring | estilo de animación, no color |
+| `led.mood` | nombre de mood, **abierto: lo define el pack** | led_ring | estilo de animación, no color. Ya **no** es una lista cerrada: un pack declara los suyos sobre primitivas cerradas del firmware (`breathe`, `spin`, `pulse`, `solid`, `off`). Un nombre desconocido deja el mood actual y avisa |
 
 ### Habla
 
@@ -195,14 +204,13 @@ y estado.*
 2. **El payload no tiene esquema.** `brain.reply` ya lleva JSON dentro del
    string. Tolerable hoy; dolerá cuando la web consuma eventos. Si aparece
    un segundo payload estructurado, revisar antes de que haya un tercero.
-3. **El vocabulario de emociones está duplicado.** `face.emotion` acepta los
-   ocho nombres de `face_model.cpp`, mientras `led.mood` acepta solo
-   `calm|excited|thinking|off`. Dos vocabularios solapados para un concepto —
-   lo que el grupo decida sobre expresiones tiene que reconciliarlos.
+3. ~~**El vocabulario de emociones está duplicado.**~~ **Cerrado** (#19,
+   sesión 1). Ya no hay dos listas cerradas: el pack declara sus expresiones y
+   sus moods, y el firmware solo aporta las primitivas de animación. Un
+   `led.mood` desconocido deja el mood actual en vez de fallar.
 4. ~~**`brain.error` no tiene suscriptor.**~~ **Cerrado.** Lo escuchan los
-   reflejos del pack semilla y los de respaldo en C, así que la garantía
-   sobrevive aunque no esté el submódulo de Berry. Y ahora se publica en todas
-   las rutas, incluidas las dos que antes retornaban en silencio.
+   reflejos del pack semilla, así que la garantía sobrevive. Y ahora se publica
+   en todas las rutas, incluidas las dos que antes retornaban en silencio.
 
 5. **`time.synced` no tiene suscriptor.** Inofensivo hoy, pero significa que
    nada espera al reloj; cualquier cosa basada en la hora lo necesitará.
