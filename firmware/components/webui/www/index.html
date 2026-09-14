@@ -1,0 +1,688 @@
+<!doctype html>
+<html lang="es">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Buddy Zero — Control &amp; Reflejos</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="alternate icon" type="image/svg+xml" href="/favicon.ico">
+  <link rel="stylesheet" href="/style.css">
+  <!-- Blockly Library -->
+  <script src="https://unpkg.com/blockly@13.3.0/blockly.min.js" onerror="window.blocklyFailed=true"></script>
+</head>
+
+
+<body>
+  <div class="container">
+    <header class="header">
+      <div class="brand">
+        <span class="logo-icon">🤖</span>
+        <h1>Buddy Zero</h1>
+      </div>
+      <span class="badge" id="statusBadge">Listo</span>
+    </header>
+
+    <main class="main-content">
+      <section class="card">
+        <div class="card-header">
+          <h2>Editor de Reflejos Berry</h2>
+          <p class="subtitle">Construí los reflejos de tu Buddy visualmente o edita el código en tiempo real.</p>
+        </div>
+
+        <nav class="tabs-nav">
+          <button id="tabVisual" class="tab-btn active" onclick="switchTab('visual')">🧩 Bloques Visuales</button>
+          <button id="tabCode" class="tab-btn" onclick="switchTab('code')">💻 Código Berry</button>
+        </nav>
+
+        <div id="visualView" class="view-panel active">
+          <div id="blocklyDiv"></div>
+        </div>
+
+        <div id="codeView" class="view-panel">
+          <div class="editor-wrapper">
+            <textarea id="reflexScript" spellcheck="false" placeholder="# Cargando reflejos..."></textarea>
+          </div>
+        </div>
+
+        <div class="card-footer">
+          <button id="uploadBtn" class="btn btn-primary" onclick="saveReflex()">
+            <span class="btn-icon">⚡</span> Recargar en Caliente
+          </button>
+          <button id="reloadBtn" class="btn btn-secondary" onclick="loadReflex()">
+            <span class="btn-icon">🔄</span> Revertir
+          </button>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <p>HackLab Oriente — Framework Abierto para ESP32S3</p>
+    </footer>
+  </div>
+
+  <!-- Toolbox de Blockly -->
+  <xml id="toolbox" style="display: none">
+    <category name="🤖 Reflejos Buddy" colour="230">
+      <block type="buddy_on"></block>
+      <block type="buddy_ev_field"></block>
+    </category>
+    <category name="🎭 Acciones Buddy" colour="160">
+      <block type="buddy_emotion"></block>
+      <block type="buddy_led_mood"></block>
+      <block type="buddy_say">
+        <value name="TEXT">
+          <shadow type="text">
+            <field name="TEXT">¡Hola!</field>
+          </shadow>
+        </value>
+      </block>
+      <block type="buddy_ask">
+        <value name="PROMPT">
+          <shadow type="text">
+            <field name="TEXT">¿Qué querés hacer hoy?</field>
+          </shadow>
+        </value>
+      </block>
+      <block type="buddy_log">
+        <value name="MSG">
+          <shadow type="text">
+            <field name="TEXT">evento procesado</field>
+          </shadow>
+        </value>
+      </block>
+    </category>
+    <category name="📊 Variables &amp; Datos" colour="340">
+      <block type="buddy_var_set"></block>
+      <block type="buddy_var_inc"></block>
+      <block type="buddy_var_get"></block>
+      <block type="text"></block>
+      <block type="math_number"></block>
+    </category>
+    <category name="⚙️ Lógica &amp; Control" colour="210">
+      <block type="controls_if"></block>
+      <block type="logic_compare"></block>
+      <block type="logic_operation"></block>
+    </category>
+  </xml>
+
+  <script>
+    var workspace = null;
+    var BerryGenerator = null;
+    var isCodeDirty = false;
+    var isWorkspaceUserModified = false;
+    var currentTab = 'visual';
+
+    function initBlockly() {
+      if (typeof Blockly === 'undefined' || window.blocklyFailed) {
+        console.warn('Blockly library not available (offline / CDN unreachable)');
+        var tabVisual = document.getElementById('tabVisual');
+        if (tabVisual) tabVisual.style.display = 'none';
+        var tabsNav = document.querySelector('.tabs-nav');
+        if (tabsNav) tabsNav.style.display = 'none';
+        switchTab('code');
+        return;
+      }
+
+      // Definir bloques personalizados
+      Blockly.defineBlocksWithJsonArray([
+        {
+          "type": "buddy_on",
+          "message0": "al recibir evento %1 (ev) %2 %3",
+          "args0": [
+            {
+              "type": "field_dropdown",
+              "name": "EVENT",
+              "options": [
+                ["touch.down (Tocar)", "touch.down"],
+                ["touch.pet (Acariciar)", "touch.pet"],
+                ["touch.poke (Empujar)", "touch.poke"],
+                ["nfc.tag (UID Cartucho)", "nfc.tag"],
+                ["nfc.text (Texto Cartucho)", "nfc.text"],
+                ["nfc.gone (Quitar Cartucho)", "nfc.gone"],
+                ["brain.error (Error Cerebro)", "brain.error"]
+              ]
+            },
+            { "type": "input_dummy" },
+            { "type": "input_statement", "name": "STACK" }
+          ],
+          "previousStatement": null,
+          "nextStatement": null,
+          "colour": 230,
+          "tooltip": "Escucha eventos del Buddy"
+        },
+        {
+          "type": "buddy_emotion",
+          "message0": "mostrar emoción %1",
+          "args0": [
+            {
+              "type": "field_dropdown",
+              "name": "EMOTION",
+              "options": [
+                ["feliz (happy)", "happy"],
+                ["neutral (neutral)", "neutral"],
+                ["curioso (curious)", "curious"],
+                ["soñoliento (sleepy)", "sleepy"],
+                ["sorprendido (surprised)", "surprised"],
+                ["enojado (angry)", "angry"],
+                ["triste (sad)", "sad"]
+              ]
+            }
+          ],
+          "previousStatement": null,
+          "nextStatement": null,
+          "colour": 160,
+          "tooltip": "Cambia la cara de Buddy"
+        },
+        {
+          "type": "buddy_led_mood",
+          "message0": "luces LED modo %1",
+          "args0": [
+            {
+              "type": "field_dropdown",
+              "name": "MOOD",
+              "options": [
+                ["pensando (thinking)", "thinking"],
+                ["emocionado (excited)", "excited"],
+                ["calmado (calm)", "calm"],
+                ["fuego (fuego)", "fuego"]
+              ]
+            }
+          ],
+          "previousStatement": null,
+          "nextStatement": null,
+          "colour": 120,
+          "tooltip": "Cambia la iluminación LED"
+        },
+        {
+          "type": "buddy_say",
+          "message0": "decir en pantalla %1",
+          "args0": [
+            { "type": "input_value", "name": "TEXT" }
+          ],
+          "previousStatement": null,
+          "nextStatement": null,
+          "colour": 160,
+          "tooltip": "Muestra texto en la pantalla"
+        },
+        {
+          "type": "buddy_ask",
+          "message0": "preguntar al Cerebro %1",
+          "args0": [
+            { "type": "input_value", "name": "PROMPT" }
+          ],
+          "previousStatement": null,
+          "nextStatement": null,
+          "colour": 290,
+          "tooltip": "Consulta a la IA"
+        },
+        {
+          "type": "buddy_log",
+          "message0": "registrar log %1",
+          "args0": [
+            { "type": "input_value", "name": "MSG" }
+          ],
+          "previousStatement": null,
+          "nextStatement": null,
+          "colour": 60,
+          "tooltip": "Escribe un log"
+        },
+        {
+          "type": "buddy_ev_field",
+          "message0": "ev[%1]",
+          "args0": [
+            {
+              "type": "field_dropdown",
+              "name": "FIELD",
+              "options": [
+                ["payload", "'payload'"],
+                ["name", "'name'"]
+              ]
+            }
+          ],
+          "output": null,
+          "colour": 330,
+          "tooltip": "Datos del evento recibido"
+        },
+        {
+          "type": "buddy_var_set",
+          "message0": "asignar %1 = %2",
+          "args0": [
+            { "type": "field_input", "name": "VAR", "text": "poke_count" },
+            { "type": "input_value", "name": "VALUE" }
+          ],
+          "previousStatement": null,
+          "nextStatement": null,
+          "colour": 340,
+          "tooltip": "Asigna una variable"
+        },
+        {
+          "type": "buddy_var_inc",
+          "message0": "incrementar %1 += 1",
+          "args0": [
+            { "type": "field_input", "name": "VAR", "text": "poke_count" }
+          ],
+          "previousStatement": null,
+          "nextStatement": null,
+          "colour": 340,
+          "tooltip": "Suma 1 a la variable"
+        },
+        {
+          "type": "buddy_var_get",
+          "message0": "variable %1",
+          "args0": [
+            { "type": "field_input", "name": "VAR", "text": "poke_count" }
+          ],
+          "output": null,
+          "colour": 340,
+          "tooltip": "Obtiene variable"
+        }
+      ]);
+
+      // Crear Generador de Berry
+      BerryGenerator = new Blockly.Generator('Berry');
+      BerryGenerator.PRECEDENCE = 0;
+      if (!BerryGenerator.forBlock) {
+        BerryGenerator.forBlock = {};
+      }
+
+      BerryGenerator.scrub_ = function (block, code, thisOnly) {
+        var nextBlock = block.nextConnection && block.nextConnection.targetBlock();
+        if (nextBlock && !thisOnly) {
+          return code + this.blockToCode(nextBlock);
+        }
+        return code;
+      };
+
+      function registerBerryBlock(type, fn) {
+        BerryGenerator[type] = fn;
+        BerryGenerator.forBlock[type] = fn;
+      }
+
+      registerBerryBlock('buddy_on', function (block, generator) {
+        var gen = generator || BerryGenerator;
+        var event = block.getFieldValue('EVENT');
+        var stack = gen.statementToCode(block, 'STACK');
+        return 'buddy.on("' + event + '", def (ev)\n' + stack + 'end)\n\n';
+      });
+
+      registerBerryBlock('buddy_emotion', function (block) {
+        var emotion = block.getFieldValue('EMOTION');
+        return '  buddy.face.emotion("' + emotion + '")\n';
+      });
+
+      registerBerryBlock('buddy_led_mood', function (block) {
+        var mood = block.getFieldValue('MOOD');
+        return '  buddy.led.mood("' + mood + '")\n';
+      });
+
+      registerBerryBlock('buddy_say', function (block, generator) {
+        var gen = generator || BerryGenerator;
+        var text = gen.valueToCode(block, 'TEXT', 0) || '""';
+        return '  buddy.say(' + text + ')\n';
+      });
+
+      registerBerryBlock('buddy_ask', function (block, generator) {
+        var gen = generator || BerryGenerator;
+        var prompt = gen.valueToCode(block, 'PROMPT', 0) || '""';
+        return '  buddy.ask(' + prompt + ')\n';
+      });
+
+      registerBerryBlock('buddy_log', function (block, generator) {
+        var gen = generator || BerryGenerator;
+        var msg = gen.valueToCode(block, 'MSG', 0) || '""';
+        return '  buddy.log(' + msg + ')\n';
+      });
+
+      registerBerryBlock('buddy_ev_field', function (block) {
+        var field = block.getFieldValue('FIELD');
+        return ['ev[' + field + ']', 0];
+      });
+
+      registerBerryBlock('buddy_var_set', function (block, generator) {
+        var gen = generator || BerryGenerator;
+        var varName = block.getFieldValue('VAR');
+        var val = gen.valueToCode(block, 'VALUE', 0) || '0';
+        return '  ' + varName + ' = ' + val + '\n';
+      });
+
+      registerBerryBlock('buddy_var_inc', function (block) {
+        var varName = block.getFieldValue('VAR');
+        return '  ' + varName + ' += 1\n';
+      });
+
+      registerBerryBlock('buddy_var_get', function (block) {
+        var varName = block.getFieldValue('VAR');
+        return [varName, 0];
+      });
+
+      registerBerryBlock('text', function (block) {
+        var text = block.getFieldValue('TEXT') || '';
+        var escaped = text
+          .replace(/\\/g, '\\\\')
+          .replace(/"/g, '\\"')
+          .replace(/\r/g, '\\r')
+          .replace(/\n/g, '\\n');
+        return ['"' + escaped + '"', 0];
+      });
+
+      registerBerryBlock('math_number', function (block) {
+        var code = Number(block.getFieldValue('NUM'));
+        return [code, 0];
+      });
+
+      registerBerryBlock('controls_if', function (block, generator) {
+        var gen = generator || BerryGenerator;
+        var n = 0;
+        var code = '';
+        var branchCode, conditionCode;
+        if (gen.valueToCode) {
+          conditionCode = gen.valueToCode(block, 'IF' + n, 0) || 'false';
+          branchCode = gen.statementToCode(block, 'DO' + n);
+          code += '  if ' + conditionCode + '\n' + branchCode;
+          if (block.hasElse_ && block.hasElse_()) {
+            branchCode = gen.statementToCode(block, 'ELSE');
+            code += '  else\n' + branchCode;
+          }
+          code += '  end\n';
+        }
+        return code;
+      });
+
+      registerBerryBlock('logic_compare', function (block, generator) {
+        var gen = generator || BerryGenerator;
+        var op = block.getFieldValue('OP');
+        var map = { 'EQ': '==', 'NEQ': '!=', 'LT': '<', 'LTE': '<=', 'GT': '>', 'GTE': '>=' };
+        var a = gen.valueToCode(block, 'A', 0) || '0';
+        var b = gen.valueToCode(block, 'B', 0) || '0';
+        return [a + ' ' + (map[op] || '==') + ' ' + b, 0];
+      });
+
+      registerBerryBlock('logic_operation', function (block, generator) {
+        var gen = generator || BerryGenerator;
+        var op = block.getFieldValue('OP') === 'AND' ? '&&' : '||';
+        var a = gen.valueToCode(block, 'A', 0) || 'false';
+        var b = gen.valueToCode(block, 'B', 0) || 'false';
+        return [a + ' ' + op + ' ' + b, 0];
+      });
+
+
+      // Inicializar workspace
+      workspace = Blockly.inject('blocklyDiv', {
+        toolbox: document.getElementById('toolbox'),
+        scrollbars: true,
+        trashcan: true,
+        theme: (typeof Blockly.Themes !== 'undefined' && Blockly.Themes.Dark) ? Blockly.Themes.Dark : 'dark',
+        grid: {
+          spacing: 20,
+          length: 3,
+          colour: '#334155',
+          snap: true
+        }
+      });
+
+      workspace.addChangeListener(function (event) {
+        if (event.isUiEvent || event.type === Blockly.Events.FINISHED_LOADING) {
+          return;
+        }
+        if (event.type === Blockly.Events.BLOCK_CREATE ||
+            event.type === Blockly.Events.BLOCK_DELETE ||
+            event.type === Blockly.Events.BLOCK_CHANGE ||
+            event.type === Blockly.Events.BLOCK_MOVE) {
+          if (currentTab === 'visual') {
+            isWorkspaceUserModified = true;
+            var code = BerryGenerator.workspaceToCode(workspace);
+            if (code && code.trim().length > 0) {
+              document.getElementById('reflexScript').value = code;
+            }
+          }
+        }
+      });
+
+      var codeScript = document.getElementById('reflexScript');
+      if (codeScript) {
+        codeScript.addEventListener('input', function () {
+          isCodeDirty = true;
+        });
+      }
+    }
+
+    function switchTab(tab) {
+      currentTab = tab;
+      var tabVisual = document.getElementById('tabVisual');
+      var tabCode = document.getElementById('tabCode');
+      var visualView = document.getElementById('visualView');
+      var codeView = document.getElementById('codeView');
+      var codeScript = document.getElementById('reflexScript');
+
+      if (tab === 'visual') {
+        tabVisual.className = 'tab-btn active';
+        tabCode.className = 'tab-btn';
+        visualView.className = 'view-panel active';
+        codeView.className = 'view-panel';
+        if (isCodeDirty && codeScript && codeScript.value) {
+          parseBerryToBlockly(codeScript.value);
+          isCodeDirty = false;
+          isWorkspaceUserModified = false;
+        }
+        if (workspace) Blockly.svgResize(workspace);
+      } else {
+        tabVisual.className = 'tab-btn';
+        tabCode.className = 'tab-btn active';
+        visualView.className = 'view-panel';
+        codeView.className = 'view-panel active';
+        if (isWorkspaceUserModified && workspace && BerryGenerator) {
+          var code = BerryGenerator.workspaceToCode(workspace);
+          if (code && code.trim().length > 0) {
+            codeScript.value = code;
+          }
+        }
+      }
+    }
+
+
+    function setStatus(text, type) {
+      var badge = document.getElementById('statusBadge');
+      if (badge) {
+        badge.textContent = text;
+        badge.className = 'badge ' + (type || 'online');
+      }
+    }
+
+    function parseBerryToBlockly(scriptText) {
+      if (!workspace || !scriptText) return;
+      workspace.clear();
+
+      var lines = scriptText.split('\n');
+      var topBlock = null;
+      var prevBlock = null;
+      var currentHandler = null;
+      var currentTail = null;
+
+      for (var i = 0; i < lines.length; i++) {
+        var line = lines[i].trim();
+        if (!line || line.startsWith('#')) continue;
+
+        var matchOn = line.match(/buddy\.on\s*\(\s*["']([^"']+)["']/);
+        if (matchOn) {
+          var eventName = matchOn[1];
+          var block = workspace.newBlock('buddy_on');
+          block.setFieldValue(eventName, 'EVENT');
+          block.initSvg();
+          block.render();
+
+          if (!topBlock) topBlock = block;
+          if (prevBlock && prevBlock.nextConnection && block.previousConnection) {
+            prevBlock.nextConnection.connect(block.previousConnection);
+          }
+          prevBlock = block;
+          currentHandler = block;
+          currentTail = null;
+          continue;
+        }
+
+        if (line === 'end' || line === 'end)') {
+          currentHandler = null;
+          currentTail = null;
+          continue;
+        }
+
+        var newChild = null;
+        var matchEm = line.match(/buddy\.face\.emotion\s*\(\s*["']([^"']+)["']\s*\)/);
+        if (matchEm) {
+          newChild = workspace.newBlock('buddy_emotion');
+          newChild.setFieldValue(matchEm[1], 'EMOTION');
+        } else {
+          var matchLed = line.match(/buddy\.led\.mood\s*\(\s*["']([^"']+)["']\s*\)/);
+          if (matchLed) {
+            newChild = workspace.newBlock('buddy_led_mood');
+            newChild.setFieldValue(matchLed[1], 'MOOD');
+          } else {
+            var matchSay = line.match(/buddy\.say\s*\((.*)\)/);
+            if (matchSay) {
+              newChild = workspace.newBlock('buddy_say');
+              var txtVal = matchSay[1].trim();
+              if (txtVal.startsWith('"') && txtVal.endsWith('"')) {
+                var txtB = workspace.newBlock('text');
+                txtB.setFieldValue(txtVal.slice(1, -1), 'TEXT');
+                txtB.initSvg();
+                txtB.render();
+                if (newChild.getInput('TEXT') && newChild.getInput('TEXT').connection && txtB.outputConnection) {
+                  newChild.getInput('TEXT').connection.connect(txtB.outputConnection);
+                }
+              }
+            } else {
+              var matchAsk = line.match(/buddy\.ask\s*\((.*)\)/);
+              if (matchAsk) {
+                newChild = workspace.newBlock('buddy_ask');
+                var askVal = matchAsk[1].trim();
+                if (askVal.startsWith('"') && askVal.endsWith('"')) {
+                  var askB = workspace.newBlock('text');
+                  askB.setFieldValue(askVal.slice(1, -1), 'TEXT');
+                  askB.initSvg();
+                  askB.render();
+                  if (newChild.getInput('PROMPT') && newChild.getInput('PROMPT').connection && askB.outputConnection) {
+                    newChild.getInput('PROMPT').connection.connect(askB.outputConnection);
+                  }
+                }
+              } else {
+                var matchLog = line.match(/buddy\.log\s*\((.*)\)/);
+                if (matchLog) {
+                  newChild = workspace.newBlock('buddy_log');
+                  var logVal = matchLog[1].trim();
+                  if (logVal.startsWith('"') && logVal.endsWith('"')) {
+                    var logB = workspace.newBlock('text');
+                    logB.setFieldValue(logVal.slice(1, -1), 'TEXT');
+                    logB.initSvg();
+                    logB.render();
+                    if (newChild.getInput('MSG') && newChild.getInput('MSG').connection && logB.outputConnection) {
+                      newChild.getInput('MSG').connection.connect(logB.outputConnection);
+                    }
+                  }
+                } else {
+                  var matchInc = line.match(/^([a-zA-Z0-9_]+)\s*\+=\s*1/);
+                  if (matchInc) {
+                    newChild = workspace.newBlock('buddy_var_inc');
+                    newChild.setFieldValue(matchInc[1], 'VAR');
+                  } else {
+                    var matchSet = line.match(/^([a-zA-Z0-9_]+)\s*=\s*(.*)$/);
+                    if (matchSet && matchSet[1] !== 'var') {
+                      newChild = workspace.newBlock('buddy_var_set');
+                      newChild.setFieldValue(matchSet[1], 'VAR');
+                      var valB = workspace.newBlock('math_number');
+                      valB.setFieldValue(matchSet[2].trim(), 'NUM');
+                      valB.initSvg();
+                      valB.render();
+                      if (newChild.getInput('VALUE') && newChild.getInput('VALUE').connection && valB.outputConnection) {
+                        newChild.getInput('VALUE').connection.connect(valB.outputConnection);
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        if (newChild) {
+          newChild.initSvg();
+          newChild.render();
+          if (currentHandler) {
+            var stackInput = currentHandler.getInput('STACK');
+            if (!currentTail && stackInput && stackInput.connection && newChild.previousConnection) {
+              stackInput.connection.connect(newChild.previousConnection);
+            } else if (currentTail && currentTail.nextConnection && newChild.previousConnection) {
+              currentTail.nextConnection.connect(newChild.previousConnection);
+            }
+            currentTail = newChild;
+          } else {
+            if (!topBlock) topBlock = newChild;
+            if (prevBlock && prevBlock.nextConnection && newChild.previousConnection) {
+              prevBlock.nextConnection.connect(newChild.previousConnection);
+            }
+            prevBlock = newChild;
+          }
+        }
+
+      }
+
+      if (workspace) workspace.scrollCenter();
+    }
+
+    function loadReflex() {
+      setStatus('Cargando...', 'online');
+      fetch('/reflex')
+        .then(function (res) {
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          return res.text();
+        })
+        .then(function (text) {
+          document.getElementById('reflexScript').value = text;
+          parseBerryToBlockly(text);
+          isCodeDirty = false;
+          isWorkspaceUserModified = false;
+          setStatus('Listo', 'online');
+        })
+        .catch(function (err) {
+          console.error(err);
+          setStatus('Error al cargar', 'error');
+        });
+    }
+
+
+    function saveReflex() {
+      var btn = document.getElementById('uploadBtn');
+      var code = document.getElementById('reflexScript').value;
+      setStatus('Guardando...', 'online');
+      if (btn) btn.disabled = true;
+
+      fetch('/reflex', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ script: code })
+      })
+        .then(function (res) {
+          return res.text().then(function (msg) {
+            if (!res.ok) throw new Error(msg);
+            setStatus('Recargado', 'online');
+            alert(msg || 'Reflejos guardados y recargados exitosamente.');
+          });
+        })
+        .catch(function (err) {
+          console.error(err);
+          setStatus('Error al guardar', 'error');
+          alert('Fallo al guardar: ' + err.message);
+        })
+        .finally(function () {
+          if (btn) btn.disabled = false;
+        });
+    }
+
+    window.addEventListener('load', function () {
+      initBlockly();
+      loadReflex();
+    });
+  </script>
+</body>
+
+</html>
