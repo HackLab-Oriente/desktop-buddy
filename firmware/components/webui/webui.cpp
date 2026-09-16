@@ -2,6 +2,7 @@
 #include "bus.h"
 #include "payload_parser.h"
 #include "urldecode.h"
+#include "dns_parser.h"
 
 #include <cstdio>
 #include <cstring>
@@ -282,43 +283,11 @@ static void dns_server_task(void*) {
     struct sockaddr_in client_addr;
     socklen_t client_len = sizeof(client_addr);
     int len = recvfrom(sock, buf, sizeof(buf), 0, (struct sockaddr*)&client_addr, &client_len);
-    if (len < 12) continue; 
-    if ((buf[2] & 0x80) != 0) continue; 
+    
+    size_t new_len = buddy::process_dns_query(reinterpret_cast<uint8_t*>(buf), len, sizeof(buf));
+    if (new_len == 0) continue;
 
-    buf[2] |= 0x80;               // QR: this is a response
-    buf[3] = 0x00;                // RA/AD/CD off, RCODE 0: the query's flags are not ours to echo
-    buf[6] = 0; buf[7] = 1;       // ANCOUNT = 1
-    buf[8] = 0; buf[9] = 0;       // NSCOUNT = 0
-    buf[10] = 0; buf[11] = 0;     // ARCOUNT = 0: the OPT record after the question is not copied
-
-    int ptr = 12;
-    while (ptr < len && buf[ptr] != 0) {
-      uint8_t label_len = static_cast<uint8_t>(buf[ptr]);
-      if (label_len > 63) break;
-      ptr += label_len + 1;
-    }
-    ptr += 5; 
-
-    if (ptr > len || ptr + 16 > sizeof(buf)) continue;
-
-    buf[ptr++] = 0xC0;
-    buf[ptr++] = 0x0C;
-    buf[ptr++] = 0x00;
-    buf[ptr++] = 0x01;
-    buf[ptr++] = 0x00;
-    buf[ptr++] = 0x01;
-    buf[ptr++] = 0x00;
-    buf[ptr++] = 0x00;
-    buf[ptr++] = 0x00;
-    buf[ptr++] = 0x3C;
-    buf[ptr++] = 0x00;
-    buf[ptr++] = 0x04;
-    buf[ptr++] = 192;
-    buf[ptr++] = 168;
-    buf[ptr++] = 4;
-    buf[ptr++] = 1;
-
-    sendto(sock, buf, ptr, 0, (struct sockaddr*)&client_addr, client_len);
+    sendto(sock, buf, new_len, 0, (struct sockaddr*)&client_addr, client_len);
   }
 }
 
