@@ -285,8 +285,11 @@ static void dns_server_task(void*) {
     if (len < 12) continue; 
     if ((buf[2] & 0x80) != 0) continue; 
 
-    buf[2] |= 0x80; 
-    buf[7] = 1;     
+    buf[2] |= 0x80;               // QR: this is a response
+    buf[3] = 0x00;                // RA/AD/CD off, RCODE 0: the query's flags are not ours to echo
+    buf[6] = 0; buf[7] = 1;       // ANCOUNT = 1
+    buf[8] = 0; buf[9] = 0;       // NSCOUNT = 0
+    buf[10] = 0; buf[11] = 0;     // ARCOUNT = 0: the OPT record after the question is not copied
 
     int ptr = 12;
     while (ptr < len && buf[ptr] != 0) {
@@ -418,6 +421,9 @@ bool webui_start() {
   // lwIP has ten in total, and SNTP holds one for the life of the device, so
   // the brain loses its TLS socket too.
   cfg.lru_purge_enable = true;
+  // In AP mode the captive DNS task holds one of lwIP's ten sockets, so the
+  // server must leave it room or the LRU purge never gets to run.
+  cfg.max_open_sockets = s_ap_mode ? 6 : 7;
   cfg.max_uri_handlers = sizeof kRoutes / sizeof *kRoutes;
   cfg.uri_match_fn = httpd_uri_match_wildcard;
 
