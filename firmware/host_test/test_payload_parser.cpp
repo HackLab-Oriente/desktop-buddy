@@ -43,6 +43,14 @@ int main() {
   // Expected to truncate at 63 characters + null
   test_parse(long_payload, "Test", "123456789012345678901234567890123456789012345678901234567890123");
   
+  // Test malformed fields
+  test_parse("ssid=&pass=123", "", "123");
+  test_parse("ssid=Test&", "Test", "");
+  test_parse("ssidTestpass123", "", "");
+  
+  // Test corrupt URL Encoding
+  test_parse("ssid=%ZZ&pass=%2", "%ZZ", "%2");
+  
   std::cout << "All payload parser tests passed!" << std::endl;
   return 0;
 }
