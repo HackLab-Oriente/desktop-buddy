@@ -8,7 +8,6 @@ namespace buddy {
 struct setup_payload_t {
   char ssid[64];
   char pass[64];
-  char auth[16];
 };
 
 inline void parse_setup_payload(char* buf, setup_payload_t* out) {
@@ -22,8 +21,6 @@ inline void parse_setup_payload(char* buf, setup_payload_t* out) {
         urldecode(out->ssid, sizeof(out->ssid), eq + 1);
       } else if (strcmp(p, "pass") == 0) {
         urldecode(out->pass, sizeof(out->pass), eq + 1);
-      } else if (strcmp(p, "auth") == 0) {
-        urldecode(out->auth, sizeof(out->auth), eq + 1);
       }
     }
     p = strtok(nullptr, "&");

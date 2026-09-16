@@ -1,5 +1,7 @@
 #include "webui.h"
 #include "bus.h"
+#include "payload_parser.h"
+#include "urldecode.h"
 
 #include <cstdio>
 #include <cstring>
@@ -30,7 +32,6 @@ namespace {
 EventGroupHandle_t s_wifi_events;
 constexpr int kConnected = BIT0;
 bool s_ap_mode = false;
-char s_ap_ssid[32];
 
 void wifi_handler(void*, esp_event_base_t base, int32_t id, void* data) {
   if (base == WIFI_EVENT && id == WIFI_EVENT_STA_START) {
@@ -73,14 +74,6 @@ constexpr char kSetupPage[] =
     "<label style='display:block;margin-bottom:0.5em;font-weight:bold'>Contrase&ntilde;a</label>"
     "<input name='pass' type='password' style='width:100%;box-sizing:border-box;padding:0.5em;border:1px solid #ccc;border-radius:4px'>"
     "</div>"
-    "<div style='margin-bottom:1.5em'>"
-    "<label style='display:block;margin-bottom:0.5em;font-weight:bold'>Seguridad</label>"
-    "<select name='auth' style='width:100%;box-sizing:border-box;padding:0.5em;border:1px solid #ccc;border-radius:4px'>"
-    "<option value='0'>Autom&aacute;tica (WPA/WPA2/Abierta)</option>"
-    "<option value='3'>WPA2 PSK</option>"
-    "<option value='4'>WPA/WPA2 PSK</option>"
-    "<option value='5'>WPA2/WPA3 PSK (Requerido para routers modernos)</option>"
-    "</select>"
     "</div>"
     "<button type='submit' style='width:100%;padding:0.75em;background:#0066cc;color:#fff;border:none;border-radius:4px;font-size:1em;cursor:pointer;font-weight:bold'>Conectar</button>"
     "</form>"
@@ -103,9 +96,6 @@ esp_err_t get_setup(httpd_req_t* req) {
   return httpd_resp_send(req, kSetupPage, HTTPD_RESP_USE_STRLEN);
 }
 
-#include "urldecode.h"
-#include "payload_parser.h"
-
 esp_err_t post_setup(httpd_req_t* req) {
   if (!s_ap_mode) {
     return httpd_resp_send_err(req, HTTPD_403_FORBIDDEN, "Provisioning only allowed in AP mode");
@@ -118,12 +108,17 @@ esp_err_t post_setup(httpd_req_t* req) {
   char buf[256] = {0};
   size_t remaining = req->content_len;
   size_t received = 0;
+  int timeouts = 0;
   while (remaining > 0) {
     int ret = httpd_req_recv(req, buf + received, remaining);
-    if (ret <= 0) {
-      if (ret == HTTPD_SOCK_ERR_TIMEOUT) continue;
-      return httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Bad Request");
+    if (ret == HTTPD_SOCK_ERR_TIMEOUT) {
+      // A pause is not an ending, but a client that announced N bytes and
+      // then stops sending would park the only httpd task here for good.
+      if (++timeouts >= 3)
+        return httpd_resp_send_err(req, HTTPD_408_REQ_TIMEOUT, "Request Timeout");
+      continue;
     }
+    if (ret <= 0) return httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Bad Request");
     received += ret;
     remaining -= ret;
   }
@@ -136,25 +131,13 @@ esp_err_t post_setup(httpd_req_t* req) {
   }
   
   ESP_LOGI(TAG, "Captive portal received SSID: '%s' (len: %d)", payload.ssid, strlen(payload.ssid));
-  ESP_LOGI(TAG, "Captive portal received Pass len: %d, Auth: %s", strlen(payload.pass), payload.auth);
+  ESP_LOGI(TAG, "Captive portal received Pass len: %d", strlen(payload.pass));
 
   wifi_config_t cfg = {};
   size_t ssid_len = strlen(payload.ssid);
   if (ssid_len > 32) return httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "SSID too long");
   memcpy(cfg.sta.ssid, payload.ssid, ssid_len);
   strlcpy(reinterpret_cast<char*>(cfg.sta.password), payload.pass, sizeof(cfg.sta.password));
-  
-  if (strcmp(payload.auth, "3") == 0) {
-    cfg.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
-  } else if (strcmp(payload.auth, "4") == 0) {
-    cfg.sta.threshold.authmode = WIFI_AUTH_WPA_WPA2_PSK;
-  } else if (strcmp(payload.auth, "5") == 0) {
-    cfg.sta.threshold.authmode = WIFI_AUTH_WPA2_WPA3_PSK;
-    cfg.sta.pmf_cfg.capable = true;
-    cfg.sta.pmf_cfg.required = false;
-  } else {
-    cfg.sta.threshold.authmode = WIFI_AUTH_OPEN;
-  }
   
   const char* resp = "<!doctype html><meta charset='utf-8'><title>Guardado</title><body style='font-family:sans-serif;text-align:center;margin-top:2em'><h2>Credenciales guardadas.</h2><p>Buddy se reiniciar&aacute; y se conectar&aacute; a la red.</p></body>";
   httpd_resp_send(req, resp, HTTPD_RESP_USE_STRLEN);
@@ -180,6 +163,10 @@ esp_err_t get_captive_portal(httpd_req_t* req) {
 }
 
 esp_err_t get_reflex(httpd_req_t* req) {
+  // The reflex editor is for the owner on the home LAN; the provisioning AP
+  // is for whoever scanned the QR, and those are not the same person.
+  if (s_ap_mode) return httpd_resp_send_err(req, HTTPD_403_FORBIDDEN, "Not in provisioning mode");
+
   // ESP-IDF's default response type is text/html, so a reflex containing a
   // <script> tag executes in the browser of whoever opens this URL.
   httpd_resp_set_type(req, "text/plain");
@@ -208,6 +195,8 @@ bool content_type_ok(httpd_req_t* req) {
 }
 
 esp_err_t post_reflex(httpd_req_t* req) {
+  if (s_ap_mode) return httpd_resp_send_err(req, HTTPD_403_FORBIDDEN, "Not in provisioning mode");
+
   if (!content_type_ok(req))
     return httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "send content-type: application/json");
   // content_len is size_t and 0 for chunked transfers. Refusing both up front
