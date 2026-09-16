@@ -88,6 +88,7 @@ void touch_task(void*) {
            (unsigned)threshold, touch_raises ? "raises" : "lowers");
 
   bool touching = false;
+  bool hold10s_fired = false;
   int confirm = 0;
 #if CONFIG_BUDDY_DEBUG
   int tick = 0;
@@ -126,11 +127,21 @@ void touch_task(void*) {
       touching = raw;
       if (touching) {
         touch_start_ms = ms;
+        hold10s_fired = false;
         bus().publish("touch.down", s_pad);
       } else {
-        bus().publish(ms - touch_start_ms < 400 ? "touch.poke" : "touch.pet", s_pad);
+        if (!hold10s_fired) {
+          bus().publish(ms - touch_start_ms < 400 ? "touch.poke" : "touch.pet", s_pad);
+        }
       }
     }
+
+    if (touching && !hold10s_fired && (ms - touch_start_ms >= 10000)) {
+      hold10s_fired = true;
+      ESP_LOGI(TAG, "Touch held for 10s, publishing touch.hold10s");
+      bus().publish("touch.hold10s", s_pad);
+    }
+
     vTaskDelay(pdMS_TO_TICKS(25));  // ~50 ms to confirmed state change
   }
 }

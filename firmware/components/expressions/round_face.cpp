@@ -688,6 +688,13 @@ void face_start() {
     s_dirty = true;
   });
 
+  bus().subscribe("touch.hold10s", [](const Event&) {
+    if (s_ap_mode) {
+      s_ap_mode = false;
+      s_dirty = true;
+    }
+  });
+
   // First frame is pure noise, so the backlight can come straight up: the
   // static IS the fade-in, and the uninitialised panel is never seen.
   render_frame([seed = esp_random() | 1u] { glitch_frame(1.f, 40, seed); });
