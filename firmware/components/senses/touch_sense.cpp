@@ -2,6 +2,7 @@
 // (esp_driver_touch_sens) on the ESP32-S3 (touch hw v2).
 #include "bus.h"
 #include "senses.h"
+#include "touch_fsm.h"
 
 #include "driver/touch_sens.h"
 #include "esp_log.h"
@@ -87,50 +88,45 @@ void touch_task(void*) {
   ESP_LOGI(TAG, "baseline=%u threshold=%u (touch %s)", (unsigned)baseline,
            (unsigned)threshold, touch_raises ? "raises" : "lowers");
 
-  bool touching = false;
-  int confirm = 0;
+  TouchGesturesFSM fsm(baseline, threshold, touch_raises);
+
 #if CONFIG_BUDDY_DEBUG
   int tick = 0;
 #endif
-  int64_t touch_start_ms = 0;
   for (;;) {
     uint32_t v = 0;
     if (!read_smooth(v)) { vTaskDelay(pdMS_TO_TICKS(25)); continue; }
-    const bool raw = touch_raises ? (v > threshold) : (v < threshold);
-    // Not esp_log_timestamp(): 32-bit ms, wraps at 49.7 days, and a touch
-    // across the wrap reads as a poke.
+    
+    // Not esp_log_timestamp(): 32-bit ms, wraps at 49.7 days
     const int64_t ms = esp_timer_get_time() / 1000;
 
 #if CONFIG_BUDDY_DEBUG
     if (++tick % 40 == 0)  // every ~2 s: watch these while touching the wire
       ESP_LOGI(TAG, "raw=%u baseline=%u threshold=%u touching=%d",
-               (unsigned)v, (unsigned)baseline, (unsigned)threshold, touching);
+               (unsigned)v, (unsigned)fsm.get_baseline(), (unsigned)fsm.get_threshold(), fsm.is_touching());
 #endif
 
-    if (raw == touching) {
-      confirm = 0;
-      // Booting with a finger on the pad calibrated against a touched reading
-      // and left the pad dead for the session; thermal drift did the inverse.
-      if (!touching) {
-        if (v > baseline) baseline += (v - baseline + 63) / 64;
-        else if (baseline > v) baseline -= (baseline - v + 63) / 64;
-        if (baseline == 0) baseline = 1;
-#if SOC_TOUCH_SENSOR_VERSION == 1
-        threshold = static_cast<uint32_t>(uint64_t(baseline) * 9 / 10);
-#else
-        threshold = static_cast<uint32_t>(uint64_t(baseline) * 115 / 100);
-#endif
-      }
-    } else if (++confirm >= 2) {  // two consecutive samples to switch state
-      confirm = 0;
-      touching = raw;
-      if (touching) {
-        touch_start_ms = ms;
+    TouchGesturesFSM::Action action = fsm.update(v, ms);
+    
+    switch (action) {
+      case TouchGesturesFSM::Action::DOWN:
         bus().publish("touch.down", s_pad);
-      } else {
-        bus().publish(ms - touch_start_ms < 400 ? "touch.poke" : "touch.pet", s_pad);
-      }
+        break;
+      case TouchGesturesFSM::Action::POKE:
+        bus().publish("touch.poke", s_pad);
+        break;
+      case TouchGesturesFSM::Action::PET:
+        bus().publish("touch.pet", s_pad);
+        break;
+      case TouchGesturesFSM::Action::HOLD_10S:
+        ESP_LOGI(TAG, "Touch held for 10s, publishing touch.hold10s");
+        bus().publish("touch.hold10s", s_pad);
+        break;
+      case TouchGesturesFSM::Action::NONE:
+      default:
+        break;
     }
+
     vTaskDelay(pdMS_TO_TICKS(25));  // ~50 ms to confirmed state change
   }
 }
