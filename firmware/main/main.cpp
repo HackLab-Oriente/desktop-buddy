@@ -234,6 +234,15 @@ extern "C" void app_main() {
                     .rst = CONFIG_BUDDY_RC522_RST});
 #endif
 
+#if CONFIG_BUDDY_AUDIO_ENABLED
+  buddy::audio_start({.bclk = CONFIG_BUDDY_AUDIO_BCLK,
+                      .ws = CONFIG_BUDDY_AUDIO_WS,
+                      .din = CONFIG_BUDDY_AUDIO_DIN,
+                      .dout = CONFIG_BUDDY_AUDIO_DOUT,
+                      .mute = CONFIG_BUDDY_AUDIO_MUTE,
+                      .ptt = CONFIG_BUDDY_AUDIO_PTT});
+#endif
+
   // Network layer — optional by design ("never brick"). This is the slow part:
   // Up to 25 s: 15 waiting for the association, then 10 more for SNTP. That
   // second one is the common case on guest wifi, where UDP/123 is blocked.

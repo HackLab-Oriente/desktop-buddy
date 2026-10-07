@@ -26,4 +26,9 @@ struct Rc522Pins {
 };
 bool nfc_start(const Rc522Pins& pins);
 
+struct AudioPins {
+  int bclk, ws, din, dout, mute, ptt;
+};
+bool audio_start(const AudioPins& pins);
+
 }  // namespace buddy

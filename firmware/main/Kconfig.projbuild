@@ -80,6 +80,35 @@ config BUDDY_RC522_RST
     default 38
 endmenu
 
+config BUDDY_AUDIO_ENABLED
+    bool "Enable I2S Audio (Mic & Speaker)"
+    default n
+    help
+      I2S audio for noise detection and PTT recording/playback.
+
+menu "I2S Audio Pins"
+    depends on BUDDY_AUDIO_ENABLED
+config BUDDY_AUDIO_BCLK
+    int "SCK / BCLK"
+    default 15
+config BUDDY_AUDIO_WS
+    int "WS / LRC"
+    default 16
+config BUDDY_AUDIO_DIN
+    int "SD (Mic Data In)"
+    default 17
+config BUDDY_AUDIO_DOUT
+    int "DIN (Speaker Data Out)"
+    default 18
+config BUDDY_AUDIO_MUTE
+    int "SD (Speaker Mute)"
+    default 2
+config BUDDY_AUDIO_PTT
+    int "PTT Button"
+    default 5
+endmenu
+
+
 config BUDDY_DEBUG
     bool "Verbose debug logging (event bus trace, brain HTTP, touch values)"
     default n
