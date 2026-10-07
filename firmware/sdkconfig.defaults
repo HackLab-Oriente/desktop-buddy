@@ -35,3 +35,9 @@ CONFIG_MBEDTLS_CLIENT_SSL_SESSION_TICKETS=y
 # (~35.8 fps). What takes the full 1.5x is everything off the panel — the TLS
 # handshake, the SDF eye renderer and sentence generation.
 CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y
+
+# N16R8: the 6 s recording buffer (192 KB) lives in PSRAM.
+CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
+CONFIG_SPIRAM=y
+CONFIG_SPIRAM_MODE_OCT=y
+CONFIG_SPIRAM_SPEED_80M=y

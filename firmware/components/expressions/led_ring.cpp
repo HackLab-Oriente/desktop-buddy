@@ -29,7 +29,7 @@ namespace {
 
 // 12 LEDs of white would pull ~700 mA; cap brightness so the ring is a mood
 // glow, not a flashlight. Raise only if the ring has its own 5 V supply.
-constexpr float kMaxBright = 0.35f;
+constexpr float kMaxBright = 0.03f;
 // Shared with the parser's period floor so the two cannot drift apart: below
 // two frames per cycle the phase snaps back to zero every frame and the ring
 // stops instead of going fast.

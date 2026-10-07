@@ -1,7 +1,6 @@
 #include "webui.h"
 #include "bus.h"
 #include "payload_parser.h"
-#include "urldecode.h"
 #include "dns_parser.h"
 
 #include <cstdio>
@@ -314,7 +313,7 @@ bool wifi_start(const char* ssid, const char* pass) {
 
   if (has_creds) {
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
-    if (!nvs_cfg.sta.ssid[0] && ssid && ssid[0]) {
+    if (ssid && ssid[0]) {
       wifi_config_t cfg = {};
       size_t len = strlen(ssid);
       if (len > 32) len = 32;
