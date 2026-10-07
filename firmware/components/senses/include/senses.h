@@ -26,4 +26,9 @@ struct Rc522Pins {
 };
 bool nfc_start(const Rc522Pins& pins);
 
+struct MicPins {
+  int bclk, ws, sd;
+};
+bool mic_start(const MicPins& pins);
+
 }  // namespace buddy

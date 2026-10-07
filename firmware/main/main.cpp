@@ -234,6 +234,12 @@ extern "C" void app_main() {
                     .rst = CONFIG_BUDDY_RC522_RST});
 #endif
 
+#if CONFIG_BUDDY_MIC_ENABLED
+  buddy::mic_start({.bclk = CONFIG_BUDDY_MIC_BCLK,
+                    .ws = CONFIG_BUDDY_MIC_WS,
+                    .sd = CONFIG_BUDDY_MIC_SD});
+#endif
+
   // Network layer — optional by design ("never brick"). This is the slow part:
   // Up to 25 s: 15 waiting for the association, then 10 more for SNTP. That
   // second one is the common case on guest wifi, where UDP/123 is blocked.

@@ -110,3 +110,22 @@ buddy.on("nfc.gone", def (ev)
   buddy.face.emotion("neutral")
   buddy.led.mood("calm")
 end)
+
+# --- Micrófono (Ruido) -----------------------------------------------------
+# Eventos emitidos por audio.cpp
+
+buddy.on("audio.loud", def (ev)
+  buddy.face.emotion("surprised")
+  buddy.led.mood("excited")
+  buddy.say("¡QUÉ SUSTO!")
+  buddy.log("Ruido fuerte detectado, asustándose.")
+  
+  # Si tienes la IA (Brain) activada, podrías descomentar esto para que invente algo:
+  buddy.ask("Acabas de escuchar un ruido fuerte y repentino. Suelta un pequeño grito de susto.")
+end)
+
+buddy.on("audio.quiet", def (ev)
+  buddy.face.emotion("neutral")
+  buddy.led.mood("calm")
+  buddy.say("Ya pasó...")
+end)

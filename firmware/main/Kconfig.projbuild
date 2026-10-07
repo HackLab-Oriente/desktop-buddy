@@ -80,6 +80,26 @@ config BUDDY_RC522_RST
     default 38
 endmenu
 
+config BUDDY_MIC_ENABLED
+    bool "Enable INMP441 I2S microphone"
+    default n
+    help
+      I2S microphone for noise detection. Connect L/R to GND to select left channel.
+
+menu "INMP441 pins (I2S0)"
+    depends on BUDDY_MIC_ENABLED
+config BUDDY_MIC_BCLK
+    int "SCK / BCLK"
+    default 15
+config BUDDY_MIC_WS
+    int "WS / LRC"
+    default 16
+config BUDDY_MIC_SD
+    int "SD (Data In)"
+    default 17
+endmenu
+
+
 config BUDDY_DEBUG
     bool "Verbose debug logging (event bus trace, brain HTTP, touch values)"
     default n
