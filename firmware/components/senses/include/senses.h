@@ -11,7 +11,7 @@ namespace buddy {
 // Capacitive petting pad.
 // Emits: touch.down · touch.poke (release < 400 ms) · touch.pet (>= 400 ms)
 //        payload: pad_name
-bool touch_start(int gpio_touch_pad, const char* pad_name = "pad0");
+bool touch_start(int gpio_touch_pad, const char *pad_name = "pad0");
 
 // MFRC522 RFID reader (SPI3, exclusively). ISO14443A UIDs and NDEF text.
 // Emits: nfc.tag  · lowercase hex uid, e.g. "04a1b2c9"
@@ -24,11 +24,11 @@ bool touch_start(int gpio_touch_pad, const char* pad_name = "pad0");
 struct Rc522Pins {
   int sck, miso, mosi, cs, rst;
 };
-bool nfc_start(const Rc522Pins& pins);
+bool nfc_start(const Rc522Pins &pins);
 
 struct AudioPins {
   int bclk, ws, din, dout, mute, ptt;
 };
-bool audio_start(const AudioPins& pins);
+bool audio_start(const AudioPins &pins);
 
-}  // namespace buddy
+} // namespace buddy
