@@ -282,6 +282,7 @@
       // Crear Generador de Berry
       BerryGenerator = new Blockly.Generator('Berry');
       BerryGenerator.PRECEDENCE = 0;
+      BerryGenerator.INDENT = '  ';
       if (!BerryGenerator.forBlock) {
         BerryGenerator.forBlock = {};
       }
@@ -494,10 +495,110 @@
       workspace.clear();
 
       var lines = scriptText.split('\n');
-      var topBlock = null;
-      var prevBlock = null;
-      var currentHandler = null;
-      var currentTail = null;
+      var stack = [];
+      var topPrevBlock = null;
+
+      function getCurrentScope() {
+        return stack.length > 0 ? stack[stack.length - 1] : null;
+      }
+
+      function parseValueExpr(exprStr) {
+        if (!exprStr) return null;
+        exprStr = exprStr.trim();
+        if (!exprStr) return null;
+
+        var evMatch = exprStr.match(/^ev\s*\[\s*["']?([a-zA-Z0-9_]+)["']?\s*\]$/);
+        if (evMatch) {
+          var evBlock = workspace.newBlock('buddy_ev_field');
+          var fieldVal = "'" + evMatch[1] + "'";
+          evBlock.setFieldValue(fieldVal, 'FIELD');
+          return evBlock;
+        }
+
+        var strMatch = exprStr.match(/^["'](.*)["']$/);
+        if (strMatch) {
+          var txtBlock = workspace.newBlock('text');
+          txtBlock.setFieldValue(strMatch[1], 'TEXT');
+          return txtBlock;
+        }
+
+        if (!isNaN(Number(exprStr))) {
+          var numBlock = workspace.newBlock('math_number');
+          numBlock.setFieldValue(Number(exprStr), 'NUM');
+          return numBlock;
+        }
+
+        var varMatch = exprStr.match(/^[a-zA-Z0-9_]+$/);
+        if (varMatch) {
+          var varBlock = workspace.newBlock('buddy_var_get');
+          varBlock.setFieldValue(varMatch[0], 'VAR');
+          return varBlock;
+        }
+
+        return null;
+      }
+
+      function parseCondition(condStr) {
+        if (!condStr) return null;
+        condStr = condStr.trim();
+
+        var cmpMatch = condStr.match(/^(.*?)\s*(==|!=|<=|>=|<|>)\s*(.*)$/);
+        if (cmpMatch) {
+          var leftExpr = cmpMatch[1];
+          var opStr = cmpMatch[2];
+          var rightExpr = cmpMatch[3];
+
+          var cmpBlock = workspace.newBlock('logic_compare');
+          var opMap = { '==': 'EQ', '!=': 'NEQ', '<': 'LT', '<=': 'LTE', '>': 'GT', '>=': 'GTE' };
+          cmpBlock.setFieldValue(opMap[opStr] || 'EQ', 'OP');
+
+          var leftB = parseValueExpr(leftExpr);
+          if (leftB) {
+            leftB.initSvg();
+            leftB.render();
+            if (cmpBlock.getInput('A') && cmpBlock.getInput('A').connection && leftB.outputConnection) {
+              cmpBlock.getInput('A').connection.connect(leftB.outputConnection);
+            }
+          }
+
+          var rightB = parseValueExpr(rightExpr);
+          if (rightB) {
+            rightB.initSvg();
+            rightB.render();
+            if (cmpBlock.getInput('B') && cmpBlock.getInput('B').connection && rightB.outputConnection) {
+              cmpBlock.getInput('B').connection.connect(rightB.outputConnection);
+            }
+          }
+
+          return cmpBlock;
+        }
+
+        return parseValueExpr(condStr);
+      }
+
+      function attachStatement(block) {
+        block.initSvg();
+        block.render();
+        var scope = getCurrentScope();
+        if (scope) {
+          if (!scope.prevChild) {
+            var input = scope.block.getInput(scope.inputName);
+            if (input && input.connection && block.previousConnection) {
+              input.connection.connect(block.previousConnection);
+            }
+          } else {
+            if (scope.prevChild.nextConnection && block.previousConnection) {
+              scope.prevChild.nextConnection.connect(block.previousConnection);
+            }
+          }
+          scope.prevChild = block;
+        } else {
+          if (topPrevBlock && topPrevBlock.nextConnection && block.previousConnection) {
+            topPrevBlock.nextConnection.connect(block.previousConnection);
+          }
+          topPrevBlock = block;
+        }
+      }
 
       for (var i = 0; i < lines.length; i++) {
         var line = lines[i].trim();
@@ -506,124 +607,135 @@
         var matchOn = line.match(/buddy\.on\s*\(\s*["']([^"']+)["']/);
         if (matchOn) {
           var eventName = matchOn[1];
-          var block = workspace.newBlock('buddy_on');
-          block.setFieldValue(eventName, 'EVENT');
-          block.initSvg();
-          block.render();
+          var onBlock = workspace.newBlock('buddy_on');
+          onBlock.setFieldValue(eventName, 'EVENT');
+          attachStatement(onBlock);
+          stack.push({ block: onBlock, type: 'on', inputName: 'STACK', prevChild: null });
+          continue;
+        }
 
-          if (!topBlock) topBlock = block;
-          if (prevBlock && prevBlock.nextConnection && block.previousConnection) {
-            prevBlock.nextConnection.connect(block.previousConnection);
+        var matchIf = line.match(/^if\s+(.*)$/);
+        if (matchIf) {
+          var condStr = matchIf[1].trim();
+          var ifBlock = workspace.newBlock('controls_if');
+          var condB = parseCondition(condStr);
+          if (condB) {
+            condB.initSvg();
+            condB.render();
+            if (ifBlock.getInput('IF0') && ifBlock.getInput('IF0').connection && condB.outputConnection) {
+              ifBlock.getInput('IF0').connection.connect(condB.outputConnection);
+            }
           }
-          prevBlock = block;
-          currentHandler = block;
-          currentTail = null;
+          attachStatement(ifBlock);
+          stack.push({ block: ifBlock, type: 'if', inputName: 'DO0', prevChild: null });
+          continue;
+        }
+
+        if (line === 'else') {
+          var scope = getCurrentScope();
+          if (scope && (scope.type === 'if' || scope.type === 'elseif')) {
+            stack.pop();
+            var ifBlock = scope.block;
+            ifBlock.elseCount_ = 1;
+            if (typeof ifBlock.updateShape_ === 'function') {
+              ifBlock.updateShape_();
+            }
+            stack.push({ block: ifBlock, type: 'else', inputName: 'ELSE', prevChild: null });
+          }
           continue;
         }
 
         if (line === 'end' || line === 'end)') {
-          currentHandler = null;
-          currentTail = null;
+          if (stack.length > 0) {
+            stack.pop();
+          }
           continue;
         }
 
-        var newChild = null;
         var matchEm = line.match(/buddy\.face\.emotion\s*\(\s*["']([^"']+)["']\s*\)/);
         if (matchEm) {
-          newChild = workspace.newBlock('buddy_emotion');
-          newChild.setFieldValue(matchEm[1], 'EMOTION');
-        } else {
-          var matchLed = line.match(/buddy\.led\.mood\s*\(\s*["']([^"']+)["']\s*\)/);
-          if (matchLed) {
-            newChild = workspace.newBlock('buddy_led_mood');
-            newChild.setFieldValue(matchLed[1], 'MOOD');
-          } else {
-            var matchSay = line.match(/buddy\.say\s*\((.*)\)/);
-            if (matchSay) {
-              newChild = workspace.newBlock('buddy_say');
-              var txtVal = matchSay[1].trim();
-              if (txtVal.startsWith('"') && txtVal.endsWith('"')) {
-                var txtB = workspace.newBlock('text');
-                txtB.setFieldValue(txtVal.slice(1, -1), 'TEXT');
-                txtB.initSvg();
-                txtB.render();
-                if (newChild.getInput('TEXT') && newChild.getInput('TEXT').connection && txtB.outputConnection) {
-                  newChild.getInput('TEXT').connection.connect(txtB.outputConnection);
-                }
-              }
-            } else {
-              var matchAsk = line.match(/buddy\.ask\s*\((.*)\)/);
-              if (matchAsk) {
-                newChild = workspace.newBlock('buddy_ask');
-                var askVal = matchAsk[1].trim();
-                if (askVal.startsWith('"') && askVal.endsWith('"')) {
-                  var askB = workspace.newBlock('text');
-                  askB.setFieldValue(askVal.slice(1, -1), 'TEXT');
-                  askB.initSvg();
-                  askB.render();
-                  if (newChild.getInput('PROMPT') && newChild.getInput('PROMPT').connection && askB.outputConnection) {
-                    newChild.getInput('PROMPT').connection.connect(askB.outputConnection);
-                  }
-                }
-              } else {
-                var matchLog = line.match(/buddy\.log\s*\((.*)\)/);
-                if (matchLog) {
-                  newChild = workspace.newBlock('buddy_log');
-                  var logVal = matchLog[1].trim();
-                  if (logVal.startsWith('"') && logVal.endsWith('"')) {
-                    var logB = workspace.newBlock('text');
-                    logB.setFieldValue(logVal.slice(1, -1), 'TEXT');
-                    logB.initSvg();
-                    logB.render();
-                    if (newChild.getInput('MSG') && newChild.getInput('MSG').connection && logB.outputConnection) {
-                      newChild.getInput('MSG').connection.connect(logB.outputConnection);
-                    }
-                  }
-                } else {
-                  var matchInc = line.match(/^([a-zA-Z0-9_]+)\s*\+=\s*1/);
-                  if (matchInc) {
-                    newChild = workspace.newBlock('buddy_var_inc');
-                    newChild.setFieldValue(matchInc[1], 'VAR');
-                  } else {
-                    var matchSet = line.match(/^([a-zA-Z0-9_]+)\s*=\s*(.*)$/);
-                    if (matchSet && matchSet[1] !== 'var') {
-                      newChild = workspace.newBlock('buddy_var_set');
-                      newChild.setFieldValue(matchSet[1], 'VAR');
-                      var valB = workspace.newBlock('math_number');
-                      valB.setFieldValue(matchSet[2].trim(), 'NUM');
-                      valB.initSvg();
-                      valB.render();
-                      if (newChild.getInput('VALUE') && newChild.getInput('VALUE').connection && valB.outputConnection) {
-                        newChild.getInput('VALUE').connection.connect(valB.outputConnection);
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
+          var emBlock = workspace.newBlock('buddy_emotion');
+          emBlock.setFieldValue(matchEm[1], 'EMOTION');
+          attachStatement(emBlock);
+          continue;
         }
 
-        if (newChild) {
-          newChild.initSvg();
-          newChild.render();
-          if (currentHandler) {
-            var stackInput = currentHandler.getInput('STACK');
-            if (!currentTail && stackInput && stackInput.connection && newChild.previousConnection) {
-              stackInput.connection.connect(newChild.previousConnection);
-            } else if (currentTail && currentTail.nextConnection && newChild.previousConnection) {
-              currentTail.nextConnection.connect(newChild.previousConnection);
-            }
-            currentTail = newChild;
-          } else {
-            if (!topBlock) topBlock = newChild;
-            if (prevBlock && prevBlock.nextConnection && newChild.previousConnection) {
-              prevBlock.nextConnection.connect(newChild.previousConnection);
-            }
-            prevBlock = newChild;
-          }
+        var matchLed = line.match(/buddy\.led\.mood\s*\(\s*["']([^"']+)["']\s*\)/);
+        if (matchLed) {
+          var ledBlock = workspace.newBlock('buddy_led_mood');
+          ledBlock.setFieldValue(matchLed[1], 'MOOD');
+          attachStatement(ledBlock);
+          continue;
         }
 
+        var matchSay = line.match(/buddy\.say\s*\((.*)\)/);
+        if (matchSay) {
+          var sayBlock = workspace.newBlock('buddy_say');
+          var valB = parseValueExpr(matchSay[1]);
+          if (valB) {
+            valB.initSvg();
+            valB.render();
+            if (sayBlock.getInput('TEXT') && sayBlock.getInput('TEXT').connection && valB.outputConnection) {
+              sayBlock.getInput('TEXT').connection.connect(valB.outputConnection);
+            }
+          }
+          attachStatement(sayBlock);
+          continue;
+        }
+
+        var matchAsk = line.match(/buddy\.ask\s*\((.*)\)/);
+        if (matchAsk) {
+          var askBlock = workspace.newBlock('buddy_ask');
+          var askB = parseValueExpr(matchAsk[1]);
+          if (askB) {
+            askB.initSvg();
+            askB.render();
+            if (askBlock.getInput('PROMPT') && askBlock.getInput('PROMPT').connection && askB.outputConnection) {
+              askBlock.getInput('PROMPT').connection.connect(askB.outputConnection);
+            }
+          }
+          attachStatement(askBlock);
+          continue;
+        }
+
+        var matchLog = line.match(/buddy\.log\s*\((.*)\)/);
+        if (matchLog) {
+          var logBlock = workspace.newBlock('buddy_log');
+          var logB = parseValueExpr(matchLog[1]);
+          if (logB) {
+            logB.initSvg();
+            logB.render();
+            if (logBlock.getInput('MSG') && logBlock.getInput('MSG').connection && logB.outputConnection) {
+              logBlock.getInput('MSG').connection.connect(logB.outputConnection);
+            }
+          }
+          attachStatement(logBlock);
+          continue;
+        }
+
+        var matchInc = line.match(/^([a-zA-Z0-9_]+)\s*\+=\s*1/);
+        if (matchInc) {
+          var incBlock = workspace.newBlock('buddy_var_inc');
+          incBlock.setFieldValue(matchInc[1], 'VAR');
+          attachStatement(incBlock);
+          continue;
+        }
+
+        var matchSet = line.match(/^([a-zA-Z0-9_]+)\s*=\s*(.*)$/);
+        if (matchSet && matchSet[1] !== 'var') {
+          var setBlock = workspace.newBlock('buddy_var_set');
+          setBlock.setFieldValue(matchSet[1], 'VAR');
+          var valB = parseValueExpr(matchSet[2]);
+          if (valB) {
+            valB.initSvg();
+            valB.render();
+            if (setBlock.getInput('VALUE') && setBlock.getInput('VALUE').connection && valB.outputConnection) {
+              setBlock.getInput('VALUE').connection.connect(valB.outputConnection);
+            }
+          }
+          attachStatement(setBlock);
+          continue;
+        }
       }
 
       if (workspace) workspace.scrollCenter();
