@@ -69,6 +69,7 @@
     </category>
     <category name="🎭 Acciones Buddy" colour="160">
       <block type="buddy_emotion"></block>
+      <block type="buddy_emotion_expr"></block>
       <block type="buddy_led_mood"></block>
       <block type="buddy_say">
         <value name="TEXT">
@@ -96,6 +97,9 @@
       <block type="buddy_var_set"></block>
       <block type="buddy_var_inc"></block>
       <block type="buddy_var_get"></block>
+      <block type="buddy_size"></block>
+      <block type="buddy_slice"></block>
+      <block type="buddy_raw_expr"></block>
       <block type="text"></block>
       <block type="math_number"></block>
     </category>
@@ -245,16 +249,35 @@
           "tooltip": "Datos del evento recibido"
         },
         {
-          "type": "buddy_var_set",
-          "message0": "asignar %1 = %2",
+          "type": "buddy_emotion_expr",
+          "message0": "mostrar emoción %1",
           "args0": [
-            { "type": "field_input", "name": "VAR", "text": "poke_count" },
+            { "type": "input_value", "name": "EXPR" }
+          ],
+          "previousStatement": null,
+          "nextStatement": null,
+          "colour": 160,
+          "tooltip": "Cambia la cara de Buddy con una variable o expresión"
+        },
+        {
+          "type": "buddy_var_set",
+          "message0": "%1 %2 = %3",
+          "args0": [
+            {
+              "type": "field_dropdown",
+              "name": "KIND",
+              "options": [
+                ["var", "var "],
+                ["asignar", ""]
+              ]
+            },
+            { "type": "field_input", "name": "VAR", "text": "t" },
             { "type": "input_value", "name": "VALUE" }
           ],
           "previousStatement": null,
           "nextStatement": null,
           "colour": 340,
-          "tooltip": "Asigna una variable"
+          "tooltip": "Declara o asigna una variable"
         },
         {
           "type": "buddy_var_inc",
@@ -276,6 +299,38 @@
           "output": null,
           "colour": 340,
           "tooltip": "Obtiene variable"
+        },
+        {
+          "type": "buddy_size",
+          "message0": "tamaño de %1",
+          "args0": [
+            { "type": "input_value", "name": "VALUE" }
+          ],
+          "output": null,
+          "colour": 340,
+          "tooltip": "Longitud o tamaño: size(x)"
+        },
+        {
+          "type": "buddy_slice",
+          "message0": "recortar %1 [%2 .. %3]",
+          "args0": [
+            { "type": "input_value", "name": "STR" },
+            { "type": "field_input", "name": "START", "text": "0" },
+            { "type": "field_input", "name": "END", "text": "" }
+          ],
+          "output": null,
+          "colour": 340,
+          "tooltip": "Recorta un texto: texto[inicio..fin]"
+        },
+        {
+          "type": "buddy_raw_expr",
+          "message0": "código %1",
+          "args0": [
+            { "type": "field_input", "name": "EXPR", "text": "" }
+          ],
+          "output": null,
+          "colour": 340,
+          "tooltip": "Expresión directa de código"
         }
       ]);
 
@@ -312,6 +367,12 @@
         return '  buddy.face.emotion("' + emotion + '")\n';
       });
 
+      registerBerryBlock('buddy_emotion_expr', function (block, generator) {
+        var gen = generator || BerryGenerator;
+        var expr = gen.valueToCode(block, 'EXPR', 0) || '""';
+        return '  buddy.face.emotion(' + expr + ')\n';
+      });
+
       registerBerryBlock('buddy_led_mood', function (block) {
         var mood = block.getFieldValue('MOOD');
         return '  buddy.led.mood("' + mood + '")\n';
@@ -342,9 +403,10 @@
 
       registerBerryBlock('buddy_var_set', function (block, generator) {
         var gen = generator || BerryGenerator;
+        var kind = block.getFieldValue('KIND') || '';
         var varName = block.getFieldValue('VAR');
         var val = gen.valueToCode(block, 'VALUE', 0) || '0';
-        return '  ' + varName + ' = ' + val + '\n';
+        return '  ' + kind + varName + ' = ' + val + '\n';
       });
 
       registerBerryBlock('buddy_var_inc', function (block) {
@@ -355,6 +417,26 @@
       registerBerryBlock('buddy_var_get', function (block) {
         var varName = block.getFieldValue('VAR');
         return [varName, 0];
+      });
+
+      registerBerryBlock('buddy_size', function (block, generator) {
+        var gen = generator || BerryGenerator;
+        var val = gen.valueToCode(block, 'VALUE', 0) || '""';
+        return ['size(' + val + ')', 0];
+      });
+
+      registerBerryBlock('buddy_slice', function (block, generator) {
+        var gen = generator || BerryGenerator;
+        var str = gen.valueToCode(block, 'STR', 0) || 't';
+        var start = block.getFieldValue('START') || '0';
+        var end = block.getFieldValue('END');
+        var range = (end !== undefined && end !== null && end !== '') ? (start + '..' + end) : (start + '..');
+        return [str + '[' + range + ']', 0];
+      });
+
+      registerBerryBlock('buddy_raw_expr', function (block) {
+        var expr = block.getFieldValue('EXPR') || '';
+        return [expr, 0];
       });
 
       registerBerryBlock('text', function (block) {
@@ -374,13 +456,18 @@
 
       registerBerryBlock('controls_if', function (block, generator) {
         var gen = generator || BerryGenerator;
-        var n = 0;
         var code = '';
         var branchCode, conditionCode;
         if (gen.valueToCode) {
-          conditionCode = gen.valueToCode(block, 'IF' + n, 0) || 'false';
-          branchCode = gen.statementToCode(block, 'DO' + n);
+          conditionCode = gen.valueToCode(block, 'IF0', 0) || 'false';
+          branchCode = gen.statementToCode(block, 'DO0');
           code += '  if ' + conditionCode + '\n' + branchCode;
+          var elseifCount = block.elseifCount_ || 0;
+          for (var i = 1; i <= elseifCount; i++) {
+            conditionCode = gen.valueToCode(block, 'IF' + i, 0) || 'false';
+            branchCode = gen.statementToCode(block, 'DO' + i);
+            code += '  elif ' + conditionCode + '\n' + branchCode;
+          }
           if (block.hasElse_ && block.hasElse_()) {
             branchCode = gen.statementToCode(block, 'ELSE');
             code += '  else\n' + branchCode;
@@ -427,9 +514,9 @@
           return;
         }
         if (event.type === Blockly.Events.BLOCK_CREATE ||
-            event.type === Blockly.Events.BLOCK_DELETE ||
-            event.type === Blockly.Events.BLOCK_CHANGE ||
-            event.type === Blockly.Events.BLOCK_MOVE) {
+          event.type === Blockly.Events.BLOCK_DELETE ||
+          event.type === Blockly.Events.BLOCK_CHANGE ||
+          event.type === Blockly.Events.BLOCK_MOVE) {
           if (currentTab === 'visual') {
             isWorkspaceUserModified = true;
             var code = BerryGenerator.workspaceToCode(workspace);
@@ -515,6 +602,35 @@
           return evBlock;
         }
 
+        var sizeMatch = exprStr.match(/^size\s*\((.*)\)$/);
+        if (sizeMatch) {
+          var sizeBlock = workspace.newBlock('buddy_size');
+          var innerB = parseValueExpr(sizeMatch[1]);
+          if (innerB) {
+            innerB.initSvg();
+            innerB.render();
+            if (sizeBlock.getInput('VALUE') && sizeBlock.getInput('VALUE').connection && innerB.outputConnection) {
+              sizeBlock.getInput('VALUE').connection.connect(innerB.outputConnection);
+            }
+          }
+          return sizeBlock;
+        }
+
+        var sliceMatch = exprStr.match(/^([a-zA-Z0-9_]+)\s*\[\s*(\d+)\s*\.\.\s*(\d*)\s*\]$/);
+        if (sliceMatch) {
+          var sliceBlock = workspace.newBlock('buddy_slice');
+          var varB = workspace.newBlock('buddy_var_get');
+          varB.setFieldValue(sliceMatch[1], 'VAR');
+          varB.initSvg();
+          varB.render();
+          if (sliceBlock.getInput('STR') && sliceBlock.getInput('STR').connection && varB.outputConnection) {
+            sliceBlock.getInput('STR').connection.connect(varB.outputConnection);
+          }
+          sliceBlock.setFieldValue(sliceMatch[2], 'START');
+          sliceBlock.setFieldValue(sliceMatch[3] || '', 'END');
+          return sliceBlock;
+        }
+
         var strMatch = exprStr.match(/^["'](.*)["']$/);
         if (strMatch) {
           var txtBlock = workspace.newBlock('text');
@@ -535,6 +651,59 @@
           return varBlock;
         }
 
+        var rawBlock = workspace.newBlock('buddy_raw_expr');
+        rawBlock.setFieldValue(exprStr, 'EXPR');
+        return rawBlock;
+      }
+
+      function findLogicalOp(str) {
+        var inQuote = null;
+        for (var idx = 0; idx < str.length - 1; idx++) {
+          var ch = str[idx];
+          if (ch === '\\' && inQuote) { idx++; continue; }
+          if (ch === '"' || ch === "'") {
+            if (inQuote === ch) inQuote = null;
+            else if (!inQuote) inQuote = ch;
+          } else if (!inQuote) {
+            if ((str[idx] === '&' && str[idx + 1] === '&') || (str[idx] === '|' && str[idx + 1] === '|')) {
+              var op = str.slice(idx, idx + 2);
+              return {
+                left: str.slice(0, idx).trim(),
+                op: op,
+                right: str.slice(idx + 2).trim()
+              };
+            }
+          }
+        }
+        return null;
+      }
+
+      function findComparisonOp(str) {
+        var inQuote = null;
+        for (var idx = 0; idx < str.length; idx++) {
+          var ch = str[idx];
+          if (ch === '\\' && inQuote) { idx++; continue; }
+          if (ch === '"' || ch === "'") {
+            if (inQuote === ch) inQuote = null;
+            else if (!inQuote) inQuote = ch;
+          } else if (!inQuote) {
+            if (str.slice(idx, idx + 2) === '==' || str.slice(idx, idx + 2) === '!=' ||
+              str.slice(idx, idx + 2) === '<=' || str.slice(idx, idx + 2) === '>=') {
+              return {
+                left: str.slice(0, idx).trim(),
+                op: str.slice(idx, idx + 2),
+                right: str.slice(idx + 2).trim()
+              };
+            }
+            if ((ch === '<' || ch === '>') && str[idx + 1] !== '.' && str[idx - 1] !== '.') {
+              return {
+                left: str.slice(0, idx).trim(),
+                op: ch,
+                right: str.slice(idx + 1).trim()
+              };
+            }
+          }
+        }
         return null;
       }
 
@@ -542,31 +711,50 @@
         if (!condStr) return null;
         condStr = condStr.trim();
 
-        var cmpMatch = condStr.match(/^(.*?)\s*(==|!=|<=|>=|<|>)\s*(.*)$/);
-        if (cmpMatch) {
-          var leftExpr = cmpMatch[1];
-          var opStr = cmpMatch[2];
-          var rightExpr = cmpMatch[3];
-
-          var cmpBlock = workspace.newBlock('logic_compare');
-          var opMap = { '==': 'EQ', '!=': 'NEQ', '<': 'LT', '<=': 'LTE', '>': 'GT', '>=': 'GTE' };
-          cmpBlock.setFieldValue(opMap[opStr] || 'EQ', 'OP');
-
-          var leftB = parseValueExpr(leftExpr);
+        var logMatch = findLogicalOp(condStr);
+        if (logMatch) {
+          var logBlock = workspace.newBlock('logic_operation');
+          logBlock.setFieldValue(logMatch.op === '&&' ? 'AND' : 'OR', 'OP');
+          var leftB = parseCondition(logMatch.left);
           if (leftB) {
             leftB.initSvg();
             leftB.render();
-            if (cmpBlock.getInput('A') && cmpBlock.getInput('A').connection && leftB.outputConnection) {
-              cmpBlock.getInput('A').connection.connect(leftB.outputConnection);
+            if (logBlock.getInput('A') && logBlock.getInput('A').connection && leftB.outputConnection) {
+              logBlock.getInput('A').connection.connect(leftB.outputConnection);
             }
           }
-
-          var rightB = parseValueExpr(rightExpr);
+          var rightB = parseCondition(logMatch.right);
           if (rightB) {
             rightB.initSvg();
             rightB.render();
-            if (cmpBlock.getInput('B') && cmpBlock.getInput('B').connection && rightB.outputConnection) {
-              cmpBlock.getInput('B').connection.connect(rightB.outputConnection);
+            if (logBlock.getInput('B') && logBlock.getInput('B').connection && rightB.outputConnection) {
+              logBlock.getInput('B').connection.connect(rightB.outputConnection);
+            }
+          }
+          return logBlock;
+        }
+
+        var cmpMatch = findComparisonOp(condStr);
+        if (cmpMatch) {
+          var cmpBlock = workspace.newBlock('logic_compare');
+          var opMap = { '==': 'EQ', '!=': 'NEQ', '<': 'LT', '<=': 'LTE', '>': 'GT', '>=': 'GTE' };
+          cmpBlock.setFieldValue(opMap[cmpMatch.op] || 'EQ', 'OP');
+
+          var leftVal = parseValueExpr(cmpMatch.left);
+          if (leftVal) {
+            leftVal.initSvg();
+            leftVal.render();
+            if (cmpBlock.getInput('A') && cmpBlock.getInput('A').connection && leftVal.outputConnection) {
+              cmpBlock.getInput('A').connection.connect(leftVal.outputConnection);
+            }
+          }
+
+          var rightVal = parseValueExpr(cmpMatch.right);
+          if (rightVal) {
+            rightVal.initSvg();
+            rightVal.render();
+            if (cmpBlock.getInput('B') && cmpBlock.getInput('B').connection && rightVal.outputConnection) {
+              cmpBlock.getInput('B').connection.connect(rightVal.outputConnection);
             }
           }
 
@@ -625,6 +813,14 @@
         var line = stripComment(lines[i]);
         if (!line) continue;
 
+        if (line.match(/^buddy\.(?:ask|say)\s*\(/) && !line.match(/\)\s*$/)) {
+          while (i + 1 < lines.length && !line.match(/\)\s*$/)) {
+            i++;
+            var nextClean = stripComment(lines[i]);
+            if (nextClean) line += ' ' + nextClean.trim();
+          }
+        }
+
         var matchOn = line.match(/buddy\.on\s*\(\s*["']([^"']+)["']/);
         if (matchOn) {
           var eventName = matchOn[1];
@@ -639,6 +835,28 @@
         if (matchIf) {
           var condStr = matchIf[1].trim();
           var ifBlock = workspace.newBlock('controls_if');
+
+          var elifCount = 0;
+          var hasElse = false;
+          var ifDepth = 0;
+          for (var j = i + 1; j < lines.length; j++) {
+            var nextL = stripComment(lines[j]);
+            if (!nextL) continue;
+            if (nextL.match(/^if\s+/)) ifDepth++;
+            else if (ifDepth === 0 && nextL.match(/^elif\s+/)) elifCount++;
+            else if (ifDepth === 0 && nextL === 'else') hasElse = true;
+            else if (nextL === 'end' || nextL === 'end)') {
+              if (ifDepth > 0) ifDepth--;
+              else break;
+            }
+          }
+
+          ifBlock.elseifCount_ = elifCount;
+          ifBlock.elseCount_ = hasElse ? 1 : 0;
+          if (typeof ifBlock.updateShape_ === 'function') {
+            ifBlock.updateShape_();
+          }
+
           var condB = parseCondition(condStr);
           if (condB) {
             condB.initSvg();
@@ -648,20 +866,36 @@
             }
           }
           attachStatement(ifBlock);
-          stack.push({ block: ifBlock, type: 'if', inputName: 'DO0', prevChild: null });
+          stack.push({ block: ifBlock, type: 'if', curElifIndex: 0, inputName: 'DO0', prevChild: null });
+          continue;
+        }
+
+        var matchElif = line.match(/^elif\s+(.*)$/);
+        if (matchElif) {
+          var scope = getCurrentScope();
+          if (scope && scope.type === 'if') {
+            scope.curElifIndex = (scope.curElifIndex || 0) + 1;
+            scope.inputName = 'DO' + scope.curElifIndex;
+            scope.prevChild = null;
+
+            var condB = parseCondition(matchElif[1].trim());
+            if (condB) {
+              condB.initSvg();
+              condB.render();
+              var inputIf = scope.block.getInput('IF' + scope.curElifIndex);
+              if (inputIf && inputIf.connection && condB.outputConnection) {
+                inputIf.connection.connect(condB.outputConnection);
+              }
+            }
+          }
           continue;
         }
 
         if (line === 'else') {
           var scope = getCurrentScope();
-          if (scope && (scope.type === 'if' || scope.type === 'elseif')) {
-            stack.pop();
-            var ifBlock = scope.block;
-            ifBlock.elseCount_ = 1;
-            if (typeof ifBlock.updateShape_ === 'function') {
-              ifBlock.updateShape_();
-            }
-            stack.push({ block: ifBlock, type: 'else', inputName: 'ELSE', prevChild: null });
+          if (scope && scope.type === 'if') {
+            scope.inputName = 'ELSE';
+            scope.prevChild = null;
           }
           continue;
         }
@@ -673,10 +907,25 @@
           continue;
         }
 
-        var matchEm = line.match(/buddy\.face\.emotion\s*\(\s*["']([^"']+)["']\s*\)/);
+        var matchEm = line.match(/buddy\.face\.emotion\s*\((.*)\)/);
         if (matchEm) {
-          var emBlock = workspace.newBlock('buddy_emotion');
-          emBlock.setFieldValue(matchEm[1], 'EMOTION');
+          var emArg = matchEm[1].trim();
+          var quoteMatch = emArg.match(/^["']([^"']+)["']$/);
+          var emBlock;
+          if (quoteMatch) {
+            emBlock = workspace.newBlock('buddy_emotion');
+            emBlock.setFieldValue(quoteMatch[1], 'EMOTION');
+          } else {
+            emBlock = workspace.newBlock('buddy_emotion_expr');
+            var valB = parseValueExpr(emArg);
+            if (valB) {
+              valB.initSvg();
+              valB.render();
+              if (emBlock.getInput('EXPR') && emBlock.getInput('EXPR').connection && valB.outputConnection) {
+                emBlock.getInput('EXPR').connection.connect(valB.outputConnection);
+              }
+            }
+          }
           attachStatement(emBlock);
           continue;
         }
@@ -742,11 +991,13 @@
           continue;
         }
 
-        var matchSet = line.match(/^([a-zA-Z0-9_]+)\s*=\s*(.*)$/);
-        if (matchSet && matchSet[1] !== 'var') {
+        var matchSet = line.match(/^(?:(var)\s+)?([a-zA-Z0-9_]+)\s*=\s*(.*)$/);
+        if (matchSet) {
+          var isVar = matchSet[1] === 'var';
           var setBlock = workspace.newBlock('buddy_var_set');
-          setBlock.setFieldValue(matchSet[1], 'VAR');
-          var valB = parseValueExpr(matchSet[2]);
+          setBlock.setFieldValue(isVar ? 'var ' : '', 'KIND');
+          setBlock.setFieldValue(matchSet[2], 'VAR');
+          var valB = parseValueExpr(matchSet[3]);
           if (valB) {
             valB.initSvg();
             valB.render();
