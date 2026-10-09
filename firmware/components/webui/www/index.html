@@ -600,9 +600,30 @@
         }
       }
 
+      function stripComment(str) {
+        var inQuote = null;
+        for (var idx = 0; idx < str.length; idx++) {
+          var ch = str[idx];
+          if (ch === '\\' && inQuote) {
+            idx++;
+            continue;
+          }
+          if (ch === '"' || ch === "'") {
+            if (inQuote === ch) {
+              inQuote = null;
+            } else if (!inQuote) {
+              inQuote = ch;
+            }
+          } else if (ch === '#' && !inQuote) {
+            return str.slice(0, idx).trim();
+          }
+        }
+        return str.trim();
+      }
+
       for (var i = 0; i < lines.length; i++) {
-        var line = lines[i].trim();
-        if (!line || line.startsWith('#')) continue;
+        var line = stripComment(lines[i]);
+        if (!line) continue;
 
         var matchOn = line.match(/buddy\.on\s*\(\s*["']([^"']+)["']/);
         if (matchOn) {
